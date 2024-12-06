@@ -7,14 +7,11 @@
 # axtreme
 Development repo for the RaPiD project with extensions for Ax and BoTorch.
 
------
-
 ## Repo Structure
-- `src/`: Main package directory
-- `tests/`: Test directory
-- `examples/`: Examples and demos
-- `tutorials/`: Tutorial notebooks
-
+* `src/`: Main package directory
+* `tests/`: Test directory
+* `examples/`: Examples and demos
+* `tutorials/`: Tutorial notebooks
 
 ## Development Setup
 
@@ -71,7 +68,6 @@ uv sync
 > `uv sync` for the first time. Optionally, you can create your own using e.g. `uv venv`, before running
 > `uv sync`.
 
-
 ### 5. (Optional) Install CUDA support
 Run `uv sync` with option `--extra cuda` to in addition install torch with CUDA support:
 ```sh
@@ -124,14 +120,15 @@ uv run pre-commit install
 All pre-commit hooks configured in `.pre-commit-config.yaml` will now run each time you commit changes.
 
 pre-commit can also manually be invoked at anytime, using:
-```shell
+```sh
 uv run pre-commit run --all-files
 ```
 
 To skip the pre-commit validation on commits (e.g. when intentionally committing broken code), run:
-```shell
-uv run git commit -m “MSG” --no-verify
+```sh
+uv run git commit -m <MSG> --no-verify
 ```
+
 
 ### 8. Test that the installation works
 To test that the installation works, run pytest in the project root folder:
@@ -139,61 +136,54 @@ To test that the installation works, run pytest in the project root folder:
 uv run pytest
 ```
 
------
-
 You should now be ready to start developing!
 
 ## Development Tools
 You should familiarize yourself with the following tools used in this project. The tools can be configured in the `pyproject.toml` file;
-- ruff (linting + formatting)
-- mypy (static type checking)
-- pytest (unit testing)
-- pre-commit (code quality checks and fixes on commit)
+* ruff (linting + formatting)
+* mypy (static type checking)
+* pytest (unit testing)
+* pre-commit (code quality checks and fixes on commit)
 
-A brief overview of the tools is provided below;
+A brief overview of the tools is provided below:
 
-### Formatting
-#### ruff
+### ruff Formatter
 Format the code according to the formatting rules in the `pyproject.toml` file:
-```shell
+```sh
 uv run ruff format
 ```
 
-
-### Linting
-#### ruff
+### ruff Linter
 Check the code for issues according to the linting rules in the `pyproject.toml` file:
-```shell
+```sh
 uv run ruff check
 ```
 Fix any issues that can be fixed automatically:
-```shell
+```sh
 uv run ruff check --fix
 ```
 
-#### mypy
+### mypy
 Perform static type checking on source code:
-```shell
+```sh
 uv run mypy
 ```
 
-### Documentation
-
-See axtreme's [documentation][axtreme_docs] on GitHub pages.
-
-### Testing
-#### pytest
+### pytest
 Run all tests (with coverage) using:
-```shell
+```sh
 uv run pytest
 ```
 Generate a coverage report in addition to running the tests:
-```shell
+```sh
 uv run pytest --cov=rapid --cov-branch --cov-report=json --cov-report=term-missing
 ```
 
-# Working notes:
-## Design decisions:
+## Documentation
+
+See axtreme's [documentation][axtreme_docs] on GitHub pages.
+
+## Notes on Design Decisions
 
 ### Imports
 We are breaking this rule, and often import classes etc. This follows the approach taken in packages such as `pytorch` `botorch` etc.
@@ -201,20 +191,19 @@ We are breaking this rule, and often import classes etc. This follows the approa
 [Google code standard](https://google.github.io/styleguide/pyguide.html#22-imports) suggests:
 > "Use import statements for packages and modules only, not for individual types, classes, or functions"
 #### pros
-- often package with similar names (e.g utils), but the actual method required is clear diferentiated.
-- Less verbose
+* often package with similar names (e.g utils), but the actual method required is clear diferentiated.
+* Less verbose
 #### cons
-- Breaking some recommended practice, not sure what they impact will be.
+* Breaking some recommended practice, not sure what they impact will be.
 
 ### Numpy vs. Tensors
-- Numpy: Working with ax/in general
-- Torch: working inside or touching "Botorch Layer", or anywhere need gpu or grad
+* Numpy: Working with ax/in general
+* Torch: working inside or touching "Botorch Layer", or anywhere need gpu or grad
 #### pros
-- If work mostly with tensor need to constantly convert them to numpy when winteracting with ax, plot etc.
+* If work mostly with tensor need to constantly convert them to numpy when winteracting with ax, plot etc.
 #### cons
-- numpy and tensors have slightly different interfaces
-- Means we don't have one default way of working
-
+* numpy and tensors have slightly different interfaces
+* Means we don't have one default way of working
 
 ## Meta
 
