@@ -24,8 +24,6 @@ ignore = [
     # Ruff lint rules temporarily ignored, but which should be reactivated and resolved in the future.
 
     # Ruff lint rules considered as too strict and hence ignored
-    "ANN101",  # Missing type annotation for `self` argument in instance methods (NOTE: also listed as deprecated by Ruff)
-    "ANN102",  # Missing type annotation for `cls` argument in class methods (NOTE: also listed as deprecated by Ruff)
     "FIX002",  # Line contains TODO, consider resolving the issue
     "TD003",   # Missing issue link on the line following a TODO
     "S101",    # Use of assert detected
@@ -44,8 +42,8 @@ ignore = [
     # (uncomment to ignore)
     # "N803",   # Argument name should be lowercase (NOTE: ignore to allow capital arguments (e.g X) in scientific code)
     # "N806",   # Variable in function should be lowercase (NOTE: ignore to allow capital variables (e.g X) in scientific code)
-    "TCH002", # Move third-party import into a type-checking block  <- @TODO: Reactivate at a later point in time  @ ClaasRostock, 2024-08-30
-    "TCH003", # Move standard library import into a type-checking block  <- @TODO: Reactivate at a later point in time  @ ClaasRostock, 2024-08-30
+    "TC002", # Move third-party import into a type-checking block  <- @TODO: Reactivate at a later point in time  @ ClaasRostock, 2024-08-30
+    "TC003", # Move standard library import into a type-checking block  <- @TODO: Reactivate at a later point in time  @ ClaasRostock, 2024-08-30
 
     # Ruff lint rules known to be in conflict with Ruff formatter.
     # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
