@@ -34,7 +34,9 @@ else:
 _: Any
 
 # %%
-_results_dir = Path(__file__).parent / "results/brute_force"
+_results_dir: Path = Path(__file__).parent / "results" / "brute_force"
+if not _results_dir.exists():
+    _results_dir.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
