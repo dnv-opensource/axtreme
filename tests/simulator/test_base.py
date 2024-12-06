@@ -3,7 +3,7 @@ import contextlib
 
 import pytest
 
-from axtreme.simulator.module2 import str_to_int
+from axtreme.simulator.base import str_to_int
 
 
 @pytest.mark.parametrize(
