@@ -22,24 +22,25 @@ packages = [
 
 [project]
 name = "axtreme"
-version = "0.1.9"
-description = "example package short description."
+version = "0.1.0"
+description = "A development library for the RaPiD project"
 readme = "README.md"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Author One", email = "author.one@dnv.com" },
-    { name = "Author Two", email = "author.two@dnv.com" },
+    { name = "Sebastian Winter", email = "sebastian.winter@dnv.com" },
+    { name = "Kristoffer Skare", email = "kristoffer.skare@dnv.com" },
+    { name = "Magnus Kristiansen", email = "magnus.kristiansen@dnv.com" },
 ]
 maintainers = [
-    { name = "Author Three", email = "author.three@dnv.com" },
+    { name = "Claas Rostock", email = "claas.rostock@dnv.com" },
+    { name = "Jorge Luis Mendez", email = "jorge.luis.mendez@dnv.com" },
 ]
 keywords = [
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Operating System :: Microsoft :: Windows",
@@ -52,8 +53,14 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "dictIO>=0.3.4",
+    "ax-platform==0.3.7",      # includes most stuff, e.g. numpy, pandas, scikit-learn, scipy, plotly, and tqdm
     "numpy>=1.26,<2.0",
+    "matplotlib>=3.9",
+    "statsmodels>=0.14.2",
+    "filterpy>=1.4.5",
+    "numba>=0.60.0",
+    "dataclasses-json>=0.6.7",
+    "gitpython>=3.1.43",
     "torch==2.4.1",
 ]
 
@@ -85,9 +92,12 @@ dev-dependencies = [
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-parser>=4.0",
     "furo>=2024.8",
+    "beautifulsoup4>=4.12",
+    "jinja2>=3.1",
     "nbconvert>=7.16",
     "jupyter>=1.0",
     "jupyter-client>=8.6",
+    "pyarrow>=17.0",
     "pandas-stubs>=2.2",
     "types-tqdm>=4.66",
     "types-psutil>=6.0",
@@ -98,10 +108,6 @@ find-links = [
 native-tls = true
 
 
-[project.scripts]
-axtreme = "axtreme.cli.axtreme:main"
-
-
 [tool.mypy]
 plugins = [
     "numpy.typing.mypy_plugin",
@@ -110,7 +116,8 @@ mypy_path = "stubs"
 files = [
     "src",
     "tests",
-    "demos",
+    "examples",
+    "tutorials",
 ]
 exclude = [
     "^src/folder_to_be_excluded/",
@@ -127,7 +134,8 @@ stubPath = "stubs"
 include = [
     "src",
     "tests",
-    "demos",
+    "examples",
+    "tutorials",
 ]
 exclude = [
     "src/folder_to_be_excluded",
@@ -137,11 +145,11 @@ typeCheckingMode = "basic"
 useLibraryCodeForTypes = true
 reportMissingParameterType = "error"
 reportUnknownParameterType = "warning"
-reportUnknownMemberType = "warning"                # consider to set to `false` if you work a lot with matplotlib and pandas, which are both not properly typed and known to trigger this warning
+reportUnknownMemberType = false                    # consider to set to `false` if you work a lot with matplotlib and pandas, which are both not properly typed and known to trigger this warning
 reportMissingTypeArgument = "error"
 reportPropertyTypeMismatch = "error"
 reportFunctionMemberAccess = "warning"
-reportPrivateUsage = "warning"
+reportPrivateUsage = false                         # <- TODO: set back to "warning" and resolve issues raised, instead of globally dectivating the rule. CLAROS, 2024-09-18
 reportTypeCommentUsage = "warning"
 reportIncompatibleMethodOverride = "warning"
 reportIncompatibleVariableOverride = "error"
@@ -168,3 +176,4 @@ reportUnnecessaryTypeIgnoreComment = "information"
 # reportConstantRedefinition = "warning"
 # reportImportCycles = "warning"
 # reportImplicitStringConcatenation = "warning"
+reportArgumentType = false # <- TODO: delete and resolve issues raised, instead of globally dectivating the rule. CLAROS, 2024-09-18

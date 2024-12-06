@@ -151,10 +151,13 @@ cython_debug/
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 
-# Inside /demos folder: ignore temporary logs, db's and local data files
-demos/**/*.log
-demos/**/*.db
-demos/**/*.nc
+# Inside /examples folder: ignore temporary logs, db's and local data files
+examples/**/*.log
+examples/**/*.db
+examples/**/*.nc
+# Don't track individuals results
+examples/**/results
 
 # Cmake generated files
 CMakeUserPresets.json
+
