@@ -1,3 +1,7 @@
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
+# sourcery skip: no-conditionals-in-tests
+
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
@@ -6,7 +10,6 @@ import torch
 from botorch.models import SingleTaskGP
 from botorch.models.model import Model
 from botorch.optim import optimize_acqf
-from helpers import check_posterior, check_same_model_data
 
 from axtreme.acquisition.qoi_look_ahead import (
     QoILookAhead,
@@ -17,6 +20,7 @@ from axtreme.acquisition.qoi_look_ahead import (
 from axtreme.plotting.gp_fit import plot_1d_model
 from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.utils.gradient import is_smooth_1d
+from tests.acquisition.helpers import check_posterior, check_same_model_data
 from tests.helpers import (
     single_task_fixed_noise_m_1,
     single_task_fixed_noise_m_1_outcome_transform,
@@ -56,7 +60,7 @@ def test_get_average_observation_noise():
 )
 def test_obersvational_noise_getting_is_smooth(
     method: Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor],
-):
+) -> None:
     """Check the function getting yvar_new is smooth, which is important for optimisation.
 
     _get_fantasy_observation_noise using the an underlying helper function to get the yvar_new.
@@ -69,7 +73,7 @@ def test_obersvational_noise_getting_is_smooth(
 
     yvar_new_function = method(new_points, train_x, train_yvar)
 
-    is_smooth_1d(new_points.flatten(), yvar_new_function.flatten())
+    _ = is_smooth_1d(new_points.flatten(), yvar_new_function.flatten())
 
 
 @pytest.mark.parametrize(
@@ -94,14 +98,14 @@ def test_batch_lookahead_correct_reshape(b: None | int, n: int, d: int, m: int, 
     """
     ### set up the objects
     # Set up the object
-    # TODO(@ClaasRostock): Not sure if should be using mock/patch libs here. seemed like overkill.
-    acqf = QoILookAhead(model=None, qoi_estimator=None)
+    # TODO @ClaasRostock: Not sure if should be using mock/patch libs here. seemed like overkill.
+    acqf = QoILookAhead(model=None, qoi_estimator=None)  # type: ignore[arg-type]
 
     # mock the lookahead function. Simply return the first dimension in y
     def lookahead(x_point: torch.Tensor, y_point: torch.Tensor, yvar_point: torch.Tensor | None) -> torch.Tensor:  # noqa: ARG001
         return y_point[0]
 
-    acqf.lookahead = lookahead  # type: ignore  # noqa: PGH003
+    acqf.lookahead = lookahead  # type: ignore[method-assign]
 
     # Create the inputs
     if b is None:
@@ -201,7 +205,7 @@ def test_conditional_update_exception_checking(
         error_message: substring expected in the error message.
     """
     with pytest.raises(Exception, match=error_message):
-        _ = conditional_update(model, X=x, Y=y, observation_noise=observation_noise)
+        _ = conditional_update(model, X=x, Y=y, observation_noise=observation_noise)  # type: ignore[arg-type]
 
 
 def test_conditional_update_warning_checking_input_output_transforms():
@@ -231,7 +235,7 @@ def test_forward_grad():
             - rough example optimising a problem with gradient through Ax.
 
     """
-    acqf = QoILookAhead(model=None, qoi_estimator=None)
+    acqf = QoILookAhead(model=None, qoi_estimator=None)  # type: ignore[arg-type]
     x = torch.ones(1, 1, 1, requires_grad=True)
 
     with pytest.raises(NotImplementedError):
@@ -285,7 +289,7 @@ def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
         _ = plt.plot(x.flatten(), scores.flatten())
         plt.pause(5)
 
-    is_smooth_1d(x.flatten(), scores.flatten())
+    _ = is_smooth_1d(x.flatten(), scores.flatten())
 
 
 # def to a stochasticity test

@@ -1,7 +1,8 @@
 import pytest
 import torch
 from botorch.models import SingleTaskGP
-from helpers import check_posterior, check_same_model_data
+
+from tests.acquisition.helpers import check_posterior, check_same_model_data
 
 
 def get_train_x():

@@ -9,6 +9,8 @@ Brute force values are available for this usecase because we create a mock simul
 typically not possible.
 """
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 # %%
 import json
 from dataclasses import asdict, dataclass
@@ -25,7 +27,7 @@ from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
 # This allows us to run as interactive and as a module.
 if __name__ == "__main__":
-    from simulator import _true_loc_func, _true_scale_func
+    from simulator import _true_loc_func, _true_scale_func  # type: ignore[import-not-found]
 else:
     from .simulator import _true_loc_func, _true_scale_func
 # for typing

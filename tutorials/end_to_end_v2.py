@@ -17,6 +17,7 @@ import sys
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -103,7 +104,9 @@ def gumbel_helper(x: np.ndarray[tuple[int, int], np.dtype[np.float64]], q: float
     return gumbel_r.ppf(q=q, loc=_true_loc_func(x), scale=_true_scale_func(x))
 
 
-quantile_plotters = [partial(gumbel_helper, q=q) for q in [0.1, 0.5, 0.9]]
+quantile_plotters: list[Callable[[np.ndarray[Any, np.dtype[np.float64]]], np.ndarray[Any, np.dtype[np.float64]]]] = [
+    partial(gumbel_helper, q=q) for q in [0.1, 0.5, 0.9]
+]
 response_distribution = plot_surface_over_2d_search_space(plot_search_space, funcs=quantile_plotters)
 _ = [fig.add_trace(data, row=1, col=3) for data in response_distribution.data]
 
@@ -622,10 +625,6 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:  # noqa: D
 exp_gp_bruteforce = make_exp()
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_gp_bruteforce.search_space, seed=5)
-
-
-def sobol_generator_run(_: Experiment) -> GeneratorRun:  # noqa: D103
-    return sobol.gen(1)
 
 
 qoi_results_look_ahead = run_trials(

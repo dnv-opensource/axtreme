@@ -16,7 +16,11 @@ from axtreme.qoi.gp_bruteforce import GPBruteForce
 
 
 def plot_distribution(
-    df: pd.DataFrame, ax: Axes, n_hists: int = 3, col_name: str = "samples", brute_force: float | None = None
+    df: pd.DataFrame,
+    ax: Axes,
+    n_hists: int = 3,
+    col_name: str = "samples",
+    brute_force: float | None = None,
 ) -> None:
     """Helperfor plotting histograms (on the given ax) of dataframe cells containing lists.
 

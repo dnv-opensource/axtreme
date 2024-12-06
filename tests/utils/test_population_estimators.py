@@ -1,9 +1,12 @@
+# sourcery skip: no-loop-in-tests
+
 # %%
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import torch
 from scipy.stats import t as scipy_student_t
+from torch import Tensor, tensor
 from torch.distributions import Distribution, Gumbel, StudentT, Uniform, Weibull
 
 from axtreme.utils.population_estimators import estimate_pdf_value_from_sample, sample_mean_se, sample_median_se
@@ -83,9 +86,9 @@ def test_sample_median_se(true_dist: Distribution, n_samples_per_est: int = 50, 
         true_dist: The true ditribution from which to generate samples from. The method has no restriction of the type
           of sample distribution.
     """
-    true_median = true_dist.icdf(0.5)
+    true_median = true_dist.icdf(tensor(0.5))
 
-    samples = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
+    samples: Tensor = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
 
     # If the confidence bounds are good, the true median should fall in the range [0.025, 0.975] 95% of the time.
     # Therefore in our results, we should see q(true_median) exceeding 0.975 or below 0.025 5% percent of the time.
@@ -122,9 +125,10 @@ def test_estimate_pdf_value_from_sample_at_median(true_dist: Distribution, n_est
     """
     n_samples_per_est = 50
 
-    q = 0.5
-    x = true_dist.icdf(q)
-    true_pdf_value = true_dist.log_prob(x).exp()
+    q: float = 0.5
+    _x: Tensor = true_dist.icdf(tensor(q))
+    true_pdf_value = true_dist.log_prob(_x).exp()
+    x: float = float(_x)
 
     samples = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
 
@@ -141,9 +145,10 @@ def visualise_performance_of_estimate_pdf_value_from_sample():
     """Show the bias and variance of `estimate_pdf_value_from_sample` an n_samples increases"""
 
     def test_estimate_pdf_value_from_sample(true_dist: Distribution, n_samples_per_est: int = 50, n_ests: int = 5000):
-        q = 0.5
-        x = true_dist.icdf(q)
-        true_pdf_value = true_dist.log_prob(x).exp()
+        q: float = 0.5
+        _x: Tensor = true_dist.icdf(tensor(q))
+        true_pdf_value = true_dist.log_prob(_x).exp()
+        x: float = float(_x)
 
         samples = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
 
@@ -171,7 +176,9 @@ def visualise_performance_of_estimate_pdf_value_from_sample():
     n_samples_list = [11, 22, 44, 88, 176]
 
     # Placeholder for results
-    results = {name: {"n_samples": [], "true_pdf_value": [], "mean_est": [], "cov": []} for name in dists}
+    results: dict[str, dict[str, list[float]]] = {
+        name: {"n_samples": [], "true_pdf_value": [], "mean_est": [], "cov": []} for name in dists
+    }
 
     # Run estimation
     for n_samples_per_est in n_samples_list:

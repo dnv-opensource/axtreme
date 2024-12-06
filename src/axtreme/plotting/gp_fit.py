@@ -62,7 +62,8 @@ def plot_surface_over_2d_search_space(
 
     # Create a 3D surface plot using Plotly
     surfaces = []
-    colour_list = colors or ([None] * len(funcs))
+    _none_list: list[None] = [None] * len(funcs)
+    colour_list: list[str] | list[None] = colors or _none_list
     for func_result, color in zip(func_results, colour_list, strict=True):
         surface = plotly.graph_objects.Surface(
             x=x1_values,

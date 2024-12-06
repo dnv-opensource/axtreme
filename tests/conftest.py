@@ -1,3 +1,5 @@
+# sourcery skip: dont-import-test-modules
+
 import logging
 import os
 import warnings
@@ -13,8 +15,7 @@ from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
 
 from axtreme.plotting.gp_fit import plot_1d_model
-
-from . import helpers
+from tests import helpers
 
 CUDA_AVAILABLE: bool = torch.cuda.is_available()
 
@@ -37,9 +38,9 @@ def chdir() -> None:
 
 @pytest.fixture(scope="class", params=TORCH_DEVICES)
 def vary_torch_default_device(request: pytest.FixtureRequest):
-    torch.set_default_device(request.param)  # pyright: ignore[reportUnknownMemberType]
+    torch.set_default_device(request.param)
     yield
-    torch.set_default_device("cpu")  # reset to default device after test  # pyright: ignore[reportUnknownMemberType]
+    torch.set_default_device("cpu")  # reset to default device after test
 
 
 @pytest.fixture(scope="package", autouse=True)

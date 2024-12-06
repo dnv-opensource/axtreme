@@ -114,13 +114,14 @@ class QoILookAhead(AcquisitionFunction):
 
         if x_grad:
             msg = (
-                "Gradient tracking is not yet supported, please set `no_grad=True` in optimser settings."
+                "Gradient tracking is not yet supported, please set `no_grad=True` in optimizer settings."
                 "See tutorials/ax_botorch/botrch_minimal_example_custom_acq.ipynb for details"
             )
             raise NotImplementedError(msg)
 
         # .model.posterior(X) turns gradient back on unless torch.no_grad is used.
         with ExitStack() as stack:
+            # sourcery skip: remove-redundant-if
             if not x_grad:
                 stack.enter_context(torch.no_grad())
 
@@ -160,7 +161,12 @@ class QoILookAhead(AcquisitionFunction):
 
             return lookahead_var
 
-    def _batch_lookahead(self, x: torch.Tensor, y: torch.Tensor, yvar: torch.Tensor) -> torch.Tensor:
+    def _batch_lookahead(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        yvar: torch.Tensor,
+    ) -> torch.Tensor:
         """Process a batch of lookahead points.
 
         Args:
@@ -179,12 +185,12 @@ class QoILookAhead(AcquisitionFunction):
         y_flat = y.reshape(-1, m)
         yvar_flat = yvar.reshape(-1, m)
 
-        results = []
+        _results = []
         for x_point, y_point, yvar_point in zip(x_flat, y_flat, yvar_flat, strict=True):
             qoi_var = self.lookahead(x_point, y_point, yvar_point)
-            results.append(qoi_var)
+            _results.append(qoi_var)
 
-        results = torch.tensor(results)
+        results = torch.tensor(_results)
         results = results.reshape(*batch_shape, n)
         return results
 
@@ -279,8 +285,8 @@ def conditional_update(model: Model, X: torch.Tensor, Y: torch.Tensor, observati
     elif isinstance(model.likelihood, GaussianLikelihood):
         if observation_noise is not None:
             msg = (
-                "Conditional update of the observation_noise is not supported for SingleTaskGPs with Homoskedastic",
-                " Noise. This combination leads to inconsistent updated of the GP.",
+                "Conditional update of the observation_noise is not supported for SingleTaskGPs with Homoskedastic "
+                "Noise. This combination leads to inconsistent updated of the GP."
             )
             raise ValueError(msg)
     else:

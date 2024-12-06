@@ -4,6 +4,8 @@ Note: Generally the user needs to define this themselves from `env_data` and `si
 the distribution and search spaces to use as part of that.
 """
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 # %%
 from ax import (
     Experiment,
@@ -12,14 +14,14 @@ from ax import (
 from ax.core import ParameterType, RangeParameter
 from scipy.stats import gumbel_r
 
-import axtreme
+from axtreme.experiment import make_experiment as _make_experiment
 from axtreme.simulator import Simulator
 from axtreme.simulator import utils as sim_utils
 
 # @ClaasRostock: I do this a bit thoughout the examples.<>.problem dirctories. Any tidier solutions?
 # This allows us to run as interactive and as a module.
 if __name__ == "__main__":
-    import simulator
+    import simulator  # type: ignore[import-not-found]
 else:
     from . import simulator
 
@@ -44,4 +46,4 @@ SIM: Simulator = sim_utils.simulator_from_func(simulator.dummy_simulator_functio
 def make_experiment() -> Experiment:
     """Convience function return a fresh Experiement of this problem."""
     # TODO(sw 2024-11-19): set this to a lower value.
-    return axtreme.experiment.make_experiment(SIM, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)
+    return _make_experiment(SIM, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)

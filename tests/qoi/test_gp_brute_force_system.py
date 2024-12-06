@@ -11,12 +11,15 @@ individual steps, and contain additional detail regarding the motivation for the
 This script is designed to be run interactively as well as though pytest.
 """
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 # %%
 import json
 import time
 from datetime import datetime
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -53,6 +56,8 @@ from examples.demo2d.problem.experiment import make_experiment
 # %%
 # TODO(sw 2024-11-19): To fit better with pytest this should be global
 N_ENV_SAMPLES_PER_PERIOD = 1000
+
+_: Any
 
 
 # %% Prep plotting function to include brute force
@@ -200,9 +205,9 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     jobs_output_file = output_dir / "qoi_job_results.json" if output_dir else None
 
     # Problem constants # TODO(sw): come back with a cleaner way to do this
-    brute_force_qoi = brute_force.collect_or_calculate_results(
-        period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000
-    ).median()
+    brute_force_qoi: float = float(
+        brute_force.collect_or_calculate_results(period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000).median()
+    )
 
     _data = env_data.collect_data()
     env_dataset: Dataset[NDArray[np.float64]] = MinimalDataset(_data.to_numpy())
@@ -693,7 +698,10 @@ def get_dataloader(dataset: Dataset[NDArray[np.float64]], n_periods: int, batch_
     generator = torch.Generator()
     _ = generator.manual_seed(7)
     replacement_sampler = RandomSampler(
-        dataset, num_samples=n_periods * N_ENV_SAMPLES_PER_PERIOD, generator=generator, replacement=True
+        data_source=dataset,  # type: ignore[arg-type]
+        num_samples=n_periods * N_ENV_SAMPLES_PER_PERIOD,
+        generator=generator,
+        replacement=True,
     )
     batch_sampler_rand = BatchInvariantSampler2d(
         sampler=replacement_sampler, batch_shape=torch.Size([n_periods, batch_size])

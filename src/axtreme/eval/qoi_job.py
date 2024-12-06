@@ -1,5 +1,7 @@
 """Classes to organize the evaluation of a QoIs."""
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 # %%
 import time
 from dataclasses import dataclass, field
@@ -42,9 +44,9 @@ class QoIJobResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # Implementation from dataclasses_json. Method stub to assist type checkers
-    def to_dict(self) -> dict[str, Any]: ...  # noqa: D102
+    def to_dict(self) -> dict[str, Any]: ...  # type: ignore[empty-body]  # noqa: D102
 
-    def from_dict(self) -> "QoIJobResult": ...  # noqa: D102
+    def from_dict(self) -> "QoIJobResult": ...  # type: ignore[empty-body]  # noqa: D102
 
 
 @dataclass

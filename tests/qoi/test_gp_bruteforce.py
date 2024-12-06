@@ -1,5 +1,8 @@
 """Test for gp_bruteforce."""
 
+# sourcery skip: no-loop-in-tests
+# sourcery skip: no-conditionals-in-tests
+
 # %%
 from collections.abc import Callable
 
@@ -11,6 +14,7 @@ from botorch.models.deterministic import GenericDeterministicModel, PosteriorMea
 from botorch.models.ensemble import EnsembleModel
 from botorch.sampling import IIDNormalSampler
 from botorch.sampling.index_sampler import IndexSampler
+from torch import Tensor
 
 from axtreme.plotting.gp_fit import plot_1d_model
 from axtreme.qoi.gp_bruteforce import GPBruteForce
@@ -214,7 +218,7 @@ class TestProcessBatch:
     def test__process_batch(self, pass_through_gp: GenericDeterministicModel, pass_through_sampler: IndexSampler):
         """There is a low amount of our own code in"""
         qoi = GPBruteForce(
-            env_iterable=None,  # Shouldn't be used in this test
+            env_iterable=[],  # Shouldn't be used in this test
             posterior_sampler=pass_through_sampler,
         )
 
@@ -480,7 +484,7 @@ def test_posterior_samples_erd_samples_grouped_by_posterior():
 
 
 def test_grad():
-    env_iterable = []
+    env_iterable: list[Tensor] = []
     posterior_sampler = IndexSampler(torch.Size([1]))
 
     with pytest.raises(NotImplementedError):
@@ -488,7 +492,7 @@ def test_grad():
 
 
 def test_gpu():
-    env_iterable = []
+    env_iterable: list[Tensor] = []
     posterior_sampler = IndexSampler(torch.Size([1]))
 
     with pytest.raises(NotImplementedError):

@@ -1,8 +1,10 @@
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 
-from axtreme.eval.object_logging import unpack_object, unpack_object_str_content
+from axtreme.eval.object_logging import NestedDict, unpack_object, unpack_object_str_content
 
 
 @dataclass
@@ -66,14 +68,14 @@ def test_unpack_object_depth_2(l1: Level1):
 
 def test_unpack_object_custom_config_depth_0(l1: Level1):
     """Custom config will be found ar depth 0 and override the entire result."""
-    config = {Level1: lambda _: {"junk1": "junk1"}}
+    config: dict[type, Callable[[Any], NestedDict]] = {Level1: lambda _: {"junk1": "junk1"}}
     unpacked = unpack_object(l1, custom_unpacking_config=config, depth=2)
     assert unpacked == {"junk1": "junk1"}
 
 
 def test_unpack_object_custom_config_depth_1(l1: Level1):
     """Custom config will overide the portion of the result"""
-    config = {Level2: lambda _: {"junk1": "junk1"}}
+    config: dict[type, Callable[[Any], NestedDict]] = {Level2: lambda _: {"junk1": "junk1"}}
     unpacked = unpack_object(l1, custom_unpacking_config=config, depth=2)
 
     # fmt: off

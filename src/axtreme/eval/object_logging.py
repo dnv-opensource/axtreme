@@ -5,6 +5,8 @@ provides helper for unpacking nested objects for logging. It default implementat
 right level of granuality can be achieved.
 """
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 # %%
 from collections.abc import Callable
 from typing import Any, TypeAlias, TypeVar, Union
@@ -19,7 +21,9 @@ NestedStrDict: TypeAlias = dict[str, Union[str, "NestedStrDict"]]
 
 # %%
 def unpack_object(
-    obj: object, custom_unpacking_config: None | dict[type, Callable[[Any], NestedDict]] = None, depth: int = 1
+    obj: object,
+    custom_unpacking_config: dict[type, Callable[[Any], NestedDict]] | None = None,
+    depth: int = 1,
 ) -> NestedDict:
     """Recursively extracts attributes from objects.
 
@@ -58,9 +62,7 @@ def unpack_object(
     """  # noqa: E501
     custom_unpacking_config = custom_unpacking_config or {}
 
-    # Base case: Object (or parent) is in the process config
-    item_unpacker = get_closest_class_value(obj, custom_unpacking_config)
-    if item_unpacker:
+    if item_unpacker := get_closest_class_value(obj, custom_unpacking_config):
         return item_unpacker(obj)
     # Base case: out of depth - not further processing
     if depth == 0:
@@ -75,10 +77,11 @@ def unpack_object(
     attributes = public_vars(obj)
 
     # Process if: tthe child can be unpacked.
-    updated_attribute = {}
+    # sourcery skip: dict-comprehension
+    updated_attribute: dict[str, Any] = {}
     for attr_name, attr_value in attributes.items():
         # Check if can be expanded or there is a specific processing function.
-        if hasattr(attr_value, "__dict__") or get_closest_class_value(attr_value, custom_unpacking_config):
+        if hasattr(attr_value, "__dict__") or get_closest_class_value(attr_value, custom_unpacking_config):  # type: ignore[arg-type]
             updated_attribute[attr_name] = unpack_object(attr_value, custom_unpacking_config, depth=depth - 1)
 
     return {"__class__": type(obj), **attributes, **updated_attribute}
@@ -97,10 +100,7 @@ def get_closest_class_value(obj: object, dic: dict[type, T]) -> T | None:
     Return:
         The value in stored in the dictionary for the closest class, or None if no match is found.
     """
-    for cls in obj.__class__.mro():
-        if cls in dic:
-            return dic[cls]
-    return None  # No match found
+    return next((dic[cls] for cls in obj.__class__.mro() if cls in dic), None)
 
 
 def public_vars(obj: object) -> dict[str, Any]:

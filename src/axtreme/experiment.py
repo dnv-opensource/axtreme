@@ -1,6 +1,6 @@
 """Helper functions for ax Experiments."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any, cast
 
 import numpy as np
@@ -84,7 +84,7 @@ def add_sobol_points_to_experiment(experiment: Experiment, n_iter: int = 5, seed
 def add_metric_data_to_experiment(
     experiment: Experiment,
     parameterizations: Iterable[TParameterization],
-    metric_data: Iterable[dict[str, float | tuple[float, float | None] | dict[str, float | None]]],
+    metric_data: Iterable[Mapping[str, float | tuple[float, float | None] | dict[str, float | None]]],
 ) -> tuple[Data, int]:
     """Add metric data to an experiment.
 
@@ -114,7 +114,7 @@ def add_metric_data_to_experiment(
     # Only attach the parameterizations that are in the search space
     # Only use the metric data for the parameterizations that are in the search space
     validated_parameterizations: list[TParameterization] = []
-    validated_metric_data: list[dict[str, float | tuple[float, float | None] | dict[str, float | None]]] = []
+    validated_metric_data: list[Mapping[str, float | tuple[float, float | None] | Mapping[str, float | None]]] = []
     for parameterization, metric_data_for_param in zip(parameterizations, metric_data, strict=False):
         try:
             experiment.search_space.validate_membership(parameterization)
@@ -330,7 +330,11 @@ def add_json_data_to_experiment(
 
         # The metrics should always be of type dict[str, dict[str, float]]
         # So we use cast to tell mypy that we know this is the case
-        trial_metrics: list[dict[str, dict[str, float]]] = [
-            cast(dict[str, dict[str, float]], arm_data["metrics"]) for arm_data in trial_arms.values()
+        trial_metrics: list[dict[str, dict[str, float | None]]] = [
+            cast(dict[str, dict[str, float | None]], arm_data["metrics"]) for arm_data in trial_arms.values()
         ]
-        _ = add_metric_data_to_experiment(experiment, trial_parameters, trial_metrics)
+        _ = add_metric_data_to_experiment(
+            experiment=experiment,
+            parameterizations=trial_parameters,
+            metric_data=trial_metrics,
+        )
