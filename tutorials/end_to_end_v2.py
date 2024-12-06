@@ -184,13 +184,13 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 
 
 # %%
-"""Solving the problem with Rax.
+"""Solving the problem with axtreme.
 
 In the section above we have explored the key inputs to the axtreme package (Simulator and Environment data), and
-calculated the brute force answer to our QoI. In this section we will show how Rax can be used to achieve the same
+calculated the brute force answer to our QoI. In this section we will show how axtreme can be used to achieve the same
 result, while running the simulator far fewer times.
 
-Rax is comprised of 3 main step:
+axtreme is comprised of 3 main step:
 - Define the problem in the Ax framework:
 - Create a surrogate model: (this happens automatically once the problem has been defined in Ax).
 - Estimate the Qoi: Estimate the QoI (and our confidence) using the surrogate model.
@@ -313,7 +313,7 @@ reflected in our QoI estimate. Lets demonstrate how the estiamte chages as we ad
 it becomes more certain.
 
 In the following we make use of an existing QoI Estimator. It works in a very similar way to the brute force estimate,
-except it uses the surrogate model to make predictions, rather than the simulator. Rax provides a number of
+except it uses the surrogate model to make predictions, rather than the simulator. axtreme provides a number of
 QoIEstimators for common tasks, but users can also create custom QoIEstimator for their specific problems. Details can
 be found #TODO(sw 2024-11-22): link to tutorial on how to create a custom QoIEstimator).
 
