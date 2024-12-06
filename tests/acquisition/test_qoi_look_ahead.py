@@ -7,11 +7,6 @@ from botorch.models import SingleTaskGP
 from botorch.models.model import Model
 from botorch.optim import optimize_acqf
 from helpers import check_posterior, check_same_model_data
-from tests.helpers import (
-    single_task_fixed_noise_m_1,
-    single_task_fixed_noise_m_1_outcome_transform,
-    single_task_homo_noise_m_1,
-)
 
 from axtreme.acquisition.qoi_look_ahead import (
     QoILookAhead,
@@ -22,6 +17,11 @@ from axtreme.acquisition.qoi_look_ahead import (
 from axtreme.plotting.gp_fit import plot_1d_model
 from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.utils.gradient import is_smooth_1d
+from tests.helpers import (
+    single_task_fixed_noise_m_1,
+    single_task_fixed_noise_m_1_outcome_transform,
+    single_task_homo_noise_m_1,
+)
 
 
 def test_get_closest_observational_noise():
@@ -214,7 +214,7 @@ def test_conditional_update_warning_checking_input_output_transforms():
 
 
 def test_forward_grad():
-    r"""Test the acquistion function correctly handles gradient information.
+    r"""Test the acquisition function correctly handles gradient information.
 
     This is currently not tested so function should raise not yet implemented error.
 
@@ -242,9 +242,9 @@ def test_forward_grad():
 # The underling module has no params to check either.
 
 
-@pytest.mark.integration()
-def test_acquistion_function_is_smooth(*, visual_inspect: bool = False):
-    """Assuming the requirement detailed in the the class docs are met, the acquistion fucntion produced should be
+@pytest.mark.integration
+def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
+    """Assuming the requirement detailed in the the class docs are met, the acquisition fucntion produced should be
     smooth.
     """
 
@@ -292,11 +292,11 @@ def test_acquistion_function_is_smooth(*, visual_inspect: bool = False):
 
 
 # TODO(sw 2024-11-27): This should be updated to use the default params registered in qoi_look_ahead.py
-# NOTE: we could also use a more complicated acquistion function surface and show that it works?
+# NOTE: we could also use a more complicated acquisition function surface and show that it works?
 #   I think that is a litle bit out of scope. At that point you just have line and you're checking the optimiser can
 #   reach it?
 #   The checks for qoi smoothness should be done seperately, as we know their requriements
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
     """Make a QoI that only cares about reducing the variance as a single point.
 
@@ -342,7 +342,7 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
         # This is how many different start location will be tried by the optimiser
         num_restarts=5,
         # TODO(sw 2024-11-13): confirm the impact of this paramerter
-        # Think this required when using a MCAcquisitionFunction (e.g the Acquistion function output at x is noisey).
+        # Think this required when using a MCAcquisitionFunction (e.g the Acquisition function output at x is noisey).
         # Controls how many time to repeat an x
         raw_samples=100,
         # Key parameter to control if optimisation should use gradient from the acquisiton fucntion

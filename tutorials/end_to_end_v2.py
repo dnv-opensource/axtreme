@@ -394,7 +394,7 @@ In the plots above we see QoI uncertainty can be reduced by adding training data
 obtain a similar reduction in uncertainty with fewer training point. We do this by picking new points intelligently.
 
 First we perform DoE using a space filling design (Sobol). This is the baseline that DoE should be able to imporve on.
-We then run DoE using our custom acquistion function (QoILookAhead), and compare results.
+We then run DoE using our custom acquisition function (QoILookAhead), and compare results.
 """
 
 
@@ -493,11 +493,11 @@ qoi_results_sobol = run_trials(
 
 # %%
 """ Cusom acqusition function:
-We now set up the components required for the Custom acquistion function.
+We now set up the components required for the Custom acquisition function.
 
-NOTE: It is important to understand the behaviour of the acquistion function, as this has implication for the
+NOTE: It is important to understand the behaviour of the acquisition function, as this has implication for the
 optimisation arguements used. The parameters set here are a robust option that do not assume a smooth function.
-If you can gaurentee the acquistion function is smooth this should be updated to use more effeceint methods.
+If you can gaurentee the acquisition function is smooth this should be updated to use more effeceint methods.
 """
 # %%
 """Optional: Explore optimisation settings
@@ -533,7 +533,7 @@ x1 = torch.linspace(0, 1, point_per_dim)
 x2 = torch.linspace(0, 1, point_per_dim)
 grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
 grid = torch.stack([grid_x1, grid_x2], dim=-1)
-# make turn into a shape that can be processsed by the acquistion function
+# make turn into a shape that can be processsed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, qoi_estimator_gp_brute_force)
 scores = acqusition(x_candidates)

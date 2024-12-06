@@ -33,8 +33,8 @@ class QoILookAhead(AcquisitionFunction):
     The design point that results in the lowest variance QoI is considered the most desireable.
 
     Note on Optimisation:
-        Optimising the AcquistionFunction is an important part of the DoE process. The stochasticity and smoothness of
-        the acquistion function determine what optimisers can be used. This acquistion function has the following
+        Optimising the AcquisitionFunction is an important part of the DoE process. The stochasticity and smoothness of
+        the acquisition function determine what optimisers can be used. This acquisition function has the following
         properties with the default setup:
 
     Smoothness:
@@ -528,7 +528,7 @@ def _argparse_qoi_look_ahead(
         - `ax.BotorchModel.gen(..., torch_opt_config: TorchOptimConfig)`
             - Same way TorchModelBridge convert x data from ax type to tensors, the config type is converted.
         [Internally that leads to the following being called]
-        - `ax.Acquistion.optimise(..., opt_options)`
+        - `ax.Acquisition.optimise(..., opt_options)`
             - where `opt_options = torch_opt_config.model_gen_options.optimize_kwargs`
         [Internally this leads to the following being called]
         - `botorch.optim.optimize_acqf(..., opt_options_with_defaults)`
