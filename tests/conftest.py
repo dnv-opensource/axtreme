@@ -99,6 +99,7 @@ def logger() -> logging.Logger:
     """Fixture that returns the logger object."""
     return logging.getLogger()
 
+
 @pytest.fixture(
     params=[
         helpers.single_task_homo_noise_m_1(),
