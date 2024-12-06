@@ -5,33 +5,15 @@
 [![docs](https://img.shields.io/github/actions/workflow/status/dnv-opensource/axtreme/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][axtreme_docs]
 
 # axtreme
-axtreme is an example package
+Development repo for the RaPiD project with extensions for Ax and BoTorch.
 
-axtreme supports
-* ..
+-----
 
-
-## Installation
-
-```sh
-pip install axtreme
-```
-
-## Usage Example
-
-API:
-
-```py
-from axtreme import ...
-```
-
-CLI:
-
-```sh
-axtreme ...
-```
-
-_For more examples and usage, please refer to axtreme's [documentation][axtreme_docs]._
+## Repo Structure
+- `src/`: Main package directory
+- `tests/`: Test directory
+- `examples/`: Examples and demos
+- `tutorials/`: Tutorial notebooks
 
 
 ## Development Setup
@@ -55,7 +37,7 @@ uv self update
 ```
 
 ### 2. Install Python
-This project requires Python 3.10 or later. <br>
+This project requires Python 3.11 or later. <br>
 If you don't already have a compatible version installed on your machine, the probably most comfortable way to install Python is through `uv`:
 ```sh
 uv python install
@@ -73,18 +55,31 @@ Clone the axtreme repository into your local development directory:
 ```sh
 git clone https://github.com/dnv-opensource/axtreme path/to/your/dev/axtreme
 ```
+Change into the project directory after cloning:
+```sh
+cd axtreme
+```
 
 ### 4. Install dependencies
 Run `uv sync` to create a virtual environment and install all project dependencies into it:
 ```sh
 uv sync
 ```
+> **Note**: Using `--no-dev` will omit installing development dependencies.
+
+> **Note**: `uv` will create a new virtual environment called `.venv` in the project root directory when running
+> `uv sync` for the first time. Optionally, you can create your own using e.g. `uv venv`, before running
+> `uv sync`.
+
 
 ### 5. (Optional) Install CUDA support
 Run `uv sync` with option `--extra cuda` to in addition install torch with CUDA support:
 ```sh
 uv sync --extra cuda
 ```
+> **Note**: The exact version of `torch` that is installed by default depends on the system you are using. E.g., Linux
+> will install the CUDA version by default, while Windows and macOS will install the CPU version.
+
 
 Alternatively, you can manually install torch with CUDA support.
 _Note 1_: Do this preferably _after_ running `uv sync`. That way you ensure a virtual environment exists, which is a prerequisite before you install torch with CUDA support using below `uv pip install` command.
@@ -128,6 +123,15 @@ uv run pre-commit install
 
 All pre-commit hooks configured in `.pre-commit-config.yaml` will now run each time you commit changes.
 
+pre-commit can also manually be invoked at anytime, using:
+```shell
+uv run pre-commit run --all-files
+```
+
+To skip the pre-commit validation on commits (e.g. when intentionally committing broken code), run:
+```shell
+uv run git commit -m “MSG” --no-verify
+```
 
 ### 8. Test that the installation works
 To test that the installation works, run pytest in the project root folder:
@@ -135,20 +139,93 @@ To test that the installation works, run pytest in the project root folder:
 uv run pytest
 ```
 
+-----
+
+You should now be ready to start developing!
+
+## Development Tools
+You should familiarize yourself with the following tools used in this project. The tools can be configured in the `pyproject.toml` file;
+- ruff (linting + formatting)
+- mypy (static type checking)
+- pytest (unit testing)
+- pre-commit (code quality checks and fixes on commit)
+
+A brief overview of the tools is provided below;
+
+### Formatting
+#### ruff
+Format the code according to the formatting rules in the `pyproject.toml` file:
+```shell
+uv run ruff format
+```
+
+
+### Linting
+#### ruff
+Check the code for issues according to the linting rules in the `pyproject.toml` file:
+```shell
+uv run ruff check
+```
+Fix any issues that can be fixed automatically:
+```shell
+uv run ruff check --fix
+```
+
+#### mypy
+Perform static type checking on source code:
+```shell
+uv run mypy
+```
+
+### Documentation
+
+See axtreme's [documentation][axtreme_docs] on GitHub pages.
+
+### Testing
+#### pytest
+Run all tests (with coverage) using:
+```shell
+uv run pytest
+```
+Generate a coverage report in addition to running the tests:
+```shell
+uv run pytest --cov=rapid --cov-branch --cov-report=json --cov-report=term-missing
+```
+
+# Working notes:
+## Design decisions:
+
+### Imports
+We are breaking this rule, and often import classes etc. This follows the approach taken in packages such as `pytorch` `botorch` etc.
+#### Definition
+[Google code standard](https://google.github.io/styleguide/pyguide.html#22-imports) suggests:
+> "Use import statements for packages and modules only, not for individual types, classes, or functions"
+#### pros
+- often package with similar names (e.g utils), but the actual method required is clear diferentiated.
+- Less verbose
+#### cons
+- Breaking some recommended practice, not sure what they impact will be.
+
+### Numpy vs. Tensors
+- Numpy: Working with ax/in general
+- Torch: working inside or touching "Botorch Layer", or anywhere need gpu or grad
+#### pros
+- If work mostly with tensor need to constantly convert them to numpy when winteracting with ax, plot etc.
+#### cons
+- numpy and tensors have slightly different interfaces
+- Means we don't have one default way of working
+
+
 ## Meta
 
 Copyright (c) 2024 [DNV](https://www.dnv.com) AS. All rights reserved.
 
-Author One - [@LinkedIn](https://www.linkedin.com/in/authorone) - author.one@dnv.com
+Sebastian Winter - sebastian.winter@dnv.com
 
-Author Two - [@LinkedIn](https://www.linkedin.com/in/authortwo) - author.two@dnv.com
+Kristoffer Skare - kristoffer.skare@dnv.com
 
-Author Three - [@LinkedIn](https://www.linkedin.com/in/authorthree) - author.three@dnv.com
+Magnus Kristiansen - magnus.kristiansen@dnv.com
 
-@TODO: (1) Adapt to chosen license (or delete if no license is applied). <br>
-@TODO: (2) Adapt or delete the license file (LICENSE.md) <br>
-@TODO: (3) Adapt or delete the license entry in pyproject.toml <br>
-@TODO: (4) Adapt below line to chosen license <br>
 Distributed under the MIT license. See [LICENSE](LICENSE.md) for more information.
 
 [https://github.com/dnv-opensource/axtreme](https://github.com/dnv-opensource/axtreme)
