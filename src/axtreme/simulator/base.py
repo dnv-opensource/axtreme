@@ -1,38 +1,25 @@
-"""Utility functions for string to integer conversion."""
+"""Define the simulator interface downsteam axtreme components expect."""
 
-import logging
+from typing import Protocol, runtime_checkable
 
-__ALL__ = ["str_to_int"]
-
-logger = logging.getLogger(__name__)
+import numpy as np
 
 
-def str_to_int(value: str) -> int:
-    """Convert string to integer.
+@runtime_checkable
+class Simulator(Protocol):
+    """A protocol for (simulation) models."""
 
-    This function converts a string to an integer.
-    The passed in string must represent a valid integer value.
+    def __call__(
+        self, x: np.ndarray[tuple[int, int], np.dtype[np.float64]], n_simulations_per_point: int = 1
+    ) -> np.ndarray[tuple[int, int, int], np.dtype[np.float64]]:
+        """Evaluate the model at given points.
 
-    Parameters
-    ----------
-    value : str
-        the string literal to be converted to integer
+        Args:
+            x: An array of shape (n_points, n_input_dims) of points at which to evaluate the model.
+            n_simulations_per_point: The number of simulations to run at each point. Expected to have a default value.
 
-    Returns
-    -------
-    int
-        the resulting integer
-
-    Raises
-    ------
-    ValueError
-        if conversion to integer is not possible, i.e. the string literal does not represent a valid integer number.
-    """
-    logger.debug(f"function str_to_int() in simulator called with argument {value}")
-    result: int
-    try:
-        result = int(value)
-    except ValueError as e:
-        logger.exception(f"ValueError raised in function str_to_int() in simulator. input was: {value}")
-        raise ValueError from e
-    return result
+        Returns:
+            An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
+            points.
+        """
+        ...

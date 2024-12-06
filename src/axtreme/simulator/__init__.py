@@ -1,1 +1,2 @@
-"""Sub-package 2."""
+"""Sub-package simulator"""
+from axtreme.simulator.base import Simulator
