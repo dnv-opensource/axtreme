@@ -15,15 +15,15 @@ if TYPE_CHECKING:
 class LocalMetadataMetric(Metric):
     """This metric retrieves its results form the trial metadata.
 
-    The simple example run the simultion within this function call (e.g. `see <https://ax.dev/tutorials/gpei_hartmann_developer.html#8.-Defining-custom-metrics>`_)
+    The simple example run the simultion within this function call
+    (e.g. `see <https://ax.dev/tutorials/gpei_hartmann_developer.html#8.-Defining-custom-metrics>`_)
     In general, this method should only 'fetch' the results from somewhere else where they have been run.
     For example, Runner deploys simulation of remote, this connects to remote and collects result.
     This is local implementation of this patter, where results are stored on trail metadata.
 
     This is useful when:
-
     - Running a single simulation produces multiple output metrics
-      (meaning the simulation doesn't need to be run as many times)
+    (meaning the simulation doesn't need to be run as many times)
     - Want to execute the simulation when `trail.run()` is called
 
     Note:
@@ -32,10 +32,9 @@ class LocalMetadataMetric(Metric):
     Background:
 
     Flow:
-    commi
-        - trial.run() called, internally call the runner, and puts the resulting data into metadata
-        - Later Metric.fetch_trial_data(trial) is called Therefore, Metric has access to all the "bookkeeping"
-          trial information directly, the only thing that should be in metadata is run result.
+    - trial.run() called, internally call the runner, and puts the resulting data into metadata
+    - Later Metric.fetch_trial_data(trial) is called Therefore, Metric has access to all the "bookkeeping"
+    trial information directly, the only thing that should be in metadata is run result.
     """
 
     # TODO(sw): Make it explictly support single arm trial
