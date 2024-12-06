@@ -74,9 +74,10 @@ html_logo = "_static/DNV_logo_RGB.jpg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,
-    "special-members": True,
+    # "special-members": True,
     # TODO(sw 2024-12-5): using "inherited-members" might be a more elegant want to achieve the below.
-    "exclude-members": "__weakref__, __init__, __annotations__, __abstractmethods__, __module__, __parameters__, __subclasshook__",
+    # "exclude-members": "__weakref__, __init__, __annotations__, __abstractmethods__, __module__, __parameters__, __subclasshook__",
+    "exclude-members": "__weakref__",
 }
 autodoc_preserve_defaults = True
 

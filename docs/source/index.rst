@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-axtreme: Development repo for the RaPiD project with extensions for Ax and BoTorch.
-===================================================================================
+axtreme Documentation
+=====================
 
 .. toctree::
    :maxdepth: 4
@@ -12,10 +12,10 @@ axtreme: Development repo for the RaPiD project with extensions for Ax and BoTor
 
    README
    introduction
-   usecase_offshorewind
    getting_started
    basic_concepts/basic_concepts
-   tutorial/tutorial
+   gpbruteforce
+   usecase_offshorewind
    CHANGELOG
    LICENSE
    api
