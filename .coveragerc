@@ -1,10 +1,10 @@
 [paths]
 source =
-    src/my_package
-    */site-packages/my_package
+    src/axtreme
+    */site-packages/axtreme
 
 [run]
-source = my_package
+source = axtreme
 branch = True
 
 [report]

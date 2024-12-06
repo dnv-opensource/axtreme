@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 only-include = [
-    "src/my_package",
+    "src/axtreme",
     "tests",
     ".coveragerc",
     ".editorconfig",
@@ -17,11 +17,11 @@ only-include = [
 
 [tool.hatch.build.targets.wheel]
 packages = [
-    "src/my_package",
+    "src/axtreme",
 ]
 
 [project]
-name = "my-package"
+name = "axtreme"
 version = "0.1.9"
 description = "example package short description."
 readme = "README.md"
@@ -63,11 +63,11 @@ cuda = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dnv-innersource/my-package"
-Documentation = "https://dnv-innersource.github.io/my-package/README.html"
-Repository = "https://github.com/dnv-innersource/my-package.git"
-Issues = "https://github.com/dnv-innersource/my-package/issues"
-Changelog = "https://github.com/dnv-innersource/my-package/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/dnv-innersource/axtreme"
+Documentation = "https://dnv-innersource.github.io/axtreme/README.html"
+Repository = "https://github.com/dnv-innersource/axtreme.git"
+Issues = "https://github.com/dnv-innersource/axtreme/issues"
+Changelog = "https://github.com/dnv-innersource/axtreme/blob/main/CHANGELOG.md"
 
 
 [tool.uv]
@@ -99,7 +99,7 @@ native-tls = true
 
 
 [project.scripts]
-my-package = "my_package.cli.my_package:main"
+axtreme = "axtreme.cli.axtreme:main"
 
 
 [tool.mypy]

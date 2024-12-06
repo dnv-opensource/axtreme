@@ -22,5 +22,5 @@ def int_to_str(value: int) -> str:
     str
         the resulting string
     """
-    logger.debug(f"function int_to_str() in subpackage1 called with argument {value}")
+    logger.debug(f"function int_to_str() in acquisition called with argument {value}")
     return str(value)

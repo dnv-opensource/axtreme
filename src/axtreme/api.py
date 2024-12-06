@@ -1,4 +1,4 @@
-"""my_package API."""
+"""axtreme API."""
 
 import logging
 import os
@@ -6,10 +6,10 @@ from pathlib import Path
 
 from dictIO import DictReader
 
-from my_package.subpackage1.module1 import int_to_str
-from my_package.subpackage2.module2 import str_to_int
+from axtreme.acquisition.qoi_look_ahead import int_to_str
+from axtreme.simulator.base import str_to_int
 
-__ALL__ = ["run", "MyPackageProcess"]
+__ALL__ = ["run", "AxtremeProcess"]
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +19,14 @@ def run(
     *,
     option: bool = False,
 ) -> None:
-    """Run the my-package process.
+    """Run the axtreme process.
 
-    Run the my-package process and .. (long description).
+    Run the axtreme process and .. (long description).
 
     Parameters
     ----------
     config_file : Union[str, os.PathLike[str]]
-        file containing the my-package configuration
+        file containing the axtreme configuration
     option : bool, optional
         if True, does something differently, by default False
 
@@ -44,16 +44,16 @@ def run(
         raise FileNotFoundError(config_file)
 
     if option:
-        logger.info("option is True. my-package process will do something differently.")
+        logger.info("option is True. axtreme process will do something differently.")
 
-    process = MyPackageProcess(config_file)
+    process = AxtremeProcess(config_file)
     process.run()
 
     return
 
 
-class MyPackageProcess:
-    """Top level class encapsulating the my-package process."""
+class AxtremeProcess:
+    """Top level class encapsulating the axtreme process."""
 
     def __init__(
         self,
@@ -67,11 +67,11 @@ class MyPackageProcess:
         return
 
     def run(self) -> None:
-        """Run the my-package process.
+        """Run the axtreme process.
 
-        Runs the my-package process in a self-terminated loop.
+        Runs the axtreme process in a self-terminated loop.
         """
-        # Run my-package process until termination is flagged
+        # Run axtreme process until termination is flagged
         while not self.terminate:
             self._run_process()
             self.terminate = self._run_number >= self._max_number_of_runs
@@ -111,7 +111,7 @@ class MyPackageProcess:
         return
 
     def _run_process(self) -> None:
-        """Execute a single run of the my-package process."""
+        """Execute a single run of the axtreme process."""
         self._run_number += 1
 
         logger.info(f"Start run {self._run_number}")

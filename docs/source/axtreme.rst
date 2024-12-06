@@ -1,4 +1,4 @@
-my-package package
+axtreme package
 ==================
 
 Subpackages
@@ -9,9 +9,9 @@ Subpackages
    :template: custom-module.rst
    :recursive:
 
-   my_package.subpackage1
-   my_package.subpackage2
-   my_package.utils
+   axtreme.acquisition
+   axtreme.simulator
+   axtreme.utils
 
 
 Modules
@@ -22,4 +22,4 @@ Modules
    :template: custom-module.rst
    :recursive:
 
-   my_package.api
+   axtreme.api

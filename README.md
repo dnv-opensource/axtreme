@@ -1,20 +1,20 @@
-[![pypi](https://img.shields.io/pypi/v/my-package.svg?color=blue)](https://pypi.python.org/pypi/my-package)
-[![versions](https://img.shields.io/pypi/pyversions/my-package.svg?color=blue)](https://pypi.python.org/pypi/my-package)
-[![license](https://img.shields.io/pypi/l/my-package.svg)](https://github.com/dnv-innersource/my-package/blob/main/LICENSE)
-![ci](https://img.shields.io/github/actions/workflow/status/dnv-innersource/my-package/.github%2Fworkflows%2Fnightly_build.yml?label=ci)
-[![docs](https://img.shields.io/github/actions/workflow/status/dnv-innersource/my-package/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][my_package_docs]
+[![pypi](https://img.shields.io/pypi/v/axtreme.svg?color=blue)](https://pypi.python.org/pypi/axtreme)
+[![versions](https://img.shields.io/pypi/pyversions/axtreme.svg?color=blue)](https://pypi.python.org/pypi/axtreme)
+[![license](https://img.shields.io/pypi/l/axtreme.svg)](https://github.com/dnv-innersource/axtreme/blob/main/LICENSE)
+![ci](https://img.shields.io/github/actions/workflow/status/dnv-innersource/axtreme/.github%2Fworkflows%2Fnightly_build.yml?label=ci)
+[![docs](https://img.shields.io/github/actions/workflow/status/dnv-innersource/axtreme/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][axtreme_docs]
 
-# my-package
-my-package is an example package
+# axtreme
+axtreme is an example package
 
-my-package supports
+axtreme supports
 * ..
 
 
 ## Installation
 
 ```sh
-pip install my-package
+pip install axtreme
 ```
 
 ## Usage Example
@@ -22,16 +22,16 @@ pip install my-package
 API:
 
 ```py
-from my_package import ...
+from axtreme import ...
 ```
 
 CLI:
 
 ```sh
-my-package ...
+axtreme ...
 ```
 
-_For more examples and usage, please refer to my-package's [documentation][my_package_docs]._
+_For more examples and usage, please refer to axtreme's [documentation][axtreme_docs]._
 
 
 ## Development Setup
@@ -69,9 +69,9 @@ winget install --id Python.Python
 or you can download and install Python from the [python.org](https://www.python.org/downloads/) website.
 
 ### 3. Clone the repository
-Clone the my-package repository into your local development directory:
+Clone the axtreme repository into your local development directory:
 ```sh
-git clone https://github.com/dnv-innersource/my-package path/to/your/dev/my-package
+git clone https://github.com/dnv-innersource/axtreme path/to/your/dev/axtreme
 ```
 
 ### 4. Install dependencies
@@ -151,11 +151,11 @@ Author Three - [@LinkedIn](https://www.linkedin.com/in/authorthree) - author.thr
 @TODO: (4) Adapt below line to chosen license <br>
 Distributed under the MIT license. See [LICENSE](LICENSE.md) for more information.
 
-[https://github.com/dnv-innersource/my-package](https://github.com/dnv-innersource/my-package)
+[https://github.com/dnv-innersource/axtreme](https://github.com/dnv-innersource/axtreme)
 
 ## Contributing
 
-1. Fork it (<https://github.com/dnv-innersource/my-package/fork>) (Note: this is currently disabled for this repo. For DNV internal development, continue with the next step.)
+1. Fork it (<https://github.com/dnv-innersource/axtreme/fork>) (Note: this is currently disabled for this repo. For DNV internal development, continue with the next step.)
 2. Create an issue in your GitHub repo
 3. Create your branch based on the issue number and type (`git checkout -b issue-name`)
 4. Evaluate and stage the changes you want to commit (`git add -i`)
@@ -166,4 +166,4 @@ Distributed under the MIT license. See [LICENSE](LICENSE.md) for more informatio
 For your contribution, please make sure you follow the [STYLEGUIDE](STYLEGUIDE.md) before creating the Pull Request.
 
 <!-- Markdown link & img dfn's -->
-[my_package_docs]: https://dnv-innersource.github.io/my-package/README.html
+[axtreme_docs]: https://dnv-innersource.github.io/axtreme/README.html

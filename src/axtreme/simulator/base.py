@@ -28,11 +28,11 @@ def str_to_int(value: str) -> int:
     ValueError
         if conversion to integer is not possible, i.e. the string literal does not represent a valid integer number.
     """
-    logger.debug(f"function str_to_int() in subpackage2 called with argument {value}")
+    logger.debug(f"function str_to_int() in simulator called with argument {value}")
     result: int
     try:
         result = int(value)
     except ValueError as e:
-        logger.exception(f"ValueError raised in function str_to_int() in subpackage2. input was: {value}")
+        logger.exception(f"ValueError raised in function str_to_int() in simulator. input was: {value}")
         raise ValueError from e
     return result
