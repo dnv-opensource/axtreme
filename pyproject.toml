@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 only-include = [
-    "src/my_package",
+    "src/axtreme",
     "tests",
     ".coveragerc",
     ".editorconfig",
@@ -17,7 +17,7 @@ only-include = [
 
 [tool.hatch.build.targets.wheel]
 packages = [
-    "src/my_package",
+    "src/axtreme",
 ]
 
 [project]
@@ -99,7 +99,7 @@ native-tls = true
 
 
 [project.scripts]
-axtreme = "my_package.cli.my_package:main"
+axtreme = "axtreme.cli.axtreme:main"
 
 
 [tool.mypy]

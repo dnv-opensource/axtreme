@@ -1,4 +1,4 @@
-"""my_package API."""
+"""axtreme API."""
 
 import logging
 import os
@@ -6,8 +6,8 @@ from pathlib import Path
 
 from dictIO import DictReader
 
-from my_package.subpackage1.module1 import int_to_str
-from my_package.subpackage2.module2 import str_to_int
+from axtreme.subpackage1.module1 import int_to_str
+from axtreme.subpackage2.module2 import str_to_int
 
 __ALL__ = ["run", "MyPackageProcess"]
 

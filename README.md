@@ -2,7 +2,7 @@
 [![versions](https://img.shields.io/pypi/pyversions/axtreme.svg?color=blue)](https://pypi.python.org/pypi/axtreme)
 [![license](https://img.shields.io/pypi/l/axtreme.svg)](https://github.com/dnv-innersource/axtreme/blob/main/LICENSE)
 ![ci](https://img.shields.io/github/actions/workflow/status/dnv-innersource/axtreme/.github%2Fworkflows%2Fnightly_build.yml?label=ci)
-[![docs](https://img.shields.io/github/actions/workflow/status/dnv-innersource/axtreme/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][my_package_docs]
+[![docs](https://img.shields.io/github/actions/workflow/status/dnv-innersource/axtreme/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][axtreme_docs]
 
 # axtreme
 axtreme is an example package
@@ -22,7 +22,7 @@ pip install axtreme
 API:
 
 ```py
-from my_package import ...
+from axtreme import ...
 ```
 
 CLI:
@@ -31,7 +31,7 @@ CLI:
 axtreme ...
 ```
 
-_For more examples and usage, please refer to axtreme's [documentation][my_package_docs]._
+_For more examples and usage, please refer to axtreme's [documentation][axtreme_docs]._
 
 
 ## Development Setup
@@ -166,4 +166,4 @@ Distributed under the MIT license. See [LICENSE](LICENSE.md) for more informatio
 For your contribution, please make sure you follow the [STYLEGUIDE](STYLEGUIDE.md) before creating the Pull Request.
 
 <!-- Markdown link & img dfn's -->
-[my_package_docs]: https://dnv-innersource.github.io/axtreme/README.html
+[axtreme_docs]: https://dnv-innersource.github.io/axtreme/README.html

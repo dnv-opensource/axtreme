@@ -4,4 +4,4 @@ CLI Documentation
 .. toctree::
    :maxdepth: 3
 
-   cli.my_package
+   cli.axtreme

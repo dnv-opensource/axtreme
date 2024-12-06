@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-"""my_package command line interface."""
+"""axtreme command line interface."""
 
 import argparse
 import logging
 from pathlib import Path
 
-from my_package.api import run
-from my_package.utils.logging import configure_logging
+from axtreme.api import run
+from axtreme.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 

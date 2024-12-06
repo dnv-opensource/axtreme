@@ -63,7 +63,7 @@ exclude_patterns = []
 html_title = f"axtreme {release}"
 html_theme = "furo"
 html_static_path = ["_static"]
-html_logo = "_static/my_package.svg"
+html_logo = "_static/axtreme.svg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,

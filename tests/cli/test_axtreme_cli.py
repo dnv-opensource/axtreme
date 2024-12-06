@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from my_package.cli import my_package
-from my_package.cli.my_package import _argparser, main
+from axtreme.cli import axtreme
+from axtreme.cli.axtreme import _argparser, main
 
 # *****Test commandline interface (CLI)************************************************************
 
@@ -130,8 +130,8 @@ def test_logging_configuration(
     ):
         pass
 
-    monkeypatch.setattr(my_package, "configure_logging", fake_configure_logging)
-    monkeypatch.setattr(my_package, "run", fake_run)
+    monkeypatch.setattr(axtreme, "configure_logging", fake_configure_logging)
+    monkeypatch.setattr(axtreme, "run", fake_run)
     # Execute
     if isinstance(expected, ConfigureLoggingArgs):
         args_expected: ConfigureLoggingArgs = expected
@@ -186,7 +186,7 @@ def test_api_invokation(
         args.config_file = config_file
         args.option = option
 
-    monkeypatch.setattr(my_package, "run", fake_run)
+    monkeypatch.setattr(axtreme, "run", fake_run)
     # Execute
     if isinstance(expected, ApiArgs):
         args_expected: ApiArgs = expected
