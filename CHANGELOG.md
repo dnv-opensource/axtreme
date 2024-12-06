@@ -55,7 +55,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 
 <!-- Markdown link & img dfn's -->
-[unreleased]: https://github.com/dnv-innersource/axtreme/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/dnv-innersource/axtreme/releases/tag/v0.0.1...v0.1.0
-[0.0.1]: https://github.com/dnv-innersource/axtreme/releases/tag/v0.0.1
-[axtreme]: https://github.com/dnv-innersource/axtreme
+[unreleased]: https://github.com/dnv-opensource/axtreme/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/dnv-opensource/axtreme/releases/tag/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/dnv-opensource/axtreme/releases/tag/v0.0.1
+[axtreme]: https://github.com/dnv-opensource/axtreme

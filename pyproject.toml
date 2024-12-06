@@ -70,11 +70,11 @@ cuda = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dnv-innersource/axtreme"
-Documentation = "https://dnv-innersource.github.io/axtreme/README.html"
-Repository = "https://github.com/dnv-innersource/axtreme.git"
-Issues = "https://github.com/dnv-innersource/axtreme/issues"
-Changelog = "https://github.com/dnv-innersource/axtreme/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/dnv-opensource/axtreme"
+Documentation = "https://dnv-opensource.github.io/axtreme/README.html"
+Repository = "https://github.com/dnv-opensource/axtreme.git"
+Issues = "https://github.com/dnv-opensource/axtreme/issues"
+Changelog = "https://github.com/dnv-opensource/axtreme/blob/main/CHANGELOG.md"
 
 
 [tool.uv]
