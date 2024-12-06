@@ -14,7 +14,7 @@ from my_package.cli.my_package import _argparser, main
 
 @dataclass()
 class CliArgs:
-    # Expected default values for the CLI arguments when my-package gets called via the commandline
+    # Expected default values for the CLI arguments when axtreme gets called via the commandline
     quiet: bool = False
     verbose: bool = False
     log: str | None = None
@@ -49,7 +49,7 @@ def test_cli(
     # sourcery skip: no-conditionals-in-tests
     # sourcery skip: no-loop-in-tests
     # Prepare
-    monkeypatch.setattr(sys, "argv", ["my-package", *inputs])
+    monkeypatch.setattr(sys, "argv", ["axtreme", *inputs])
     parser = _argparser()
     # Execute
     if isinstance(expected, CliArgs):
@@ -111,7 +111,7 @@ def test_logging_configuration(
     # sourcery skip: no-conditionals-in-tests
     # sourcery skip: no-loop-in-tests
     # Prepare
-    monkeypatch.setattr(sys, "argv", ["my-package", *inputs])
+    monkeypatch.setattr(sys, "argv", ["axtreme", *inputs])
     args: ConfigureLoggingArgs = ConfigureLoggingArgs()
 
     def fake_configure_logging(
@@ -175,7 +175,7 @@ def test_api_invokation(
     # sourcery skip: no-conditionals-in-tests
     # sourcery skip: no-loop-in-tests
     # Prepare
-    monkeypatch.setattr(sys, "argv", ["my-package", *inputs])
+    monkeypatch.setattr(sys, "argv", ["axtreme", *inputs])
     args: ApiArgs = ApiArgs()
 
     def fake_run(

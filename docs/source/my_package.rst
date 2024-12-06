@@ -1,4 +1,4 @@
-my-package package
+axtreme package
 ==================
 
 Subpackages

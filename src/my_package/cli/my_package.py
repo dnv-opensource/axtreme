@@ -13,19 +13,19 @@ logger = logging.getLogger(__name__)
 
 def _argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="my-package",
+        prog="axtreme",
         usage="%(prog)s config_file [options [args]]",
-        epilog="_________________my-package___________________",
+        epilog="_________________axtreme___________________",
         prefix_chars="-",
         add_help=True,
-        description=("my-package config_file --option"),
+        description=("axtreme config_file --option"),
     )
 
     _ = parser.add_argument(
         "config_file",
         metavar="config_file",
         type=str,
-        help="name of the file containing the my-package configuration.",
+        help="name of the file containing the axtreme configuration.",
     )
 
     _ = parser.add_argument(
@@ -98,13 +98,13 @@ def main() -> None:
     config_file: Path = Path(args.config_file)
     option: bool = args.option
 
-    # Check whether my-package config file exists
+    # Check whether axtreme config file exists
     if not config_file.is_file():
-        logger.error(f"my-package.py: File {config_file} not found.")
+        logger.error(f"axtreme.py: File {config_file} not found.")
         return
 
     logger.info(
-        f"Start my-package.py with following arguments:\n"
+        f"Start axtreme.py with following arguments:\n"
         f"\t config_file: \t{config_file}\n"
         f"\t option: \t\t\t{option}\n"
     )

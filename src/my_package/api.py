@@ -19,14 +19,14 @@ def run(
     *,
     option: bool = False,
 ) -> None:
-    """Run the my-package process.
+    """Run the axtreme process.
 
-    Run the my-package process and .. (long description).
+    Run the axtreme process and .. (long description).
 
     Parameters
     ----------
     config_file : Union[str, os.PathLike[str]]
-        file containing the my-package configuration
+        file containing the axtreme configuration
     option : bool, optional
         if True, does something differently, by default False
 
@@ -44,7 +44,7 @@ def run(
         raise FileNotFoundError(config_file)
 
     if option:
-        logger.info("option is True. my-package process will do something differently.")
+        logger.info("option is True. axtreme process will do something differently.")
 
     process = MyPackageProcess(config_file)
     process.run()
@@ -53,7 +53,7 @@ def run(
 
 
 class MyPackageProcess:
-    """Top level class encapsulating the my-package process."""
+    """Top level class encapsulating the axtreme process."""
 
     def __init__(
         self,
@@ -67,11 +67,11 @@ class MyPackageProcess:
         return
 
     def run(self) -> None:
-        """Run the my-package process.
+        """Run the axtreme process.
 
-        Runs the my-package process in a self-terminated loop.
+        Runs the axtreme process in a self-terminated loop.
         """
-        # Run my-package process until termination is flagged
+        # Run axtreme process until termination is flagged
         while not self.terminate:
             self._run_process()
             self.terminate = self._run_number >= self._max_number_of_runs
@@ -111,7 +111,7 @@ class MyPackageProcess:
         return
 
     def _run_process(self) -> None:
-        """Execute a single run of the my-package process."""
+        """Execute a single run of the axtreme process."""
         self._run_number += 1
 
         logger.info(f"Start run {self._run_number}")

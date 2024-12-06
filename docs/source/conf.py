@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path("../../src").absolute()))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "my-package"
+project = "axtreme"
 copyright = "2024, DNV AS. All rights reserved."
 author = "Author One, Author Two, Author Three"
 
@@ -60,7 +60,7 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_title = f"my-package {release}"
+html_title = f"axtreme {release}"
 html_theme = "furo"
 html_static_path = ["_static"]
 html_logo = "_static/my_package.svg"
