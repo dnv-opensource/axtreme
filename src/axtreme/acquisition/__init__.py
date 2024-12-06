@@ -1,1 +1,1 @@
-"""Sub-package 1."""
+from axtreme.acquisition.qoi_look_ahead import QoILookAhead

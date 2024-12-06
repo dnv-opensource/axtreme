@@ -10,6 +10,11 @@ Subpackages
    :recursive:
 
    axtreme.acquisition
+   axtreme.data
+   axtreme.eval
+   axtreme.plotting
+   axtreme.qoi
+   axtreme.sampling
    axtreme.simulator
    axtreme.utils
 
@@ -22,4 +27,7 @@ Modules
    :template: custom-module.rst
    :recursive:
 
-   axtreme.api
+   axtreme.evaluation
+   axtreme.experiment
+   axtreme.metrics
+   axtreme.runner
