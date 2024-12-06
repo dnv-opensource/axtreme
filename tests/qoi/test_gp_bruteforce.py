@@ -182,7 +182,7 @@ def dummpy_posterior_mean(x: torch.Tensor) -> torch.Tensor:
     return torch.concat([x, scale], dim=-1)
 
 
-@pytest.fixture()
+@pytest.fixture
 def pass_through_gp():
     """Gp for testing, where posterior samples will produces the same value as th input point.
 
@@ -193,7 +193,7 @@ def pass_through_gp():
     return GenericDeterministicModel(dummpy_posterior_mean, num_outputs=2)
 
 
-@pytest.fixture()
+@pytest.fixture
 def pass_through_sampler():
     """Draws a single pass through sample from the passed through GP."""
     return IndexSampler(torch.Size([1]))
@@ -210,7 +210,7 @@ class TestProcessBatch:
         - test with posterior the have sample shape that is multidim.
     """
 
-    @pytest.mark.integration()
+    @pytest.mark.integration
     def test__process_batch(self, pass_through_gp: GenericDeterministicModel, pass_through_sampler: IndexSampler):
         """There is a low amount of our own code in"""
         qoi = GPBruteForce(
@@ -496,7 +496,7 @@ def test_gpu():
 
 
 # NOTE: This functionaltiy is important for GPBruteForce, so the test is put here, but could in in a number of places.
-@pytest.mark.integration()
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "sampler",
     [

@@ -1,6 +1,8 @@
 import pytest
 import torch
 from botorch.posteriors.gpytorch import GPyTorchPosterior
+
+from axtreme.sampling import NormalIndependentSampler
 from tests.sampling.helpers import (
     posterior_b2_n3_t2,
     posterior_n1_t1,
@@ -8,8 +10,6 @@ from tests.sampling.helpers import (
     posterior_n2_t1,
     posterior_n3_t2,
 )
-
-from axtreme.sampling import NormalIndependentSampler
 
 
 ### unit test

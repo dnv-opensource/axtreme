@@ -263,8 +263,8 @@ if __name__ == "__main__":
         return (data - mean) / std
 
     def max_min_normalize_data(data: torch.Tensor):
-        max_val = data.max(dim=0).values  # noqa: PD011
-        min_val = data.min(dim=0).values  # noqa: PD011
+        max_val = data.max(dim=0).values
+        min_val = data.min(dim=0).values
         return (data - min_val) / (max_val - min_val)
 
     def make_posterior(n_test_points: int, y_dim: int, n_training_points: int = 10):

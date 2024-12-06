@@ -127,8 +127,8 @@ def output_dir():
 
 
 # To get more information run with `uv run pytest -m system -s``
-@pytest.mark.system()
-@pytest.mark.non_deterministic()
+@pytest.mark.system
+@pytest.mark.non_deterministic
 def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     output_dir: None | Path,
     n_periods: int = 101,

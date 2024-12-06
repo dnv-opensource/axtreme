@@ -213,7 +213,7 @@ class GPBruteForce(MeanVarPosteriorSampledEstimates, QoIEstimator):
 
         # For each time period, find the max response
         # Shape is now:  (erd_samples_per_period, n_posterior_samples, n_periods)
-        extreme_responses = surrogate_responses.max(dim=-1).values  # noqa: PD011
+        extreme_responses = surrogate_responses.max(dim=-1).values
 
         return extreme_responses
 
@@ -299,4 +299,4 @@ class GPBruteForce(MeanVarPosteriorSampledEstimates, QoIEstimator):
 
         # TODO(ks): This should maybe be changed to include different statistic than the median (any quantile?)
         # Would need to update the warning when changing this
-        return posterior_samples_erd_samples.median(dim=-1).values  # noqa: PD011
+        return posterior_samples_erd_samples.median(dim=-1).values

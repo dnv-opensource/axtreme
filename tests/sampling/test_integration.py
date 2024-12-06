@@ -7,7 +7,7 @@ from axtreme.plotting.gp_fit import plot_1d_model
 from axtreme.sampling import NormalIndependentSampler, PosteriorSampler, UTSampler
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "sampler, expected_value",
     [

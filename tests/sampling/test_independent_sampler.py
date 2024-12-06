@@ -5,6 +5,8 @@ import pytest
 import torch
 from botorch.posteriors.gpytorch import GPyTorchPosterior
 from gpytorch.distributions.multivariate_normal import MultivariateNormal
+
+from axtreme.sampling.independent_sampler import IndependentMCSampler, diagonalize_distribution
 from tests.sampling.helpers import (
     posterior_b2_n3_t2,
     posterior_n1_t1,
@@ -12,8 +14,6 @@ from tests.sampling.helpers import (
     posterior_n3_t2,
     posterior_n3_t2_interleaved,
 )
-
-from axtreme.sampling.independent_sampler import IndependentMCSampler, diagonalize_distribution
 
 
 @pytest.mark.parametrize(
@@ -101,7 +101,7 @@ def test_extend_base_samples_check_base_sample_sucessfully_duplicated_MultitaskM
     assert (expanded_samples[0] == base_sample[0]).all()
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_forward_same_samples_used_at_different_n_points_MultivariateNormal():
     r"""Check that the same base sample gets used independantly at each x.
 

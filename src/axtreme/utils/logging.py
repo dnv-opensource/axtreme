@@ -27,12 +27,12 @@ def configure_logging(
     log_level_file : str, optional
         log level for file output, by default "WARNING"
 
-    Raises
+    Raises:
     ------
     TypeError
         if an invalid value for log_level_console or log_level_file is passed
 
-    Examples
+    Examples:
     --------
         configure_logging(log_level_console="INFO", log_file=Path("app.log"), log_level_file="DEBUG")
     """

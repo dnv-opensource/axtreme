@@ -1,9 +1,8 @@
 import logging
 import os
+import warnings
 from pathlib import Path
 from shutil import rmtree
-
-import warnings
 
 import gpytorch
 import matplotlib.pyplot as plt

@@ -9,7 +9,7 @@ from torch.distributions import Distribution, Gumbel, StudentT, Uniform, Weibull
 from axtreme.utils.population_estimators import estimate_pdf_value_from_sample, sample_mean_se, sample_median_se
 
 
-@pytest.mark.non_deterministic()
+@pytest.mark.non_deterministic
 @pytest.mark.parametrize(
     "true_dist",
     [
@@ -56,7 +56,7 @@ def test_sample_mean_se(true_dist: Distribution, n_samples_per_est: int = 20, n_
     assert float(percent_outside_of_bounds) == pytest.approx(0.05, abs=0.03)
 
 
-@pytest.mark.non_deterministic()
+@pytest.mark.non_deterministic
 @pytest.mark.parametrize(
     "true_dist",
     [
@@ -100,7 +100,7 @@ def test_sample_median_se(true_dist: Distribution, n_samples_per_est: int = 50, 
     assert float(percent_outside_of_bounds) == pytest.approx(0.05, abs=0.05)
 
 
-@pytest.mark.non_deterministic()
+@pytest.mark.non_deterministic
 @pytest.mark.parametrize(
     "true_dist",
     [

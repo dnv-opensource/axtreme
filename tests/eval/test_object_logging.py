@@ -18,7 +18,7 @@ class Level1:
     x: str = "x"
 
 
-@pytest.fixture()
+@pytest.fixture
 def l1():
     l2 = Level2()
     return Level1(level2=l2)
@@ -113,7 +113,7 @@ def test_unpack_object_str_content(l1: Level1):
     assert unpacked == expected_value
 
 
-@pytest.mark.integration()
+@pytest.mark.integration
 def test_unpack_object_integration():
     """This is mainly to document/demonstrate its functionality on more complicated objects."""
 
