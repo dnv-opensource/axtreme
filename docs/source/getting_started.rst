@@ -1,10 +1,10 @@
 Getting started
 ===============
 
-Installing RAx
+Installing axtreme
 --------------
 
-RAx can be installed using pip:
+axtreme can be installed using pip:
 
 ::
 

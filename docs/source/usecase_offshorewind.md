@@ -1,5 +1,5 @@
 # Example Usecase
-The following offshore wind usecase is used to introduce the `RAX` package, as we have found it more informative than abstract technical definitions of key package terminology and capabilities:
+The following offshore wind usecase is used to introduce the `axtreme` package, as we have found it more informative than abstract technical definitions of key package terminology and capabilities:
 
 ## Overview
 An offshore wind turbine is being designed to operate for 20 years. The engineers have information about the typical weather conditions (called the environment conditions), and have a slow but accurate stochastic simulator of the response experienced by the turbine in a give weather condition. In order to know their design will survive for the 20 year period they need to know (amongst other things) the Ultimate Limit State (ULS). This is the largest response the wind turbine is experiences in 20 years of operation.
@@ -32,8 +32,8 @@ This produces a single sample of the ERD. The process could be be repeated until
 Method such as Environment Contouring have been create to approximate the QoI with fewer runs of the simulator. These work better than the Naive approach, but have shortcomings.
 
 
-### RAX approach:
-The `RAX` package deals with this problem by using a fast surrogate model in place of the real simulator when performing the QoI calculations. The process consists of 3 key steps (detailed further in "Basic Concepts"):
+### axtreme approach:
+The `axtreme` package deals with this problem by using a fast surrogate model in place of the real simulator when performing the QoI calculations. The process consists of 3 key steps (detailed further in "Basic Concepts"):
 1) #### Build an uncertainty-aware Surrogate Model.
 Once a small dataset has been created with the simulator (input and output pairs), a surrogate model can be fit to this dataset. For the surrogate to be useful it should:
 - Properly capture the (possibly non-Gaussian) randomness in the simulators response.
@@ -44,4 +44,3 @@ The surrogate model can now be used in place of the simulator to calculate the Q
 
 3) #### Reduce the uncertainty in the QoI:
 We can reduce uncertainty in the QoI by adding data to the surrogate (which reduces the surrogates uncertainty). Some data points are more influential in the QoI calculation than others. By using active learning (also called DoE) to identify these regions, uncertainty in the QoI can be reduced with minimal runs of the (expensive) simulator.
-
