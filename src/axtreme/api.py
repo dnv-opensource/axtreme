@@ -7,7 +7,7 @@ from pathlib import Path
 from dictIO import DictReader
 
 from axtreme.acquisition.qoi_look_ahead import int_to_str
-from axtreme.subpackage2.module2 import str_to_int
+from axtreme.simulator.module2 import str_to_int
 
 __ALL__ = ["run", "AxtremeProcess"]
 

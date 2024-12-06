@@ -10,7 +10,7 @@ Subpackages
    :recursive:
 
    axtreme.acquisition
-   axtreme.subpackage2
+   axtreme.simulator
    axtreme.utils
 
 

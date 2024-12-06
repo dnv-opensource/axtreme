@@ -3,7 +3,7 @@ import contextlib
 
 import pytest
 
-from axtreme.subpackage2.module2 import str_to_int
+from axtreme.simulator.module2 import str_to_int
 
 
 @pytest.mark.parametrize(
@@ -46,7 +46,7 @@ def test_str_to_int_exception_log_message(caplog: pytest.LogCaptureFixture):
     # Prepare
     str_in: str = "3.0"
     log_level_expected = "ERROR"
-    log_message_expected = f"ValueError raised in function str_to_int() in subpackage2. input was: {str_in}"
+    log_message_expected = f"ValueError raised in function str_to_int() in simulator. input was: {str_in}"
     caplog.clear()
     # Execute
     with contextlib.suppress(Exception):
