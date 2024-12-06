@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from axtreme.api import MyPackageProcess, run
+from axtreme.api import AxtremeProcess, run
 
 
 def test_file_not_found_exception():
@@ -37,12 +37,12 @@ def test_run_with_option(caplog: pytest.LogCaptureFixture):
     assert caplog.records[0].message == log_message_expected
 
 
-class TestMyPackageProcess:
+class TestAxtremeProcess:
     def test_init(self):
         # Prepare
         config_file = Path("test_config_file.json")
         # Execute
-        process = MyPackageProcess(config_file=config_file)
+        process = AxtremeProcess(config_file=config_file)
         # Assert
         assert process.config_file is config_file
         assert process.max_number_of_runs == 3
@@ -54,7 +54,7 @@ class TestMyPackageProcess:
         # Prepare
         config_file = Path("test_config_file_empty.json")
         # Execute
-        process = MyPackageProcess(config_file=config_file)
+        process = AxtremeProcess(config_file=config_file)
         # Assert
         assert process.config_file is config_file
         assert process.max_number_of_runs == 1

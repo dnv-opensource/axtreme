@@ -9,7 +9,7 @@ from dictIO import DictReader
 from axtreme.subpackage1.module1 import int_to_str
 from axtreme.subpackage2.module2 import str_to_int
 
-__ALL__ = ["run", "MyPackageProcess"]
+__ALL__ = ["run", "AxtremeProcess"]
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +46,13 @@ def run(
     if option:
         logger.info("option is True. axtreme process will do something differently.")
 
-    process = MyPackageProcess(config_file)
+    process = AxtremeProcess(config_file)
     process.run()
 
     return
 
 
-class MyPackageProcess:
+class AxtremeProcess:
     """Top level class encapsulating the axtreme process."""
 
     def __init__(
