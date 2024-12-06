@@ -9,7 +9,7 @@ Subpackages
    :template: custom-module.rst
    :recursive:
 
-   axtreme.subpackage1
+   axtreme.acquisition
    axtreme.subpackage2
    axtreme.utils
 

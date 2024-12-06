@@ -1,6 +1,6 @@
 # pyright: reportPrivateUsage=false
 
-from axtreme.subpackage1.module1 import int_to_str
+from axtreme.acquisition.module1 import int_to_str
 
 
 def test_int_to_str():

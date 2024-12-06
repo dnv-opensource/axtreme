@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dictIO import DictReader
 
-from axtreme.subpackage1.module1 import int_to_str
+from axtreme.acquisition.module1 import int_to_str
 from axtreme.subpackage2.module2 import str_to_int
 
 __ALL__ = ["run", "AxtremeProcess"]
