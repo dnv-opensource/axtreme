@@ -144,7 +144,8 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     *,
     show_plots: bool = False,
     run_tests: bool = True,
-) -> dict[str, dict[str, float]]:
+    return_statistics: bool = False,
+) -> dict[str, dict[str, float]] | None:
     """System test of QOI_brute_force by running increasingly realistic version of the QoI and checking consistency.
 
     Args:
@@ -158,6 +159,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         error_tol_scaling: The error allowed in assertions is multiplied by this number.
         show_plots: If True plots will be shown.
         run_tests: If True will run assertions on the statistics produced by each qoi.
+        return_statistics: If ture the function will return the statistic calculated.
 
     Details:
     Testing undertakes the following steps:
@@ -378,7 +380,13 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     fig_qoi_gp_high_uncertainty.show() if show_plots else None
     print(f"Gp low variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")  # noqa: T201
 
-    return statistics
+    # TODO(sw 2024-12-9): This is a hacky fix so statistics are easily available when calibrating bounds (see bottom of
+    # file), and they are not returned in general (when this is running through pytest). Statistic should probably be
+    # saved with the plots as well.
+    if return_statistics:
+        return statistics
+
+    return None
 
 
 # %%
@@ -794,21 +802,22 @@ def qoi_comparable_output_using_full_brute_force(
 
 # %%
 if __name__ == "__main__":
-    # %%
+    # %% For manual inspection/running of the system
     test_qoi_brute_force_system_test(output_dir=None, n_qoi_runs=120, run_tests=True, show_plots=True)  # type: ignore  # noqa: PGH003
 
     # %%
-    import matplotlib.pyplot as plt
-
-    _ = plt.ioff()  # stop plots from displaying for repeate runs
     """This following is a helper to determine the bounds testing in qoi_estimator_output.
 
     Here we first run the test with a large number of samples, then with subsampling estimate what the bounds would be
-    if running with fewer samples. Now that the bounds are calibrated, we can run the tests with fewer samples,
-    which takes less time.
+    if running with fewer samples. Now that the bounds are calibrated, we can set the pytest runs to use
+    fewer samples, which takes less time.
 
-    The following is the process for calibrating the bounds in the estimators or number of subsamples changes
+    The following is the process that can be used to get new calibrated bounds (e.g if the estimators or number of
+    subsamples changes).
     """
+    import matplotlib.pyplot as plt
+
+    _ = plt.ioff()  # stop plots from displaying for repeat runs
     # %% Args to set
     total_number_of_runs = 400
     subsample_size = 50
@@ -841,16 +850,17 @@ if __name__ == "__main__":
     for _ in range(100):
         sampled_df = full_df.groupby("name", group_keys=False).apply(sample_group)
         statistics = test_qoi_brute_force_system_test(
-            output_dir=None, jobs_input_file=sampled_df, run_tests=False, show_plots=False
+            output_dir=None, jobs_input_file=sampled_df, run_tests=False, show_plots=False, return_statistics=True
         )
         all_statistics.append(statistics)
 
     df = pd.json_normalize(all_statistics, max_level=1)  # noqa: PD901
     df.head()  # type: ignore  # noqa: PGH003
 
-    # %% Get the statistic for each group.
+    # %%
     # fmt: off
-    # do the statistics for the different tests
+    """For each group, calculate the same statistics that we need to test"""
+
     # Ground truth
     print("best_guess_z: ",df["ground_truth.best_guess_z"].abs().max())  # noqa: T201
 
@@ -862,10 +872,8 @@ if __name__ == "__main__":
     print("var_mean\n",(df["qoi_no_gp.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"])) # noqa: T201
     print("var_std\n",(df["qoi_no_gp.var_std"] / df["ground_truth.var_std"]).agg(["min","max"])) # noqa: T201
 
-
     # %% qoi_gp_deterministic
     print("best_guess_z: ", df["qoi_gp_deterministic.best_guess_z"].abs().max()) # noqa: T201
-
 
     # %% qoi_gp_low_uncertainty
     print("best_guess_z: ", df["qoi_gp_low_uncertainty.best_guess_z"].abs().max()) # noqa: T201
