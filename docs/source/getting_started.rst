@@ -2,7 +2,7 @@ Getting started
 ===============
 
 Installing axtreme
---------------
+------------------
 
 axtreme can be installed using pip:
 

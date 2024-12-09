@@ -14,12 +14,15 @@ axtreme Documentation
    introduction
    getting_started
    basic_concepts/basic_concepts
-   gpbruteforce
    usecase_offshorewind
-   CHANGELOG
-   LICENSE
+   tutorials/tutorials
    api
+   technical_details/technical_details
    glossary
+   CHANGELOG
+   STYLEGUIDE
+   LICENSE
+
 
 
 Indices and tables
