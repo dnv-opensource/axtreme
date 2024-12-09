@@ -14,8 +14,11 @@ def get_train_x():
 # lets just write wht whole test without importing any of our stuff for now
 
 
-# This warning is due to train_y not being standardised. This is not imporant for this test
-@pytest.mark.filterwarnings("ignore: Input data is not standardized")
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 @pytest.mark.external
 @pytest.mark.parametrize(
     "n_targets, fixed_noise",
@@ -89,7 +92,11 @@ def test_condition_on_observations(n_targets: int, fixed_noise: bool):  # noqa: 
 
 
 @pytest.mark.external
-@pytest.mark.filterwarnings("ignore: Input data is not standardized")
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 @pytest.mark.xfail(
     reason="Batched GP has been created from non-batch GP",
 )
@@ -142,7 +149,11 @@ def test_condition_on_observations_additional_data_incorrect_dim():
 
 
 @pytest.mark.external
-@pytest.mark.filterwarnings("ignore: Input data is not standardized")
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 @pytest.mark.xfail(
     reason="Supplying noise in to update homoskedatic has side effects",
 )
@@ -197,8 +208,11 @@ def test_condition_on_observations_silent_failure():
     check_posterior(conditioned_posterior, expected_posterior)
 
 
-# This warning is due to train_y not being standardised. This is not imporant for this test
-@pytest.mark.filterwarnings("ignore: Input data is not standardized")
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 @pytest.mark.external
 @pytest.mark.parametrize(
     "n_targets, fixed_noise",
@@ -282,7 +296,11 @@ def test_get_fantasy_model(n_targets: int, fixed_noise: bool):  # noqa: FBT001
 
 
 @pytest.mark.external
-@pytest.mark.filterwarnings("ignore: Input data is not standardized")
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 @pytest.mark.xfail(
     reason="Supplying noise in to update homoskedatic has side effects",
 )
