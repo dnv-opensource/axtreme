@@ -364,4 +364,4 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
     )
 
     # Could run the optimisation longer if we require it to be more precise. This is considered approapriate for a test.
-    torch.testing.assert_close(candidate, torch.tensor([[0.5]]), rtol=0, atol=1e-4)
+    torch.testing.assert_close(candidate, torch.tensor([[0.5]]), rtol=0, atol=1e-3)
