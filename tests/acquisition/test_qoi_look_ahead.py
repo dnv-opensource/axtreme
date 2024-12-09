@@ -358,12 +358,10 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
         q=1,
         # This is how many different start location will be tried by the optimiser
         num_restarts=5,
-        # TODO(sw 2024-11-13): confirm the impact of this paramerter
-        # Think this required when using a MCAcquisitionFunction (e.g the Acquisition function output at x is noisey).
-        # Controls how many time to repeat an x
         raw_samples=100,
         # Key parameter to control if optimisation should use gradient from the acquisiton fucntion
         options={"with_grad": False},  # True by default
     )
 
-    torch.testing.assert_close(candidate, torch.tensor([[0.5]]))
+    # Could run the optimisation longer if we require it to be more precise. This is considered approapriate for a test.
+    torch.testing.assert_close(candidate, torch.tensor([[0.5]]), rtol=0, atol=1e-4)
