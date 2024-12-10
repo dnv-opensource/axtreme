@@ -8,24 +8,12 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 -/-
 
 
-## [0.1.0] - 2024-MM-DD
+## [0.1.0] - 2024-12-10
 
-### Changed
-* -/-
-
-### Added
-* -/-
-
-### Removed
-* -/-
-
-### Dependencies
-* -/-
+* Initial release.
 
 
 ## [0.0.1] - 2023-02-21
-
-* Initial release
 
 ### Added
 
