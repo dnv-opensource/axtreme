@@ -125,6 +125,11 @@ def test_batch_lookahead_correct_reshape(b: None | int, n: int, d: int, m: int, 
     torch.testing.assert_close(actual_result, expected_output)
 
 
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 def test_conditional_update():
     """Test connection to underling `condition_on_observation`.
 
@@ -247,6 +252,11 @@ def test_forward_grad():
 
 
 @pytest.mark.integration
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
     """Assuming the requirement detailed in the the class docs are met, the acquisition fucntion produced should be
     smooth.
@@ -292,15 +302,13 @@ def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
     _ = is_smooth_1d(x.flatten(), scores.flatten())
 
 
-# def to a stochasticity test
-
-
-# TODO(sw 2024-11-27): This should be updated to use the default params registered in qoi_look_ahead.py
-# NOTE: we could also use a more complicated acquisition function surface and show that it works?
-#   I think that is a litle bit out of scope. At that point you just have line and you're checking the optimiser can
-#   reach it?
-#   The checks for qoi smoothness should be done seperately, as we know their requriements
+# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This is not imporant for this test.
+@pytest.mark.filterwarnings(
+    "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+)
 @pytest.mark.integration
+# TODO(sw 2024-11-27): This should be updated to use the default params registered in qoi_look_ahead.py
 def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
     """Make a QoI that only cares about reducing the variance as a single point.
 
@@ -308,6 +316,11 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
 
     Args:
         visual_inspect: Flag to create visualisation of test for manual inspection.
+
+    Note:
+        We could also test more complicated surfaces and show they work. Testing if optimiser setting work on a
+        realistic problem surface is consider system testing. Testing if optimiation setting work on arbitrary
+        problem surface should be in unittests of the optimiser (with arbirary functions) rather than here.
     """
     train_x = torch.tensor([[0.1], [0.9]])
     train_y = torch.zeros_like(train_x)
@@ -345,12 +358,10 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
         q=1,
         # This is how many different start location will be tried by the optimiser
         num_restarts=5,
-        # TODO(sw 2024-11-13): confirm the impact of this paramerter
-        # Think this required when using a MCAcquisitionFunction (e.g the Acquisition function output at x is noisey).
-        # Controls how many time to repeat an x
         raw_samples=100,
         # Key parameter to control if optimisation should use gradient from the acquisiton fucntion
         options={"with_grad": False},  # True by default
     )
 
-    torch.testing.assert_close(candidate, torch.tensor([[0.5]]))
+    # Could run the optimisation longer if we require it to be more precise. This is considered approapriate for a test.
+    torch.testing.assert_close(candidate, torch.tensor([[0.5]]), rtol=0, atol=1e-3)

@@ -119,9 +119,6 @@ files = [
     "examples",
     "tutorials",
 ]
-exclude = [
-    "^src/folder_to_be_excluded/",
-]
 check_untyped_defs = true
 disable_error_code = [
     "misc",
@@ -136,9 +133,6 @@ include = [
     "tests",
     "examples",
     "tutorials",
-]
-exclude = [
-    "src/folder_to_be_excluded",
 ]
 
 typeCheckingMode = "basic"

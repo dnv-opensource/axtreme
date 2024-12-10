@@ -6,7 +6,7 @@ An offshore wind turbine is being designed to operate for 20 years. The engineer
 
 Because of randomness in the weather and the turbine's response, the largest response experienced in a 20 year period is not a fixed values, and has a distribution. This distribution is called the  the Extreme Response Distribution (ERD). The engineers are specifically interested in knowing the median of this distribution (this is called their Quantity of Interest (QoI)).
 
-![long_term_response_dist](img/usecase_offshorewind/axtreme_long_term_response_distribution.png)
+![long_term_response_dist](img/usecase_offshorewind/long_term_response_distribution.png)
 
 ### Environment Samples:
 The environment represents the factors that effect the wind turbine, and these are used as inputs to the simulator. Typically these are weather conditions such as wind and wave information. The environment distribution then represents how likely it is that a condition will be experience by the wind turbine.

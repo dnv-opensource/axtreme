@@ -1,6 +1,6 @@
 Basic Concepts
 ==============
-The following a core concepts in the `axtreme` package. A conceptual description is provided below.
+The following are core concepts in the `axtreme` package. A conceptual description is provided below.
 
 .. toctree::
    :maxdepth: 2
