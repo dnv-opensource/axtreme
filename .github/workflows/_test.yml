@@ -13,7 +13,6 @@ jobs:
           - runner: windows-latest
           # - runner: macos-latest
         python:
-          - version: '3.10'
           - version: '3.11'
           - version: '3.12'
     steps:
@@ -34,4 +33,4 @@ jobs:
           uv pip install pytest
           uv pip install pytest-cov
       - name: Run pytest
-        run: uv run pytest --cov
+        run: uv run pytest --cov -m "not system"

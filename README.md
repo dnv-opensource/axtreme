@@ -1,38 +1,17 @@
-[![pypi](https://img.shields.io/pypi/v/my-package.svg?color=blue)](https://pypi.python.org/pypi/my-package)
-[![versions](https://img.shields.io/pypi/pyversions/my-package.svg?color=blue)](https://pypi.python.org/pypi/my-package)
-[![license](https://img.shields.io/pypi/l/my-package.svg)](https://github.com/dnv-innersource/my-package/blob/main/LICENSE)
-![ci](https://img.shields.io/github/actions/workflow/status/dnv-innersource/my-package/.github%2Fworkflows%2Fnightly_build.yml?label=ci)
-[![docs](https://img.shields.io/github/actions/workflow/status/dnv-innersource/my-package/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][my_package_docs]
+[![pypi](https://img.shields.io/pypi/v/axtreme.svg?color=blue)](https://pypi.python.org/pypi/axtreme)
+[![versions](https://img.shields.io/pypi/pyversions/axtreme.svg?color=blue)](https://pypi.python.org/pypi/axtreme)
+[![license](https://img.shields.io/pypi/l/axtreme.svg)](https://github.com/dnv-opensource/axtreme/blob/main/LICENSE)
+![ci](https://img.shields.io/github/actions/workflow/status/dnv-opensource/axtreme/.github%2Fworkflows%2Fnightly_build.yml?label=ci)
+[![docs](https://img.shields.io/github/actions/workflow/status/dnv-opensource/axtreme/.github%2Fworkflows%2Fpush_to_release.yml?label=docs)][axtreme_docs]
 
-# my-package
-my-package is an example package
+# axtreme
+Development repo for the RaPiD project with extensions for Ax and BoTorch.
 
-my-package supports
-* ..
-
-
-## Installation
-
-```sh
-pip install my-package
-```
-
-## Usage Example
-
-API:
-
-```py
-from my_package import ...
-```
-
-CLI:
-
-```sh
-my-package ...
-```
-
-_For more examples and usage, please refer to my-package's [documentation][my_package_docs]._
-
+## Repo Structure
+* `src/`: Main package directory
+* `tests/`: Test directory
+* `examples/`: Examples and demos
+* `tutorials/`: Tutorial notebooks
 
 ## Development Setup
 
@@ -55,7 +34,7 @@ uv self update
 ```
 
 ### 2. Install Python
-This project requires Python 3.10 or later. <br>
+This project requires Python 3.11 or later. <br>
 If you don't already have a compatible version installed on your machine, the probably most comfortable way to install Python is through `uv`:
 ```sh
 uv python install
@@ -69,9 +48,13 @@ winget install --id Python.Python
 or you can download and install Python from the [python.org](https://www.python.org/downloads/) website.
 
 ### 3. Clone the repository
-Clone the my-package repository into your local development directory:
+Clone the axtreme repository into your local development directory:
 ```sh
-git clone https://github.com/dnv-innersource/my-package path/to/your/dev/my-package
+git clone https://github.com/dnv-opensource/axtreme path/to/your/dev/axtreme
+```
+Change into the project directory after cloning:
+```sh
+cd axtreme
 ```
 
 ### 4. Install dependencies
@@ -79,12 +62,20 @@ Run `uv sync` to create a virtual environment and install all project dependenci
 ```sh
 uv sync
 ```
+> **Note**: Using `--no-dev` will omit installing development dependencies.
+
+> **Note**: `uv` will create a new virtual environment called `.venv` in the project root directory when running
+> `uv sync` for the first time. Optionally, you can create your own using e.g. `uv venv`, before running
+> `uv sync`.
 
 ### 5. (Optional) Install CUDA support
 Run `uv sync` with option `--extra cuda` to in addition install torch with CUDA support:
 ```sh
 uv sync --extra cuda
 ```
+> **Note**: The exact version of `torch` that is installed by default depends on the system you are using. E.g., Linux
+> will install the CUDA version by default, while Windows and macOS will install the CPU version.
+
 
 Alternatively, you can manually install torch with CUDA support.
 _Note 1_: Do this preferably _after_ running `uv sync`. That way you ensure a virtual environment exists, which is a prerequisite before you install torch with CUDA support using below `uv pip install` command.
@@ -128,6 +119,16 @@ uv run pre-commit install
 
 All pre-commit hooks configured in `.pre-commit-config.yaml` will now run each time you commit changes.
 
+pre-commit can also manually be invoked at anytime, using:
+```sh
+uv run pre-commit run --all-files
+```
+
+To skip the pre-commit validation on commits (e.g. when intentionally committing broken code), run:
+```sh
+uv run git commit -m <MSG> --no-verify
+```
+
 
 ### 8. Test that the installation works
 To test that the installation works, run pytest in the project root folder:
@@ -135,27 +136,92 @@ To test that the installation works, run pytest in the project root folder:
 uv run pytest
 ```
 
+You should now be ready to start developing!
+
+## Development Tools
+You should familiarize yourself with the following tools used in this project. The tools can be configured in the `pyproject.toml` file;
+* ruff (linting + formatting)
+* mypy (static type checking)
+* pytest (unit testing)
+* pre-commit (code quality checks and fixes on commit)
+
+A brief overview of the tools is provided below:
+
+### ruff Formatter
+Format the code according to the formatting rules in the `pyproject.toml` file:
+```sh
+uv run ruff format
+```
+
+### ruff Linter
+Check the code for issues according to the linting rules in the `pyproject.toml` file:
+```sh
+uv run ruff check
+```
+Fix any issues that can be fixed automatically:
+```sh
+uv run ruff check --fix
+```
+
+### mypy
+Perform static type checking on source code:
+```sh
+uv run mypy
+```
+
+### pytest
+Run all tests (with coverage) using:
+```sh
+uv run pytest
+```
+Generate a coverage report in addition to running the tests:
+```sh
+uv run pytest --cov=rapid --cov-branch --cov-report=json --cov-report=term-missing
+```
+
+## Documentation
+
+See axtreme's [documentation][axtreme_docs] on GitHub pages.
+
+## Notes on Design Decisions
+
+### Imports
+We are breaking this rule, and often import classes etc. This follows the approach taken in packages such as `pytorch` `botorch` etc.
+#### Definition
+[Google code standard](https://google.github.io/styleguide/pyguide.html#22-imports) suggests:
+> "Use import statements for packages and modules only, not for individual types, classes, or functions"
+#### pros
+* often package with similar names (e.g utils), but the actual method required is clear diferentiated.
+* Less verbose
+#### cons
+* Breaking some recommended practice, not sure what they impact will be.
+
+### Numpy vs. Tensors
+* Numpy: Working with ax/in general
+* Torch: working inside or touching "Botorch Layer", or anywhere need gpu or grad
+#### pros
+* If work mostly with tensor need to constantly convert them to numpy when winteracting with ax, plot etc.
+#### cons
+* numpy and tensors have slightly different interfaces
+* Means we don't have one default way of working
+
 ## Meta
 
 Copyright (c) 2024 [DNV](https://www.dnv.com) AS. All rights reserved.
 
-Author One - [@LinkedIn](https://www.linkedin.com/in/authorone) - author.one@dnv.com
+Sebastian Winter - sebastian.winter@dnv.com
 
-Author Two - [@LinkedIn](https://www.linkedin.com/in/authortwo) - author.two@dnv.com
+Kristoffer Skare - kristoffer.skare@dnv.com
 
-Author Three - [@LinkedIn](https://www.linkedin.com/in/authorthree) - author.three@dnv.com
+Magnus Kristiansen - magnus.kristiansen@dnv.com
 
-@TODO: (1) Adapt to chosen license (or delete if no license is applied). <br>
-@TODO: (2) Adapt or delete the license file (LICENSE.md) <br>
-@TODO: (3) Adapt or delete the license entry in pyproject.toml <br>
-@TODO: (4) Adapt below line to chosen license <br>
 Distributed under the MIT license. See [LICENSE](LICENSE.md) for more information.
 
-[https://github.com/dnv-innersource/my-package](https://github.com/dnv-innersource/my-package)
+[https://github.com/dnv-opensource/axtreme](https://github.com/dnv-opensource/axtreme)
 
 ## Contributing
 
-1. Fork it (<https://github.com/dnv-innersource/my-package/fork>) (Note: this is currently disabled for this repo. For DNV internal development, continue with the next step.)
+1. Fork it (<https://github.com/dnv-opensource/axtreme/fork>) (Note: this is currently disabled for this repo. For DNV internal development, continue with the next step.)
 2. Create an issue in your GitHub repo
 3. Create your branch based on the issue number and type (`git checkout -b issue-name`)
 4. Evaluate and stage the changes you want to commit (`git add -i`)
@@ -166,4 +232,4 @@ Distributed under the MIT license. See [LICENSE](LICENSE.md) for more informatio
 For your contribution, please make sure you follow the [STYLEGUIDE](STYLEGUIDE.md) before creating the Pull Request.
 
 <!-- Markdown link & img dfn's -->
-[my_package_docs]: https://dnv-innersource.github.io/my-package/README.html
+[axtreme_docs]: https://dnv-opensource.github.io/axtreme/README.html

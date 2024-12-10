@@ -1,20 +1,27 @@
-.. my-package documentation master file, created by
-   sphinx-quickstart on Wed Jul  6 21:16:21 2022.
+.. axtreme documentation master file, created by
+   sphinx-quickstart on Tue Sep  3 12:50:10 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-my-package: Example Python Package
-==================================
+axtreme Documentation
+=====================
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
 
    README
-   CHANGELOG
-   LICENSE
+   introduction
+   getting_started
+   basic_concepts/basic_concepts
+   usecase_offshorewind
    api
-   cli
+   technical_details/technical_details
+   glossary
+   CHANGELOG
+   STYLEGUIDE
+   LICENSE
+
 
 
 Indices and tables
