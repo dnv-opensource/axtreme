@@ -854,7 +854,7 @@ if __name__ == "__main__":
         )
         all_statistics.append(statistics)
 
-    df = pd.json_normalize(all_statistics, max_level=1)  # noqa: PD901
+    df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PD901, PGH003
     df.head()  # type: ignore  # noqa: PGH003
 
     # %%
