@@ -15,7 +15,6 @@ axtreme Documentation
    getting_started
    basic_concepts/basic_concepts
    usecase_offshorewind
-   tutorials/tutorials
    api
    technical_details/technical_details
    glossary
