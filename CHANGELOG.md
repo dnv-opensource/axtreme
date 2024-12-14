@@ -5,11 +5,18 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
+### Changed
+* tests/qoi/test_gp_brute_force_system.py : Improved type-checking
+* pyproject.toml:
+  * cleaned up and reorganized dependencies
+  * removed orphaned dependency `pytest-django`
+* .pre-commit-config.yaml : updated with latest changes in python_project_template
+* README.md : updated with latest changes from python_project_template
+* GitHub workflows _test.yml and _test_future.yml : rewrote how pytest gets called in a cleaner way
+
 ### Dependencies
 * Updated to pyarrow>=18.1  (from pyarrow>=17.0)
 * Updated to statsmodels>=0.14.4  (from statsmodels>=0.14.2)
-
--/-
 
 
 ## [0.1.0] - 2024-12-10
