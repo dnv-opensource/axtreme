@@ -5,6 +5,10 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
+### Dependencies
+* Updated to pyarrow>=18.1  (from pyarrow>=17.0)
+* Updated to statsmodels>=0.14.4  (from statsmodels>=0.14.2)
+
 -/-
 
 
