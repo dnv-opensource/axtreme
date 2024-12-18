@@ -42,7 +42,7 @@ def maximal_representation_error_between_0_1(dtype: torch.dtype) -> float:
 
         Additional information:
 
-            - `https://en.wikipedia.org/wiki/Single-precision_floating-point_format`_
+            - https://en.wikipedia.org/wiki/Single-precision_floating-point_format
     """
     mantisa_bits = {
         torch.float16: 10,
