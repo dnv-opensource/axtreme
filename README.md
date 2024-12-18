@@ -119,7 +119,7 @@ uv run pre-commit install
 
 All pre-commit hooks configured in `.pre-commit-config.yaml` will now run each time you commit changes.
 
-pre-commit can also manually be invoked at anytime, using:
+pre-commit can also manually be invoked, at anytime, using:
 ```sh
 uv run pre-commit run --all-files
 ```
@@ -129,6 +129,10 @@ To skip the pre-commit validation on commits (e.g. when intentionally committing
 uv run git commit -m <MSG> --no-verify
 ```
 
+To update the hooks configured in `.pre-commit-config.yaml` to their newest versions, run:
+```sh
+uv run pre-commit autoupdate
+```
 
 ### 8. Test that the installation works
 To test that the installation works, run pytest in the project root folder:

@@ -26,6 +26,8 @@ import pandas as pd
 import pytest
 import torch
 from ax import Models
+from ax.modelbridge.torch import TorchModelBridge
+from ax.models.torch.botorch_modular.model import BoTorchModel
 from botorch.models import SingleTaskGP
 from botorch.models.deterministic import GenericDeterministicModel, PosteriorMeanModel
 from botorch.sampling.index_sampler import IndexSampler
@@ -597,11 +599,14 @@ def get_trained_gp(n_points: int = 512) -> SingleTaskGP:
         experiment=exp,
         data=exp.fetch_data(),
     )
-
+    assert isinstance(botorch_model_bridge, TorchModelBridge)
     input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
         transforms=list(botorch_model_bridge.transforms.values()), outcome_names=botorch_model_bridge.outcomes
     )
-    botorch_model = botorch_model_bridge.model.surrogate.model
+    ax_model = botorch_model_bridge.model
+    assert isinstance(ax_model, BoTorchModel)
+    botorch_model = ax_model.surrogate.model
+    assert isinstance(botorch_model, SingleTaskGP)
     botorch_model.outcome_transform = outcome_transform
     botorch_model.input_transform = input_transform
 
