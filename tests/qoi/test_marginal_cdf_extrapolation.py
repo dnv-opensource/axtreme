@@ -1,7 +1,163 @@
 import pytest
 import torch
+from botorch.models.deterministic import GenericDeterministicModel
+from botorch.sampling.index_sampler import IndexSampler
+from torch.distributions import Gumbel
 
-from axtreme.qoi.marginal_cdf_extrapolation import acceptable_timestep_error, q_to_qtimestep
+from axtreme.qoi.marginal_cdf_extrapolation import MarginalCDFExtrapolation, acceptable_timestep_error, q_to_qtimestep
+
+
+class TestMarginalCDFExtrapolation:
+    """
+
+    Plan:
+        - __call__:
+            - Unit test None
+            - Itegration tests:
+                - batcheed params and weights
+                - dtype:
+                    - float32 where safe
+                    - float32 where not safe
+        - _parameter_estimates:
+            - Integration test:
+                - batch produce same results as non batch
+                - 1 and multi (2) posterior samples.
+                OUT OF SCOPE:
+                    - Are importance weights working properly?
+
+
+    Other sub componets we potentially should test?
+        - distributions with different batches get optimised/treated properly (e.g in optimisation_)
+    """
+
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        "dtype, period_len",
+        [
+            # Short period
+            (torch.float32, 3),
+            (torch.float64, 3),
+            # Realistic period length
+            (torch.float64, 25 * 365 * 24),
+        ],
+    )
+    def test_call_basic_example(
+        self, gp_passthrough_1p: GenericDeterministicModel, dtype: torch.dtype, period_len: int
+    ):
+        """Runs a minimal version of the qoi using a deterministic model and a short period_len.
+
+        Demonstrate both float32 and float64 can be used (with this short period)
+
+        Take 2 posterior samples to comfirm the shape can be supported throughout.
+        """
+        # Define the inputs
+        quantile = torch.tensor(0.5, dtype=dtype)
+        quantile_accuracy = torch.tensor(0.5, dtype=dtype)
+        # fmt: off
+        env_sample= torch.tensor(
+            [
+                [[0], [1], [2]]
+            ],
+            dtype = dtype
+        )
+        # fmt: on
+
+        # Run the method
+        qoi_estimator_non_batch = MarginalCDFExtrapolation(
+            env_iterable=env_sample,
+            period_len=period_len,
+            posterior_sampler=IndexSampler(torch.Size([2])),  # draw 2 posterior samples
+            quantile=quantile,
+            quantile_accuracy=quantile_accuracy,
+            dtype=dtype,
+        )
+        qoi = qoi_estimator_non_batch(gp_passthrough_1p)
+
+        # Calculated the expected value directly.
+        # This relies on knowledge of the internals, specifically that the underlying distribution produce will be
+        # [Gumbel(0, 1e-6), Gumbel(1, 1e-6), Gumbel(2, 1e-6)]. The first two will be clipped to qauntile q= 1-finfo.eps
+        #  as per the bounds of ApproximateMixture
+        dist = Gumbel(torch.tensor(2, dtype=dtype), 1e-6)
+        q_timestep = (dist.cdf(qoi[0]) + (1 - torch.finfo(dtype).eps) * 2) / 3
+
+        # check can be scaled up to the original timeframe with the desired accuracy
+        assert q_timestep**period_len == pytest.approx(quantile, abs=quantile_accuracy)
+
+    def test_call_insuffecient_numeric_precision(self, gp_passthrough_1p: GenericDeterministicModel):
+        """Runs a minimal version of the qoi using a deterministic model and a short period_len.
+
+        Demonstrate both float32 and float64 can be used (with this short period)
+
+        Take 2 posterior samples to comfirm the shape can be supported throughout.
+        """
+        # Define the inputs
+        dtype = torch.float32
+        quantile = torch.tensor(0.5, dtype=dtype)
+        quantile_accuracy = torch.tensor(0.5, dtype=dtype)
+        # fmt: off
+        env_sample= torch.tensor(
+            [
+                [[0], [1], [2]]
+            ],
+            dtype = dtype
+        )
+        # fmt: on
+
+        # Run the method
+        qoi_estimator_non_batch = MarginalCDFExtrapolation(
+            env_iterable=env_sample,
+            period_len=25 * 365 * 24,
+            posterior_sampler=IndexSampler(torch.Size([2])),  # draw 2 posterior samples
+            quantile=quantile,
+            quantile_accuracy=quantile_accuracy,
+            dtype=dtype,
+        )
+
+        with pytest.raises(TypeError, match="The distribution provided does not have suitable resolution"):
+            _ = qoi_estimator_non_batch(gp_passthrough_1p)
+
+    def test_parameter_estimates_env_batch_invariant(
+        self, gp_passthrough_1p_sampler: IndexSampler, gp_passthrough_1p: GenericDeterministicModel
+    ):
+        """Checks that batched and non-batch enve data produce the saem result.
+
+        Tests the when the data is split into smaller batches they are then combined into the same output.
+
+        """
+        # shape: (6, 1)
+        # fmt: off
+        env_sample_non_batch = torch.tensor(
+            [
+                [[0], [1], [2], [3], [4], [5]]
+            ]
+        )
+        # fmt: on
+
+        qoi_estimator_non_batch = MarginalCDFExtrapolation(
+            env_iterable=env_sample_non_batch,
+            period_len=-1,  # Not used in test
+            posterior_sampler=gp_passthrough_1p_sampler,
+        )
+        param_non_batch, weight_non_batch = qoi_estimator_non_batch._parameter_estimates(gp_passthrough_1p)
+
+        # shape: (2, 3, 1)
+        # fmt: off
+        env_sample_batch = torch.tensor(
+            [
+                [[0], [1], [2]],
+                [ [3], [4], [5]]
+            ]
+        )
+        # fmt: on
+        qoi_estimator_batch = MarginalCDFExtrapolation(
+            env_iterable=env_sample_batch,
+            period_len=-1,  # Not used in test
+            posterior_sampler=gp_passthrough_1p_sampler,
+        )
+        param_batch, weight_batch = qoi_estimator_batch._parameter_estimates(gp_passthrough_1p)
+
+        torch.testing.assert_close(param_non_batch, param_batch)
+        torch.testing.assert_close(weight_non_batch, weight_batch)
 
 
 @pytest.mark.parametrize("dtype", [(torch.float32), (torch.float64)])
