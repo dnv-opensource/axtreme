@@ -29,21 +29,20 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
             considered all the variablity in a single timestep (e.g all the different weather conditions), collected
             the different CDFs they produce, and then averaged them, you would have the marginal CDF.
         - Using the average CDF you can then calculate:
-            "The probablity that a response of size `y` won't be exceeded in 1 hour" as follows:
-                CDF(y = .8) = .5
-            "The probablity that a response of size `y` won't be exceeded in 2 hours" as follows:
-                [Prb not exceeded in hour one] AND [Prb not exceeded in hour two]
-                CDF(y = .8) * CDF(y = .8) = .5 * .5 = .25
-            "The probablity that a response of size `y` won't be exceeded in N hours" as follows:
-                [Prb not exceeded in hour one] AND [Prb not exceeded in hour two]
-                CDF(y = .8)^N = (.5)^N
+            - "The probablity that a response of size `y` won't be exceeded in 1 hour" as follows:
+                - :math:`CDF(y = .8) = .5`
+            - "The probablity that a response of size `y` won't be exceeded in 2 hours" as follows:
+                - ``[Prb not exceeded in hour one]`` AND ``[Prb not exceeded in hour two]``
+                - :math:`CDF(y = .8) * CDF(y = .8) = .5 * .5 = .25`
+            - "The probablity that a response of size `y` won't be exceeded in N hours" as follows:
+                - :math:`CDF(y = .8)^N = (.5)^N`
 
         This is possible because we are using the 'average' timestep, which is the same for all timesteps.
 
-        Strengths:
+    Strengths:
         - Once the 'average' CDF has been obtained, very large values of N can be calculated quickly.
 
-        Challenge:
+    Challenge:
         - Need to obtain the 'average' CDF, and it must be very accurate.
 
     See [#TODO(sw 2024_11_4) put in link to pre-print] for details.
@@ -83,14 +82,14 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
             outcome_transform: transforms that should be applied to the output of the model before they are used
             posterior_sampler: The sampler to use to draw samples from the posterior of the GP.
 
-                - `n_posterior_samples`: is set in the PosteriorSampler
-                - NOTE: if env_iterable contains batches, a batch compatible sampler such as `NormalIndependentSampler`
-                  or "ut_sampler" should be selected.
+                - ``n_posterior_samples``: is set in the PosteriorSampler
+                - NOTE: if env_iterable contains batches, a batch compatible sampler such as
+                  ``NormalIndependentSampler`` or "ut_sampler" should be selected.
 
             response_distribution: The distribution which models the stochastic response of the simulation at a single
               input point.
-            quantile_accuracy: shape (,). Default value .01. Internally, optimisation is used to find the `quantile`.
-              The optimiser is allowed to terminate once in the region  `quantile +/- quantile_accuracy`. The greater
+            quantile_accuracy: shape (,). Default value .01. Internally, optimisation is used to find the ``quantile``.
+              The optimiser is allowed to terminate once in the region  ``quantile +/- quantile_accuracy``. The greater
               the accuracy required, the longer the optimisation will take. Typically other sources of uncertainty
               produce far greater uncertainty.
             dtype: The dtype used for the distribution. This has implications for the numerical accuracy possible.
@@ -144,9 +143,10 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
         # Create the the marginal distribution for the parameters. The categorical distribution handles weights scaling
         # resulting batch shape (n_posterior_samples)
         if self.response_distribution is Gumbel:
+            assert issubclass(self.response_distribution, Gumbel)  # help mypy determine the type
             loc = params[..., 0]
             scale = params[..., 1].clamp(min=1e-6)  # Ensure scale is positive
-            component_dist = self.response_distribution(loc, scale)  # type: ignore  # noqa: PGH003
+            component_dist = self.response_distribution(loc, scale)
         else:
             # To support other distribution need to to apply parameter constraints (list on the distribution), to the
             # the input params. Additionally need to know the order (name) of params in params.
@@ -178,7 +178,7 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
 
         Args:
             model: The GP model to use for the QOI estimation. The number of output distributions should match that
-            required by `response_distribution`.
+            required by ``response_distribution``.
 
         Returns:
             Tuple of tensors where:
@@ -209,7 +209,7 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
             have runtime benefits when making the posterior predictions, and means users can provide env data in a
             format similar to other QoI methods. We then store the full dataset of importance weights and prediction,
             but this is not anticipated to be a problem, as this method does not need to use a large amount of
-            `env_samples`. Will revist this if it proves to be an issue."""
+            ``env_samples``. Will revist this if it proves to be an issue."""
             # TODO(sw 2024-12-16): If getting too large, batch on posterior samples (make the sampler a generator?)
             for env_batch in self.env_iterable:
                 # If items are lists, this is the weights are being provided (e.g Importance Sampling case).
