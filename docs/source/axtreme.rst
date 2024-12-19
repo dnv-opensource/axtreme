@@ -11,6 +11,7 @@ Subpackages
 
    axtreme.acquisition
    axtreme.data
+   axtreme.distributions
    axtreme.eval
    axtreme.plotting
    axtreme.qoi
