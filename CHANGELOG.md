@@ -5,6 +5,13 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
+## Added:
+Major addition of new qoi method `MarginalCDFExtrapolation`. The following helpers are alse added.
+* `utils/numerical_precision`: quantify the precision possible with different datatypes
+* `distributions/mixture`: The contains mixture distributions required for marginalisation
+* `distributions/icdf`: optimisation methods for finding icdfs where not availab.
+* Associated test for these pieces of functionality.
+
 ### Changed
 * tests/qoi/test_gp_brute_force_system.py : Improved type-checking
 * pyproject.toml:
@@ -13,6 +20,9 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * .pre-commit-config.yaml : updated with latest changes in python_project_template
 * README.md : updated with latest changes from python_project_template
 * GitHub workflows _test.yml and _test_future.yml : rewrote how pytest gets called in a cleaner way
+* `eval/object_logging: unpack_object`: minor update to support `type` attributes.
+* `eval/qoi_helpers.py`: minor updates to prevent divide by 0 warnings
+
 
 ### Dependencies
 * Updated to pyarrow>=18.1  (from pyarrow>=17.0)
