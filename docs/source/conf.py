@@ -33,7 +33,7 @@ release = "0.1.0"
 
 extensions = [
     "myst_parser",
-    "sphinx.ext.autodoc",
+    "sphinx.ext.autodoc",  # upgrade to autodoc2if want to you myst markup in docstings
     "sphinx.ext.napoleon",
     "sphinx_argparse_cli",
     "sphinx.ext.mathjax",
