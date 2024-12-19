@@ -4,8 +4,7 @@ from torch.distributions import Categorical, Distribution, Gumbel, LogNormal, Mi
 
 from axtreme.distributions.helpers import dist_cdf_resolution, mixture_cdf_resolution
 
-# mypy: disable-error-code=arg-type
-# Turning this off is not ideal, but its causing spurious errors, and silencing them per line conflicts with pyright
+# pyright: reportUnnecessaryTypeIgnoreComment=false
 
 
 # TODO(sw 2024-12-14): Test more distributions
@@ -20,8 +19,8 @@ def test_dist_cdf_resolution(dtype: torch.dtype, dist_class: type[Distribution])
     # Set up the problem
     loc = torch.tensor([0.0], dtype=dtype)
     scale = torch.ones_like(loc, dtype=dtype)
-    dist: Distribution = dist_class(loc, scale)
-    dist_ground_truth = dist_class(loc.type(torch.float64), scale.type(torch.float64))
+    dist: Distribution = dist_class(loc, scale)  # type: ignore  # noqa: PGH003
+    dist_ground_truth = dist_class(loc.type(torch.float64), scale.type(torch.float64))  # type: ignore  # noqa: PGH003
     finfo = torch.finfo(dtype)
 
     # See ApproximateMixture for why these quantiles are used as bounds

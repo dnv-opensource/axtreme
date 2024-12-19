@@ -7,10 +7,8 @@ from axtreme.distributions import ApproximateMixture
 from axtreme.distributions.helpers import dist_cdf_resolution, mixture_cdf_resolution
 from axtreme.distributions.mixture import icdf_value_bounds
 
-# mypy: disable-error-code=arg-type
-# Turning this off is not ideal, but its causing spurious errors, and silencing them per line conflicts with pyright
 
-
+# pyright: reportUnnecessaryTypeIgnoreComment=false
 class TestApproximateMixture:
     """Testing overview: Approximate Mixture.
 
@@ -50,7 +48,7 @@ class TestApproximateMixture:
     @pytest.mark.parametrize("dist_class", [Gumbel, LogNormal])
     def test_lower_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):
         """Fnd bounds that do not throw error and produce 0."""
-        dist = dist_class(torch.tensor(0, dtype=dtype), 1)
+        dist = dist_class(torch.tensor(0, dtype=dtype), 1)  # type: ignore  # noqa: PGH003
 
         if visualise:
             # visualise the reverse relationship:
@@ -78,7 +76,7 @@ class TestApproximateMixture:
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("dist_class", [Gumbel, LogNormal])
     def test_upper_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):
-        dist = dist_class(torch.tensor(0, dtype=dtype), 1)
+        dist = dist_class(torch.tensor(0, dtype=dtype), 1)  # type: ignore  # noqa: PGH003
 
         if visualise:
             finfo = torch.finfo(dtype)
