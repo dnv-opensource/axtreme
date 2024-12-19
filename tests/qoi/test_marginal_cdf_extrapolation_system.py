@@ -1,4 +1,4 @@
-"""System test of qoi.GPBruteForce by running increasingly realistic version of the QoI and checking consistency.
+"""System test MarginalCDFExtrapolation by running increasingly realistic version of the QoI and checking consistency.
 
 `test_qoi_brute_force_system_test` is the function which orchestrates the test. The following function orchestrate the
 individual steps, and contain additional detail regarding the motivation for the test.
@@ -13,7 +13,6 @@ This script is designed to be run interactively as well as though pytest.
 
 # ruff: noqa: T201
 # pyright: reportUnnecessaryTypeIgnoreComment=false
-
 # %%
 import json
 import time
@@ -37,12 +36,12 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader, Dataset, RandomSampler
 from tqdm import tqdm
 
-from axtreme.data import BatchInvariantSampler2d, MinimalDataset
+from axtreme.data import MinimalDataset
 from axtreme.eval import utils
 from axtreme.eval.qoi_helpers import plot_col_histogram, plot_distribution, plot_groups
 from axtreme.eval.qoi_job import QoIJob, QoIJobResult
 from axtreme.experiment import add_sobol_points_to_experiment
-from axtreme.qoi import GPBruteForce
+from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.sampling import NormalIndependentSampler
 from axtreme.utils import population_estimators, transforms
 
@@ -132,7 +131,7 @@ def get_id() -> str:
 
 @pytest.fixture(scope="module")
 def output_dir():
-    output_dir = Path(__file__).parent / "results" / "gp_bruteforce" / get_id()
+    output_dir = Path(__file__).parent / "results" / "marginal_cdf_extrapolation" / get_id()
     output_dir.mkdir(parents=True)
     return output_dir
 
@@ -140,75 +139,64 @@ def output_dir():
 # To get more information run with `uv run pytest -m system -s``
 @pytest.mark.system
 @pytest.mark.non_deterministic
-def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
+def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
     output_dir: None | Path,
-    n_periods: int = 101,
+    n_env_samples: int = 14_000,
     n_posterior_samples: int = 50,
     n_qoi_runs: int = 50,
     jobs_input_file: None | Path | pd.DataFrame = None,
     error_tol_scaling: float = 1,
+    ground_truth_n_periods: int = 101,
     *,
     show_plots: bool = False,
     run_tests: bool = True,
     return_statistics: bool = False,
 ) -> dict[str, dict[str, float]] | None:
-    """System test of QOI_brute_force by running increasingly realistic version of the QoI and checking consistency.
+    """System test of MarginalCDFExtrapolation by running increasingly realistic varients to checking consistency.
 
     Args:
-        n_periods: number of periods to use. each produces `n_qoi_runs` estimates of the ERD.
+        env_dataset: Dataset containing the env data we have access to.
+        n_env_samples: Number of env samples to use. Each one produces a distribution the contributes to the
+            marginal CDF. This is unrelated to N_ENV_SAMPLES_PER_PERIOD.
         n_posterior_samples: number of posterior samples to take. Each produces an estimate of the QoI.
-        n_qoi_runs: Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
         jobs_input_file: path to json file contain QoIJobResult files.
             - if provided, will be used for testing (This is useful for analysis)
             - if None, jobs will be created and run, and then testing will occure.
         output_dir: directory to save plots to. If none, will not save output.
         error_tol_scaling: The error allowed in assertions is multiplied by this number.
+        ground_truth_n_periods: The number of periods to use in the ground truth. Determines the confidnece (in best
+          guess) we are trying to reproduce with n_env_samples.
         show_plots: If True plots will be shown.
         run_tests: If True will run assertions on the statistics produced by each qoi.
         return_statistics: If ture the function will return the statistic calculated.
 
     Details:
-    Testing undertakes the following steps:
-    - Ground truth estimate: use underlying function directly to make a QoI estimate.
-        - Purpose: Gives an estimate of the confidence that can be achieved with a given number of samples. We then
-        compare future results to this.
-    - QoI with true underlying: use the QoI methodology with the true underling.
-        - Purpose: confirm that the QoI implementation (excluding the GP) is correct (matches ground truth).
-        - Purpose: Check setting for the number of periods used.
-    - QoI with no variance GP: Using a GP with many points, remove uncertainty and calculate QoI.
-        - Purpose: Check the quality of fit of the posterior mean. Introduce GP without posterior effects.
-    - QoI with minimal variance GP: Using a GP with many points (and therefor very small uncertainty).
-        - Purpose: Confirm produces the same results as above after posterior is introduced.
-    - QoI with uncertain GP: Use a gp with only a few training points.
-        - Purpose: Explore how posterior samples performs in these conditions.
-        - Expectations: Higher variance withing a QoI output, potentially introduces bias
+        Testing undertakes the following steps:
+        - Ground truth estimate: use the underlying true function directly to make a QoI estimate.
+            - Purpose: Provide an upper bound on estimator variance (e.g variance in best guess). Ground truth directly
+              samples the different forms of uncertainty (env, outcome distribution) without making use of additional
+              distribution/statisitic knowledge that is available. As such it represent the most sample intensive
+              baseline. All methods should produce equivalent confidence (best guess variance) with fewer samples.
+        - QoI with true underlying: use the QoI methodology with the true underling.
+            - Purpose: confirm that the QoI implementation (excluding the GP) is correct (matches brute force).
+            - Purpose: Check how many env samples are required for a good estimate.
+        - QoI with no variance GP: Using a GP with many points, remove uncertainty and calculate QoI.
+            - Purpose: Check the quality of fit of the posterior mean. Introduce GP without posterior effects.
+        - QoI with minimal variance GP: Using a GP with many points (and therefor very small uncertainty).
+            - Purpose: Confirm produces the same results as above after posterior is introduced.
+        - QoI with uncertain GP: Use a gp with only a few training points.
+            - Purpose: Explore how posterior samples performs in these conditions.
+            - Expectations: Higher variance withing a QoI output, potentially introduces bias
 
-    Using this script to test a new QoIEstimator:
-    - Start by producing a ground truth: This give you:
-        - best guess (and uncertainty in this should expect)
-        - variance in the QoI dist that should be expected.
-    - Use the QoI using true underlying: This gives you:
-        - Confirmation that with a perfect knowledge of the underling function the ground truth can be reporduced
-    - Introduce the GP:
-        - check using well trained GP it is possible to reproduce the ground truth
-
-    NOTE: the bounds set on the test have been identified empirically. They should only fail 1% off the time. The method
-    for obtaining these bounds is at the end of this file.
+        NOTE: the bounds set on the test have been identified empirically. They should only fail 1% off the time. The
+        method for obtaining these bounds is at the end of this file.
 
     Return:
-    Nested dictionary.
+        Nested dictionary.
 
-        {"<QoI_name>": collect_statistics(df)}
+            {"<QoI_name>": collect_statistics(df)}
     """
     #### Problem parameters
-    """Note:
-    It is useful to compare models with the same 'budget' of estimates. The budget is primarily a measure of how many
-    samples are drawn from the surrogate. e.g in the ground truth the budget for a single QoI is:
-
-    budget = n_periods * N_ENV_SAMPLES_PER_PERIOD * n_posterior_samples
-
-    Use comparable budgets allows apples-to-apples comparison of the confidence and variance of different methods.
-    """
     # bookkeeping parameters
     jobs_output_file = output_dir / "qoi_job_results.json" if output_dir else None
 
@@ -239,16 +227,51 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     # collect results
     statistics = {}
 
-    ##### Run the differest QoIEstimator
+    #### Run the differest QoIEstimator
     """Ground truth testing:
-    Expections:
-    - Should be a very good (unbiased estimate) for the true values
-    """
+    It is useful to compare models with the same 'budget' of estimates. The budget is primarily a measure of how
+    many samples are drawn from distribution the surrogate parameterises. e.g in the ground truth the budget for a
+    single QoI is: `budget = n_periods * N_ENV_SAMPLES_PER_PERIOD * n_posterior_samples`
+
+    Using comparable budgets allows apples-to-apples comparison of the confidence and variance of different methods.
+    MarginaCDFExtrpolation have very different sampling requirement to the Ground Truth (see details below), so a direct
+    comparison is not appropriate. Instead we use Ground truth as an upper bound for the number of samples required to
+    achieve a given variance in the best guess estimate. We then explore how many samples (less) are required for
+    MarginalCDFExtrapolation to achieve the same variance.
+
+    Comparisiton of sampleing requirements:
+        For a single ground truth output:
+            - Total raw env_samples_used: 101 * 1000
+            - Total distributions parameterised: 101 * 1000 * 50
+            - Total distribution samples taken: 101 * 1000 * 50 * 1
+
+        For a single qoi_no_gp_output:
+            - Total raw env_samples_used: 14_000
+            - Total_distributions_parameterised: 14_000 * 1 (more come later when intro uncertainty)
+            - Total distribution samples taken: Not applicable. (could consider running the forward optimisation
+              somewhat related)
+
+        Why is this method so different:
+            - Gets probability information directly from the distributions (prb of exceeding a value).
+                - GPBruteForce uses samples of the distributions to estimate probability (many more required to achieve
+                  the same accuracy)
+            - Does not need to use an env sample for each timestep in period_len (N_ENV_SAMPLES_PER_PERIOD)
+                - The results in drastically fewer samples
+            - Bypasses the need to estimate the ERD?
+                - GPBruteForce must first produce estimates of the entire ERD, and then estimates the quantile.
+                - NOTE: this is not a major factor, as the MarginalCDFMethod could produce the whole ERD by running the
+                pdf(x) over an interval x. Using optimisation to do this more effeciently is a minor improvement.
+        """
     start_time = time.time()
     if jobs_input_file is not None:
         df_ground_truth = df_jobs[df_jobs["name"] == "ground_truth"]
     else:
-        df_ground_truth = ground_truth_estimate(n_periods, n_posterior_samples, n_qoi_runs, jobs_output_file)
+        df_ground_truth = ground_truth_estimate(
+            n_periods=ground_truth_n_periods,
+            n_posterior_samples=n_posterior_samples,
+            n_qoi_runs=n_qoi_runs,
+            jobs_output_file=jobs_output_file,
+        )
 
     statistics["ground_truth"] = collect_statistics(df_ground_truth, brute_force_qoi)
 
@@ -276,8 +299,14 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     if jobs_input_file is not None:
         df_no_gp = df_jobs[df_jobs["name"] == "qoi_no_gp"]
     else:
-        df_no_gp = qoi_no_gp(env_dataset, n_periods, n_posterior_samples, n_qoi_runs, jobs_output_file)
-
+        # limited number of n_posterior_samples is used just to check there is minimal variance in results
+        df_no_gp = qoi_no_gp(
+            env_dataset,
+            n_env_samples=n_env_samples,
+            n_posterior_samples=3,
+            n_qoi_runs=n_qoi_runs,
+            jobs_output_file=jobs_output_file,
+        )
     statistics["qoi_no_gp"] = collect_statistics(df_no_gp, brute_force_qoi)
 
     # plot results
@@ -291,10 +320,13 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     if run_tests:
         # fmt: off
         stats_no_gp = statistics["qoi_no_gp"]
-        assert abs(stats_no_gp["best_guess_z"]) < 4 * error_tol_scaling
-        assert stats_no_gp["best_guess_std"] == pytest.approx(stats_ground_truth["best_guess_std"], rel=0.35 * error_tol_scaling)  # noqa: E501
-        assert stats_no_gp["var_mean"] == pytest.approx(stats_ground_truth["var_mean"], rel=0.15 * error_tol_scaling)
-        assert stats_no_gp["var_std"] == pytest.approx(stats_ground_truth["var_std"], rel=0.5 * error_tol_scaling)
+        assert abs(stats_no_gp["best_guess_z"]) < 4.3 * error_tol_scaling
+        # NOTE: ground truth gives no indication of the bounds should expect. This is influenced by n_env_samples
+        assert stats_no_gp["best_guess_std"] > .06 * 1/error_tol_scaling
+        assert stats_no_gp["best_guess_std"] < .13 * error_tol_scaling
+        # Occasinally there are minor numerical erros makeing this not exactly 0
+        assert stats_no_gp["var_mean"] == pytest.approx(0, abs=1e-10 * error_tol_scaling)
+        assert stats_no_gp["var_std"] == pytest.approx(0, abs=1e-10 * error_tol_scaling)
         # fmt: on
 
     print(f"QoI_no_gp {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
@@ -308,8 +340,13 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     if jobs_input_file is not None:
         df_gp_deterministic = df_jobs[df_jobs["name"] == "qoi_gp_deterministic"]
     else:
+        # limited number of n_posterior_samples is used just to check there is minimal variance in results
         df_gp_deterministic = qoi_gp_deterministic(
-            env_dataset, n_periods, n_posterior_samples, n_qoi_runs, jobs_output_file
+            env_dataset,
+            n_env_samples=n_env_samples,
+            n_posterior_samples=3,
+            n_qoi_runs=n_qoi_runs,
+            jobs_output_file=jobs_output_file,
         )
 
     statistics["qoi_gp_deterministic"] = collect_statistics(df_gp_deterministic, brute_force_qoi)
@@ -340,7 +377,11 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         df_gp_low_uncertainty = df_jobs[df_jobs["name"] == "qoi_gp_low_uncertainty"]
     else:
         df_gp_low_uncertainty = qoi_gp_low_uncertainty(
-            env_dataset, n_periods, n_posterior_samples, n_qoi_runs, jobs_output_file
+            env_dataset,
+            n_env_samples=n_env_samples,
+            n_posterior_samples=n_posterior_samples,
+            n_qoi_runs=n_qoi_runs,
+            jobs_output_file=jobs_output_file,
         )
 
     statistics["qoi_gp_low_uncertainty"] = collect_statistics(df_gp_low_uncertainty, brute_force_qoi)
@@ -357,9 +398,11 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         stats_low_uncertainty = statistics["qoi_gp_low_uncertainty"]
         # fmt: off
         assert abs(stats_low_uncertainty["best_guess_z"]) < 5 * error_tol_scaling
-        assert stats_low_uncertainty["best_guess_std"] == pytest.approx(stats_ground_truth["best_guess_std"], rel=0.6 * error_tol_scaling)  # noqa: E501
-        assert stats_low_uncertainty["var_mean"] == pytest.approx(stats_ground_truth["var_mean"], rel=0.15 * error_tol_scaling)  # noqa: E501
-        assert stats_low_uncertainty["var_std"] == pytest.approx(stats_ground_truth["var_std"], rel=0.5 * error_tol_scaling)  # noqa: E501
+        # Use slightly wider bounds thatn determistic gp, but largely results should eb the same
+        assert stats_low_uncertainty["best_guess_std"] > .05 * 1/error_tol_scaling
+        assert stats_low_uncertainty["best_guess_std"] < .14 * error_tol_scaling
+        # Expecting a small amount of variance to now be introduced
+        assert stats_low_uncertainty["var_mean"] == pytest.approx(.012, rel=0.1 * error_tol_scaling)
         # fmt: on
 
     print(f"Gp low variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
@@ -375,7 +418,11 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         df_qoi_gp_high_uncertainty = df_jobs[df_jobs["name"] == "qoi_gp_high_uncertainty"]
     else:
         df_qoi_gp_high_uncertainty = qoi_gp_high_uncertainty(
-            env_dataset, n_periods, n_posterior_samples, n_qoi_runs, jobs_output_file
+            env_dataset,
+            n_env_samples=n_env_samples,
+            n_posterior_samples=n_posterior_samples,
+            n_qoi_runs=n_qoi_runs,
+            jobs_output_file=jobs_output_file,
         )
 
     statistics["qoi_gp_high_uncertainty"] = collect_statistics(df_qoi_gp_high_uncertainty, brute_force_qoi)
@@ -386,7 +433,6 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     fig_qoi_gp_high_uncertainty.savefig(str(output_dir / "qoi_gp_high_uncertainty.png")) if output_dir else None
     fig_qoi_gp_high_uncertainty.show() if show_plots else None
     print(f"Gp high variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
-
     # TODO(sw 2024-12-9): This is a hacky fix so statistics are easily available when calibrating bounds (see bottom of
     # file), and they are not returned in general (when this is running through pytest). Statistic should probably be
     # saved with the plots as well.
@@ -399,7 +445,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
 # %%
 def qoi_gp_high_uncertainty(
     env_dataset: Dataset[NDArray[np.float64]],
-    n_periods: int,
+    n_env_samples: int,
     n_posterior_samples: int,
     n_qoi_runs: int,
     jobs_output_file: None | Path = None,
@@ -407,11 +453,12 @@ def qoi_gp_high_uncertainty(
     """Run the QoI with a highly trained model.
 
     Args:
-        env_dataset: Dataset containing the envdata we have access to.
-        n_periods: number of periods to use. each produces `n_qoi_runs` estimates of the ERD.
+        env_dataset: Dataset containing the env data we have access to.
+        n_env_samples: Number of env samples to use. Each one produces a distribution the contributes to the
+            marginal CDF. This is unrelated to N_ENV_SAMPLES_PER_PERIOD.
         n_posterior_samples: number of posterior samples to take. Each produces an estimate of the QoI.
         n_qoi_runs: Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
-        jobs_output_file (None | Path): Json file to write raw run results to. If not provided do no write results.
+        jobs_output_file: Json file to write raw run results to. If not provided do no write results.
 
     Return:
         A DataFrame where each row represents a single QoIeEstimator run. Contains columns:
@@ -435,15 +482,17 @@ def qoi_gp_high_uncertainty(
     """
     botorch_model = get_trained_gp(n_points=20)
 
+    dataloader = get_dataloader(env_dataset, n_env_samples, batch_size=512)
     qoi_gp_high_uncertain_jobs = []
     for i in range(n_qoi_runs):
-        qoi_est = GPBruteForce(
+        qoi_est = MarginalCDFExtrapolation(
             # random dataloader give different env samples for each instance
-            env_iterable=get_dataloader(env_dataset, n_periods, batch_size=64),
-            # Created new each time to insure not freezing/subsample.
-            # because we are not using a deterministic sampler we need this (real) sampler
+            env_iterable=dataloader,
+            period_len=N_ENV_SAMPLES_PER_PERIOD,
+            quantile=torch.tensor(0.5),
+            quantile_accuracy=torch.tensor(0.01),
+            # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
             posterior_sampler=NormalIndependentSampler(torch.Size([n_posterior_samples])),
-            no_grad=True,
         )
 
         qoi_gp_high_uncertain_jobs.append(
@@ -464,7 +513,7 @@ def qoi_gp_high_uncertainty(
 
 def qoi_gp_low_uncertainty(
     env_dataset: Dataset[NDArray[np.float64]],
-    n_periods: int,
+    n_env_samples: int,
     n_posterior_samples: int,
     n_qoi_runs: int,
     jobs_output_file: None | Path = None,
@@ -472,11 +521,12 @@ def qoi_gp_low_uncertainty(
     """Run the QoI with a highly trained model.
 
     Args:
-        env_dataset: Dataset containing the envdata we have access to.
-        n_periods (int): number of periods to use. each produces `n_qoi_runs` estimates of the ERD.
-        n_posterior_samples (int): number of posterior samples to take. Each produces an estimate of the QoI.
-        n_qoi_runs (int): Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
-        jobs_output_file (None | Path): Json file to write raw run results to. If not provided do no write results.
+        env_dataset: Dataset containing the env data we have access to.
+        n_env_samples: Number of env samples to use. Each one produces a distribution the contributes to the
+            marginal CDF. This is unrelated to N_ENV_SAMPLES_PER_PERIOD.
+        n_posterior_samples: number of posterior samples to take. Each produces an estimate of the QoI.
+        n_qoi_runs: Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
+        jobs_output_file: Json file to write raw run results to. If not provided do no write results.
 
     Return:
         A DataFrame where each row represents a single QoIeEstimator run. Contains columns:
@@ -490,29 +540,31 @@ def qoi_gp_low_uncertainty(
 
         Note: Uncertinaty in the GP can (correctly) produce bias results. This can occur if the response calcuated from
         the GP is very non-linear/sensitive to the GP. e.g:
-        - Sample smaller than the posterior median: result = .1
-        - Sample at posterior mean: result = 1
-        - Sample larger than the posterior median: result = 10
+            - Sample smaller than the posterior median: result = .1
+            - Sample at posterior mean: result = 1
+            - Sample larger than the posterior median: result = 10
+
         When taking the best guess from these results (the mean = 3.7):
-        - this is a poor representation of the posterior mean
-        - this is a good representation of the response you could get due to uncertainty in the underlying function.
+            - this is a poor representation of the posterior mean
+            - this is a good representation of the response you could get due to uncertainty in the underlying function.
 
         Expected results:
         - produces results very close to the ground truth.
-        - Slightly larger variance is best guess.
+        - Will see slight variance within a QoI output, The is completely due to GP uncertainty.
     """
     botorch_model = get_trained_gp()
 
-    dataloader = get_dataloader(env_dataset, n_periods, batch_size=64)
+    dataloader = get_dataloader(env_dataset, n_env_samples, batch_size=512)
     qoi_gp_uncertain_jobs = []
     for i in range(n_qoi_runs):
-        qoi_est = GPBruteForce(
+        qoi_est = MarginalCDFExtrapolation(
             # random dataloader give different env samples for each instance
             env_iterable=dataloader,
-            # Created new each time to insure not freezing/subsample.
-            # because we are not using a deterministic sampler we need this (real) sampler
+            period_len=N_ENV_SAMPLES_PER_PERIOD,
+            quantile=torch.tensor(0.5),
+            quantile_accuracy=torch.tensor(0.01),
+            # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
             posterior_sampler=NormalIndependentSampler(torch.Size([n_posterior_samples])),
-            no_grad=True,
         )
 
         qoi_gp_uncertain_jobs.append(
@@ -533,7 +585,7 @@ def qoi_gp_low_uncertainty(
 
 def qoi_gp_deterministic(
     env_dataset: Dataset[NDArray[np.float64]],
-    n_periods: int,
+    n_env_samples: int,
     n_posterior_samples: int,
     n_qoi_runs: int,
     jobs_output_file: None | Path = None,
@@ -541,11 +593,12 @@ def qoi_gp_deterministic(
     """Run the QoI with a highly trained, deterministic model.
 
     Args:
-        env_dataset: Dataset containing the envdata we have access to.
-        n_periods (int): number of periods to use. each produces `n_qoi_runs` estimates of the ERD.
-        n_posterior_samples (int): number of posterior samples to take. Each produces an estimate of the QoI.
-        n_qoi_runs (int): Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
-        jobs_output_file (None | Path): Json file to write raw run results to. If not provided do no write results.
+        env_dataset: Dataset containing the env data we have access to.
+        n_env_samples: Number of env samples to use. Each one produces a distribution the contributes to the
+            marginal CDF. This is unrelated to N_ENV_SAMPLES_PER_PERIOD.
+        n_posterior_samples: number of posterior samples to take. Each produces an estimate of the QoI.
+        n_qoi_runs: Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
+        jobs_output_file: Json file to write raw run results to. If not provided do no write results.
 
     Return:
         A DataFrame where each row represents a single QoIeEstimator run. Contains columns:
@@ -562,20 +615,25 @@ def qoi_gp_deterministic(
         We would expect this to produce a very similar result to the `qoi_no_gp`.
         - produces the same results as the ground truth.
         - May have slight bias due to slight model misfit.
+
+        Within a qoi_estimate:
+            - all values should be identical (0 variance)
     """
     botorch_model = get_trained_gp()
 
     gp_deterministic = PosteriorMeanModel(botorch_model)
 
-    dataloader = get_dataloader(env_dataset, n_periods, batch_size=64)
+    dataloader = get_dataloader(env_dataset, n_env_samples, batch_size=512)
     qoi_gp_deterministic_jobs = []
     for i in range(n_qoi_runs):
-        qoi_est = GPBruteForce(
+        qoi_est = MarginalCDFExtrapolation(
             # random dataloader give different env samples for each instance
             env_iterable=dataloader,
+            period_len=N_ENV_SAMPLES_PER_PERIOD,
+            quantile=torch.tensor(0.5),
+            quantile_accuracy=torch.tensor(0.01),
             # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
             posterior_sampler=IndexSampler(torch.Size([n_posterior_samples])),
-            no_grad=True,
         )
 
         qoi_gp_deterministic_jobs.append(
@@ -620,19 +678,20 @@ def get_trained_gp(n_points: int = 512) -> SingleTaskGP:
 
 def qoi_no_gp(
     env_dataset: Dataset[NDArray[np.float64]],
-    n_periods: int,
+    n_env_samples: int,
     n_posterior_samples: int,
     n_qoi_runs: int,
     jobs_output_file: None | Path = None,
 ) -> pd.DataFrame:
-    """Test the QoIEstimator with the true underlying function.
+    """Test the MarginalCDFExtrapolation with the true underlying function.
 
     Args:
-        env_dataset: Dataset containing the envdata we have access to.
-        n_periods (int): number of periods to use. each produces `n_qoi_runs` estimates of the ERD.
-        n_posterior_samples (int): number of posterior samples to take. Each produces an estimate of the QoI.
-        n_qoi_runs (int): Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
-        jobs_output_file (None | Path): Json file to write raw run results to. If not provided do no write results.
+        env_dataset: Dataset containing the env data we have access to.
+        n_env_samples: Number of env samples to use. Each one produces a distribution the contributes to the
+          marginal CDF.
+        n_posterior_samples: number of posterior samples to take. Each produces an estimate of the QoI.
+        n_qoi_runs: Number of times to run the QoIEstimator (a single run produces n_posterior_sampler estimates)
+        jobs_output_file: Json file to write raw run results to. If not provided do no write results.
 
     Return:
         A DataFrame where each row represents a single QoIeEstimator run. Contains columns:
@@ -643,21 +702,21 @@ def qoi_no_gp(
 
     Details:
     When using the true underlying (rather than a GP) there are still difference between the QoIEstimator and the
-    Ground truth. This is caused by the difference in how env data is used:
-    - Ground truth: each period gets a unique sample of env data
-        - (e.g there are n_erd_samples * n_ests unique periods of env data)
-    - QoIEstimator: All estimates produce by a single run see the same set of periods
-        - (e.g there are n_erd_samples unique periods of env data)
+    Ground truth. This is caused by:
+        - QoIEstimator does not produce samples of the ERD, instead estimating the QoI directly.
+        - Each qoi estimate uses the same underlying env data.
 
-    If insuffeciently large n_periods is used:
-    - best guess will have more noise, (individual samples will be more biased), the overall there should remain no bias
-    - the bounds on the distribution will be smaller than the real value
+            - All data is used to make the single posterior estimate.
 
-    This checks that this value is approapriately set. If not, the other QoIEstimator (e.g using Gps etc) will not
-    perform.
+    If insuffeciently large n_env_samples is used:
+    - best guess will have more noise, (individual samples will be more biased), but overall there should be no bias
+
+    This function can be used to checks that the amount of data is approapriately set. If not suffeciently large,
+    the other QoIEstimator (e.g using Gps etc) will not perform.
 
     Expected result:
-    - Produces the same results as the ground truth.
+    - within a qoi output, all value should be identical (0 variance)
+    - With enough env data estimates should be unbiased
     """
 
     def true_scale_func_tensor(x: torch.Tensor) -> torch.Tensor:
@@ -682,15 +741,17 @@ def qoi_no_gp(
     # This is roughly equivalent to useing a GP the no variance
     # Running this model produces  botorch.posteriors.ensemble.EnsemblePosterior. They require index samplers
     det_model = GenericDeterministicModel(true_underling_func, num_outputs=2)
-    dataloader = get_dataloader(env_dataset, n_periods)
+    dataloader = get_dataloader(env_dataset, n_env_samples, batch_size=512)
     qoi_no_gp_jobs = []
     for i in range(n_qoi_runs):
-        qoi_est = GPBruteForce(
+        qoi_est = MarginalCDFExtrapolation(
             # random dataloader give different env samples for each instance
             env_iterable=dataloader,
+            period_len=N_ENV_SAMPLES_PER_PERIOD,
+            quantile=torch.tensor(0.5),
+            quantile_accuracy=torch.tensor(0.01),
             # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
             posterior_sampler=IndexSampler(torch.Size([n_posterior_samples])),
-            no_grad=True,
         )
 
         qoi_no_gp_jobs.append(QoIJob(name=f"qoi_no_gp_{i}", qoi=qoi_est, model=det_model, tags={"name": "qoi_no_gp"}))
@@ -702,29 +763,27 @@ def qoi_no_gp(
     return df_jobs
 
 
-def get_dataloader(dataset: Dataset[NDArray[np.float64]], n_periods: int, batch_size: int = 64):
+def get_dataloader(dataset: Dataset[NDArray[np.float64]], n_env_samples: int = 1000, batch_size: int = 64):
     """Helper to create a Dataloader which randomly samples from the dataset.
 
     Dataloader samples with replacement from the dataset. Total iterable will have shape
-    (n_periods, N_ENV_SAMPLES_PER_PERIOD). If the dataloader is reused, it will generate new random samples.
+    (n_env_samples,). If the dataloader is reused, it will generate new random samples.
 
     Args:
         dataset: The available data to draw samples from
-        n_periods: Number of periods of data to produce.
-        batch_size: N_ENV_SAMPLES_PER_PERIOD will be split into batches of this size
+        n_env_samples: Number of env_samples to use. This is independant of the period_len.
+        batch_size: batch size used in the dataloader.
     """
     generator = torch.Generator()
     _ = generator.manual_seed(7)
     replacement_sampler = RandomSampler(
         data_source=dataset,  # type: ignore[arg-type]
-        num_samples=n_periods * N_ENV_SAMPLES_PER_PERIOD,
+        num_samples=n_env_samples,
         generator=generator,
         replacement=True,
     )
-    batch_sampler_rand = BatchInvariantSampler2d(
-        sampler=replacement_sampler, batch_shape=torch.Size([n_periods, batch_size])
-    )
-    return DataLoader(dataset, batch_sampler=batch_sampler_rand)
+
+    return DataLoader(dataset, sampler=replacement_sampler, batch_size=batch_size)
 
 
 def ground_truth_estimate(
@@ -810,15 +869,16 @@ def qoi_comparable_output_using_full_brute_force(
     return samples.median(dim=-1).values  # noqa: PD011
 
 
-# %%
+# # %%
 if __name__ == "__main__":
     # %%
-    test_qoi_brute_force_system_test(output_dir=None, n_qoi_runs=120, run_tests=True, show_plots=True)  # type: ignore  # noqa: PGH003
+    _ = test_qoi_brute_force_system_test(output_dir=None, n_qoi_runs=20, run_tests=False, show_plots=False)
 
     # %%
     import matplotlib.pyplot as plt
 
-    _ = plt.ioff()  # stop plots from displaying for repeate runs
+    _ = plt.ioff()  # stop plots from displaying for repeate runs. can turn back on plt.ion()
+
     """This following is a helper to determine the bounds testing in qoi_estimator_output.
 
     Here we first run the test with a large number of samples, then with subsampling estimate what the bounds would be
@@ -833,7 +893,7 @@ if __name__ == "__main__":
 
     # %%
     # Make a large number of samples once off:
-    output_dir_path = Path("results") / "gp_bruteforce" / get_id()
+    output_dir_path = Path("results") / "marginal_cdf_extrapolation" / get_id()
     output_dir_path.mkdir(exist_ok=True)
 
     _ = test_qoi_brute_force_system_test(
@@ -844,12 +904,18 @@ if __name__ == "__main__":
 
     # %%
     # read the Qoi_jons
+    output_dir_path = (
+        Path("results")
+        / "marginal_cdf_extrapolation"
+        / "24_12_18-11_14_58__commit_71fb83d937bdae968f9d4e8b53addd8c3c29ffda"
+    )
     with (output_dir_path / "qoi_job_results.json").open("r") as fp:
         qoi_job_results = json.load(fp)
 
     full_df = pd.json_normalize(qoi_job_results, max_level=1)
     full_df.columns = full_df.columns.str.removeprefix("tags.")
 
+    # %%
     # %% Subsample the results
     def sample_group(group, n=subsample_size):  # type: ignore  # noqa: ANN001, PGH003
         return group.sample(n=min(len(group), n))
@@ -866,31 +932,43 @@ if __name__ == "__main__":
     df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PD901, PGH003
     df.head()  # type: ignore  # noqa: PGH003
 
+    # %%
+    """What we want to check after confirming visual inspection.
+
+    So what do we expect:
+
+    ground truth:
+        - good estimate of the best guess
+    no_gp:
+        - very good esimate of the true best guess
+        no variance, ot very very small
+    deterministic:
+        - dest guess should be quire close true result, but some shift is allowed due to bia in the underlying model
+        - variance should be 0 (or very very low_)
+    low uncertainty:
+        - best guess should still be quite close to determinstic
+        - introduction of a small amount of variance.
+    high uncertainty:
+        - bets guess could be anything
+        - greater uncertainty than low
+    """
     # %% Get the statistic for each group.
-    # fmt: off
-    # do the statistics for the different tests
     # Ground truth
-    print("best_guess_z: ",df["ground_truth.best_guess_z"].abs().max())
+    print("best_guess_z: ", df["ground_truth.best_guess_z"].abs().max())
 
     # %%
     #  qoi_no_gp
-    print("best_guess_z: ",df["qoi_no_gp.best_guess_z"].abs().max())
+    print("best_guess_z: ", df["qoi_no_gp.best_guess_z"].abs().max())
+    print("best_guess_std\n", (df["qoi_no_gp.best_guess_std"]).agg(["min", "max"]))
 
-    print("best_guess_std\n",(df["qoi_no_gp.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))
-    print("var_mean\n",(df["qoi_no_gp.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"]))
-    print("var_std\n",(df["qoi_no_gp.var_std"] / df["ground_truth.var_std"]).agg(["min","max"]))
-
+    print("var_mean\n", (df["qoi_no_gp.var_mean"]).agg(["min", "max"]))
+    print("var_std\n", (df["qoi_no_gp.var_std"]).agg(["min", "max"]))
 
     # %% qoi_gp_deterministic
     print("best_guess_z: ", df["qoi_gp_deterministic.best_guess_z"].abs().max())
 
-
     # %% qoi_gp_low_uncertainty
     print("best_guess_z: ", df["qoi_gp_low_uncertainty.best_guess_z"].abs().max())
 
-    print("best_guess_std\n",(df["qoi_gp_low_uncertainty.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))  # noqa: E501
-    print("var_mean\n",(df["qoi_gp_low_uncertainty.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"]))
-    print("var_std\n",(df["qoi_gp_low_uncertainty.var_std"] / df["ground_truth.var_std"]).agg(["min","max"]))
-
-    # fmt:on
-    # %%
+    print("best_guess_std\n", (df["qoi_gp_low_uncertainty.best_guess_std"]).agg(["min", "max"]))
+    print("var_mean\n", (df["qoi_gp_low_uncertainty.var_mean"]).agg(["min", "max"]))
