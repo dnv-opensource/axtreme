@@ -9,6 +9,11 @@ used to achieve the same results while running the simulator far fewer times. Sp
 
 NOTE: This is an introductory example intended to provide an overview of the process. As such, a number of
 simplification are made. More indepth tutorial are provided here (TODO(sw 2024-11-23): provide a link).
+
+NOTE: In order to provide an overview without long runtimes, this notebook uses a much smaller number of samples than
+a real problem would. Due to the small number of (fixed) samples, QoI estimates are biased, and do not match brute force
+results. Using increased samples sizes resolves this issue (which increases runtime). See
+`tests/qoi/test_gp_brute_force_system.py` for an example.
 """
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 
@@ -62,7 +67,12 @@ Here we use a mock simulator and env data defined in `exmaples`. The following s
 root_dir = Path(__file__).parent.parent
 sys.path.append(str(root_dir))
 from examples.demo2d.problem.env_data import collect_data
-from examples.demo2d.problem.simulator import _true_loc_func, _true_scale_func, dummy_simulator_function
+from examples.demo2d.problem.simulator import (
+    DummySimulatorSeeded,
+    _true_loc_func,
+    _true_scale_func,
+    dummy_simulator_function,
+)
 
 # %%
 """ Inputs: The Simulatore
@@ -143,8 +153,9 @@ We define the time span overwhich we wish to calculate the Extreme response, and
 # define the timespane
 N_ENV_SAMPLES_PER_PERIOD = 1000
 
+
 # %%
-n_erd_samples = 1_000
+n_erd_samples = 1000
 erd_samples = []
 for _ in range(n_erd_samples):
     indices = np.random.choice(env_data.shape[0], size=N_ENV_SAMPLES_PER_PERIOD, replace=True)  # noqa: NPY002
@@ -218,6 +229,12 @@ print(sim_utils.is_valid_simulator(dummy_simulator_function, verbose=True))
 sim = sim_utils.simulator_from_func(dummy_simulator_function)
 # check that it now complies
 print(sim_utils.is_valid_simulator(sim, verbose=True))
+
+# NOTE: for the rest of this notebook we proceed with a seeded simulator. This is exactly the same as
+# dummy_simulator_function exept it makes our results reproducable.
+sim = DummySimulatorSeeded()
+print(sim_utils.is_valid_simulator(sim, verbose=True))
+
 
 # %%
 ### Pick the search space over which to create a surrogate
@@ -354,7 +371,6 @@ results = []
 for points in n_training_points:
     exp = make_experiment(sim, search_space, dist, n_simulations_per_point=100)
     add_sobol_points_to_experiment(exp, n_iter=points, seed=8)
-
     # Use ax to create a gp from the experiment
     botorch_model_bridge = Models.BOTORCH_MODULAR(
         experiment=exp,
@@ -371,7 +387,6 @@ for points in n_training_points:
     model = botorch_model_bridge.model.surrogate.model
     # reseed the dataloader each time so the dame dataset is used.
     results.append(qoi_estimator_gp_brute_force(model))
-
 
 # %%
 _, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
@@ -469,9 +484,9 @@ def run_trials(
 
 # %%
 ## How many iterations to run in the following DOEs
-n_iter = 10
+n_iter = 30
 qoi_iter = 1
-warm_up_runs = 40
+warm_up_runs = 64
 
 # %%
 ### Surrogate trained without acquisiton function for comparision
