@@ -1,0 +1,83 @@
+UTSampler
+=========
+
+.. currentmodule:: axtreme.sampling.ut_sampler
+
+.. autoclass:: UTSampler
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~UTSampler.__init__
+      ~UTSampler.add_module
+      ~UTSampler.apply
+      ~UTSampler.bfloat16
+      ~UTSampler.buffers
+      ~UTSampler.children
+      ~UTSampler.compile
+      ~UTSampler.cpu
+      ~UTSampler.cuda
+      ~UTSampler.double
+      ~UTSampler.eval
+      ~UTSampler.extra_repr
+      ~UTSampler.float
+      ~UTSampler.forward
+      ~UTSampler.get_buffer
+      ~UTSampler.get_extra_state
+      ~UTSampler.get_parameter
+      ~UTSampler.get_submodule
+      ~UTSampler.half
+      ~UTSampler.ipu
+      ~UTSampler.load_state_dict
+      ~UTSampler.mean
+      ~UTSampler.modules
+      ~UTSampler.named_buffers
+      ~UTSampler.named_children
+      ~UTSampler.named_modules
+      ~UTSampler.named_parameters
+      ~UTSampler.parameters
+      ~UTSampler.register_backward_hook
+      ~UTSampler.register_buffer
+      ~UTSampler.register_forward_hook
+      ~UTSampler.register_forward_pre_hook
+      ~UTSampler.register_full_backward_hook
+      ~UTSampler.register_full_backward_pre_hook
+      ~UTSampler.register_load_state_dict_post_hook
+      ~UTSampler.register_module
+      ~UTSampler.register_parameter
+      ~UTSampler.register_state_dict_pre_hook
+      ~UTSampler.requires_grad_
+      ~UTSampler.set_extra_state
+      ~UTSampler.share_memory
+      ~UTSampler.state_dict
+      ~UTSampler.to
+      ~UTSampler.to_empty
+      ~UTSampler.train
+      ~UTSampler.type
+      ~UTSampler.var
+      ~UTSampler.xpu
+      ~UTSampler.zero_grad
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~UTSampler.T_destination
+      ~UTSampler.alpha
+      ~UTSampler.beta
+      ~UTSampler.call_super_init
+      ~UTSampler.dump_patches
+      ~UTSampler.kappa_base
+      ~UTSampler.training
+   
+   
