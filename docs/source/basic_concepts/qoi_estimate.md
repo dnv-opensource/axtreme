@@ -7,4 +7,4 @@ It is important that we can propagate the uncertainty in our surrogate model thr
 
 This diagram shows an uncertainty aware surrogate model. The grey lines represent different functions the surrogate believes could be the true simulator function (e.g The functions that could have generated the data it has seen). The diversity of the grey lines represent the uncertainty that the surrogate model has. A simple way to propagate this uncertainty through to the QoI is to perform the QoI calculation for each of the grey lines. This will give a variety of QoI values, and this distribution captures how the uncertainty in the surrogate propagates through to the QoI.
 
-The is represented in `axtreme` by the `QoIEstimator` protocol. This takes a surrogate model, from which it samples possible functions (the grey lines), and returns the QoI estimated by each of these.
+The is represented in `axtreme` by the `QoIEstimator` protocol. This takes a surrogate model, from which it samples possible functions (the grey lines), and returns the QoI estimated by each of the possible functions sampled.
