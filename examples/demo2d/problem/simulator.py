@@ -103,7 +103,7 @@ if __name__ == "__main__":
     assert not np.allclose(sim(x1, n_simulations_per_point=5), sim(x, n_simulations_per_point=5), atol=2)
 
     # %%
-    # Plut the surface over a small are. If sample is not random the values should change slowly.
+    # Plut the surface over a small area. If sample is not random the values should change slowly.
     x1 = np.linspace(0.5, 0.5 + 1e-8, 10)  # 100 points between -5 and 5
     x2 = np.linspace(0.5, 0.5 + 1e-8, 10)
     # Create a grid of (x, y) points
@@ -116,6 +116,4 @@ if __name__ == "__main__":
     samples = sim(x).flatten()
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)), cmap="viridis", s=50)
-
-# %%
+    _ = ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)), cmap="viridis")
