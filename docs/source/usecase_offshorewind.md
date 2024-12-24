@@ -1,5 +1,5 @@
 # Example Usecase
-The following offshore wind usecase is used to introduce the `axtreme` package, as we have found it more informative than abstract technical definitions of key package terminology and capabilities:
+The following offshore wind usecase is used to introduce the `axtreme` package, as we have found this type of introduction more informative than abstract technical definitions of key package terminology and capabilities:
 
 ## Overview
 An offshore wind turbine is being designed to operate for 20 years. The engineers have information about the typical weather conditions (called the environment conditions), and have a slow but accurate stochastic simulator of the response experienced by the turbine in a give weather condition. In order to know their design will survive for the 20 year period they need to know (amongst other things) the Ultimate Limit State (ULS). This is the largest response the wind turbine is experiences in 20 years of operation.
@@ -8,10 +8,12 @@ Because of randomness in the weather and the turbine's response, the largest res
 
 ![long_term_response_dist](img/usecase_offshorewind/long_term_response_distribution.png)
 
+The following details the environment samples and simulator.
+
 ### Environment Samples:
 The environment represents the factors that effect the wind turbine, and these are used as inputs to the simulator. Typically these are weather conditions such as wind and wave information. The environment distribution then represents how likely it is that a condition will be experience by the wind turbine.
 
-The environment distribution reports "long-term" conditions. This means it represents the average conditions (e.g wind speed) over an hour. This is different to the instantaneous conditions, which are called "short-term" conditions.
+The environment distribution reports "long-term" conditions. This means it represents the average conditions (e.g wind speed) over an hour. This is different to the instantaneous conditions, which are called "short-term" conditions. Short-term conditions are typically (stochastically) generated within the simulator from the long term conditions. This one of the factors causing stochastic output in the simulator.
 
 ### Wind Turbine Simulator $f:X -> Y$
 This stochastic function predicts the response caused by a given environment condition.
@@ -32,7 +34,7 @@ This produces a single sample of the ERD. The process could be be repeated until
 Method such as Environment Contouring have been create to approximate the QoI with fewer runs of the simulator. These work better than the Naive approach, but have shortcomings.
 
 
-### axtreme approach:
+### `axtreme` approach:
 The `axtreme` package deals with this problem by using a fast surrogate model in place of the real simulator when performing the QoI calculations. The process consists of 3 key steps (detailed further in "Basic Concepts"):
 1) #### Build an uncertainty-aware Surrogate Model.
 Once a small dataset has been created with the simulator (input and output pairs), a surrogate model can be fit to this dataset. For the surrogate to be useful it should:

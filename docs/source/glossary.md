@@ -1,4 +1,3 @@
-TODO: this should be converted to and .rst and added to the proper documentation
 # Glossary
 ## Key terms
 - **Extreme Response Distribtuion (ERD):** Distribution of the largest response experienced over a timeframe. e.g distribution of the largest reponse a windturbine will experience in 20 years of operatation.
