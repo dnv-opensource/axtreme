@@ -22,6 +22,8 @@ Major addition of new qoi method `MarginalCDFExtrapolation`. The following helpe
 * GitHub workflows _test.yml and _test_future.yml : rewrote how pytest gets called in a cleaner way
 * `eval/object_logging: unpack_object`: minor update to support `type` attributes.
 * `eval/qoi_helpers.py`: minor updates to prevent divide by 0 warnings
+* `tutorials/end_to_end_v2.py` -> `tutorials/basic_example.py`. Updated to use `MarginalCDFExtrapolation`.
+* Minor updates to docs.
 
 
 ### Dependencies
