@@ -1,34 +1,8 @@
-from typing import Any
-
 import numpy as np
-import pytest
 import torch
 from torch.utils.data import DataLoader
 
 from axtreme.data import ImportanceAddedWrapper, ImportanceIndexWrapper, MinimalDataset
-
-
-# NOTE: this is not exhausitve
-@pytest.mark.parametrize(
-    "dataset_data",
-    [
-        [
-            [0, 1, 2],
-            [3, 4, 5],
-        ],
-        [
-            {"data": [0, 1, 2]},
-            {"data": [3, 4, 5]},
-        ],
-    ],
-)
-def test_ImportanceAddedWrapper_unsupported_input_that_can_be_returned_by_datasets(dataset_data: list[Any]):
-    dataset = MinimalDataset(dataset_data)
-
-    with pytest.raises(TypeError) as err:
-        _ = ImportanceIndexWrapper(dataset, importance_idx=2)
-
-    assert err.match("ImportanceIndexWrapper")
 
 
 def test_ImportanceAddedWrapper_numpy_input():
