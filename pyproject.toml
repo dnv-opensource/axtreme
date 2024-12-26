@@ -22,7 +22,7 @@ packages = [
 
 [project]
 name = "axtreme"
-version = "0.1.0"
+version = "0.1.1"
 description = "A development library for the RaPiD project"
 readme = "README.md"
 requires-python = ">= 3.11"

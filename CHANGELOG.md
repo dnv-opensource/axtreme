@@ -5,7 +5,8 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
-## Added:
+## [0.1.1] - 2024-12-27
+### Added:
 Major addition of new qoi method `MarginalCDFExtrapolation`. The following helpers are alse added.
 * `utils/numerical_precision`: quantify the precision possible with different datatypes
 * `distributions/mixture`: The contains mixture distributions required for marginalisation
@@ -23,6 +24,9 @@ Major addition of new qoi method `MarginalCDFExtrapolation`. The following helpe
 * `eval/object_logging: unpack_object`: minor update to support `type` attributes.
 * `eval/qoi_helpers.py`: minor updates to prevent divide by 0 warnings
 * `tutorials/end_to_end_v2.py` -> `tutorials/basic_example.py`. Updated to use `MarginalCDFExtrapolation`.
+* `data/importance_dataset.py`: Updated typing and used `torch`'s `StackedDataset`.
+
+### Fixed
 * Minor updates to docs.
 
 
@@ -66,7 +70,8 @@ Major addition of new qoi method `MarginalCDFExtrapolation`. The following helpe
 
 
 <!-- Markdown link & img dfn's -->
-[unreleased]: https://github.com/dnv-opensource/axtreme/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/dnv-opensource/axtreme/releases/tag/v0.0.1...v0.1.0
+[unreleased]: https://github.com/dnv-opensource/axtreme/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/dnv-opensource/axtreme/releases/tag/v0.1.1
+[0.1.0]: https://github.com/dnv-opensource/axtreme/releases/tag/v0.1.0
 [0.0.1]: https://github.com/dnv-opensource/axtreme/releases/tag/v0.0.1
 [axtreme]: https://github.com/dnv-opensource/axtreme
