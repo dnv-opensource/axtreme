@@ -26,14 +26,14 @@ copyright = "2024, DNV AS. All rights reserved."
 author = "Sebastian Winter, Kristoffer Skare"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = "0.1.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
     "myst_parser",
-    "sphinx.ext.autodoc",
+    "sphinx.ext.autodoc",  # upgrade to autodoc2if want to you myst markup in docstings
     "sphinx.ext.napoleon",
     "sphinx_argparse_cli",
     "sphinx.ext.mathjax",

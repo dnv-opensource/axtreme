@@ -4,6 +4,7 @@ import copy
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 from botorch.models import PosteriorMeanModel, SingleTaskGP
@@ -60,10 +61,14 @@ def plot_col_histogram(df: pd.DataFrame, ax: Axes, col_name: str = "mean", brute
     """
     values = df.loc[:, col_name].to_numpy()
     _ = ax.hist(values, label=f"{col_name} of qoi runs", density=True, bins=30)
-    _ = ax.set_title(
-        f"{col_name} of each qoi run\n mean of dist {values.mean():.3f}."
-        f" std of dist {values.std():.3f}, C.o.V {values.std()/ values.mean():.3f}"
+    title_str = (
+        f"{col_name} of each qoi run\n"
+        f"mean of dist {values.mean():.3f}."
+        f" std of dist {values.std():.3f},"
+        # Protect against divide by error error
+        f"C.o.V {values.std()/ values.mean() if values.mean() > 1e-2 else np.nan:.3f}"  # noqa: PLR2004
     )
+    _ = ax.set_title(title_str)
     _ = ax.set_ylabel("density")
     _ = ax.set_xlabel("QOI value")
 

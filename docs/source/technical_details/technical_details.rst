@@ -6,4 +6,6 @@ The following contains in depth information about specific components of `axtrem
    :maxdepth: 1
    :caption: Contents:
 
+   ax_integration
    gpbruteforce
+

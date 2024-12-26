@@ -21,6 +21,9 @@ CUDA_AVAILABLE: bool = torch.cuda.is_available()
 
 TORCH_DEVICES: list[str] = ["cuda", "cpu"] if CUDA_AVAILABLE else ["cpu"]
 
+# gpytorch recommends opperating in float64
+torch.set_default_dtype(torch.float64)
+
 
 @pytest.fixture(scope="package", autouse=True)
 def chdir() -> None:

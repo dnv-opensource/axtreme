@@ -116,6 +116,90 @@ class GPBruteForce(MeanVarPosteriorSampledEstimates, QoIEstimator):
             raise NotImplementedError(msg)
         self.seed: int | None = seed
 
+    def __call__(self, model: Model) -> torch.Tensor:
+        """Estimate the QOI using the given GP model.
+
+        Args:
+            model: The GP model to use for the QOI estimation. It should have output dimension 2 which represents the
+                location and scale of a Gumbel distribution.
+
+        Returns:
+            Tensor: 1d tensor where each entry is an estimate of the QOI as produced by function sampled from the GP.
+            The function sampled from the GP (and the number of them) is determined by `posterior_sampler`.
+        """
+        posterior_samples_erd_samples = self.posterior_samples_erd_samples(model)
+
+        n_erd_samples = posterior_samples_erd_samples.shape[-1]
+        if n_erd_samples % 2 == 0:
+            msg = (
+                f"There are {n_erd_samples} erd samples for each sample frrom the GP (posterior samples)."
+                " tensor.median() called on a even number of samples produces a systematic underestimate of the median"
+                " (because `torch.tensor([1,2,3,4]).median() -> 2`). n_erd_samples is determined by n_periods"
+                " * erd_samples_per_period (where n_periods=env_iterable.shape[-3])"
+            )
+            warnings.warn(msg, UserWarning, stacklevel=2)
+
+        # TODO(ks): This should maybe be changed to include different statistic than the median (any quantile?)
+        # Would need to update the warning when changing this
+        return posterior_samples_erd_samples.median(dim=-1).values
+
+    def posterior_samples_erd_samples(self, model: Model) -> torch.Tensor:
+        """Returns the erd samples created by each posterior sample.
+
+        __call__ uses these erd sample to create a QoI estimate per posterior.
+
+        Args:
+            model: The GP model to use for the QOI estimation. It should have output dimension 2 which represents the
+                location and scale of a Gumbel distribution.
+
+        Returns:
+            Tensor: The erd samples obtained for each function (posterior sample) obtianed from the GP.
+            Shape: (n_posterior_samples, n_periods * erd_samples_per_period)
+        """
+        with ExitStack() as stack:
+            # Adding context to the stack according to the configuration
+            if self.no_grad:
+                stack.enter_context(torch.no_grad())
+            if self.seed is not None:
+                stack.enter_context(torch.random.fork_rng())
+
+                # If a seed is provided, set the seed for the random number generator
+                # This is done in the context manager to ensure that the seed is only set for this calculation
+                _ = torch.manual_seed(self.seed)
+            stack.enter_context(gpytorch.settings.fast_pred_var())
+
+            # make sure transforms are on the right device.
+            if self.input_transform:
+                assert isinstance(self.input_transform, Module)
+                self.input_transform = self.input_transform.to(self.device)
+            if self.outcome_transform:
+                self.outcome_transform = self.outcome_transform.to(self.device)
+
+            # This will track the most extreme value seen thus far in the iterations
+            extreme_value_thus_far: torch.Tensor | None = None
+            for batch in self.env_iterable:
+                # This is of shape: (n_periods, batch_size, d)
+                env_batch = batch.to(self.device)
+
+                # This has shape: (erd_samples_per_period, n_posterior_samples, n_periods)
+                batch_extreme_responses = self._process_batch(env_batch, model)
+
+                # If a bigger extreme value has been seen, replace the tracked value
+                extreme_value_thus_far = (
+                    extreme_value_thus_far.max(batch_extreme_responses)
+                    if extreme_value_thus_far is not None
+                    else batch_extreme_responses
+                )
+
+            if extreme_value_thus_far is None:
+                msg = "env_iterable provided was empty"
+                raise ValueError(msg)
+
+            # Group the ERD samples that belong to the same posterior sample
+            # Shape is now:  (n_posterior_samples, n_periods * erd_samples_per_period)
+            extreme_value_thus_far = torch.cat([*extreme_value_thus_far], dim=-1)
+            return extreme_value_thus_far
+
     @staticmethod
     def sample_surrogate(
         params: torch.Tensor, n_samples: int = 1, base_sample_broadcast_dims: list[int] | None = None
@@ -216,87 +300,3 @@ class GPBruteForce(MeanVarPosteriorSampledEstimates, QoIEstimator):
         extreme_responses = surrogate_responses.max(dim=-1).values
 
         return extreme_responses
-
-    def posterior_samples_erd_samples(self, model: Model) -> torch.Tensor:
-        """Returns the erd samples created by each posterior sample.
-
-        __call__ uses these erd sample to create a QoI estimate per posterior.
-
-        Args:
-            model: The GP model to use for the QOI estimation. It should have output dimension 2 which represents the
-                location and scale of a Gumbel distribution.
-
-        Returns:
-            Tensor: The erd samples obtained for each function (posterior sample) obtianed from the GP.
-            Shape: (n_posterior_samples, n_periods * erd_samples_per_period)
-        """
-        with ExitStack() as stack:
-            # Adding context to the stack according to the configuration
-            if self.no_grad:
-                stack.enter_context(torch.no_grad())
-            if self.seed is not None:
-                stack.enter_context(torch.random.fork_rng())
-
-                # If a seed is provided, set the seed for the random number generator
-                # This is done in the context manager to ensure that the seed is only set for this calculation
-                _ = torch.manual_seed(self.seed)
-            stack.enter_context(gpytorch.settings.fast_pred_var())
-
-            # make sure transforms are on the right device.
-            if self.input_transform:
-                assert isinstance(self.input_transform, Module)
-                self.input_transform = self.input_transform.to(self.device)
-            if self.outcome_transform:
-                self.outcome_transform = self.outcome_transform.to(self.device)
-
-            # This will track the most extreme value seen thus far in the iterations
-            extreme_value_thus_far: torch.Tensor | None = None
-            for batch in self.env_iterable:
-                # This is of shape: (n_periods, batch_size, d)
-                env_batch = batch.to(self.device)
-
-                # This has shape: (erd_samples_per_period, n_posterior_samples, n_periods)
-                batch_extreme_responses = self._process_batch(env_batch, model)
-
-                # If a bigger extreme value has been seen, replace the tracked value
-                extreme_value_thus_far = (
-                    extreme_value_thus_far.max(batch_extreme_responses)
-                    if extreme_value_thus_far is not None
-                    else batch_extreme_responses
-                )
-
-            if extreme_value_thus_far is None:
-                msg = "env_iterable provided was empty"
-                raise ValueError(msg)
-
-            # Group the ERD samples that belong to the same posterior sample
-            # Shape is now:  (n_posterior_samples, n_periods * erd_samples_per_period)
-            extreme_value_thus_far = torch.cat([*extreme_value_thus_far], dim=-1)
-            return extreme_value_thus_far
-
-    def __call__(self, model: Model) -> torch.Tensor:
-        """Estimate the QOI using the given GP model.
-
-        Args:
-            model: The GP model to use for the QOI estimation. It should have output dimension 2 which represents the
-                location and scale of a Gumbel distribution.
-
-        Returns:
-            Tensor: 1d tensor where each entry is an estimate of the QOI as produced by function sampled from the GP.
-            The function sampled from the GP (and the number of them) is determined by `posterior_sampler`.
-        """
-        posterior_samples_erd_samples = self.posterior_samples_erd_samples(model)
-
-        n_erd_samples = posterior_samples_erd_samples.shape[-1]
-        if n_erd_samples % 2 == 0:
-            msg = (
-                f"There are {n_erd_samples} erd samples for each sample frrom the GP (posterior samples)."
-                " tensor.median() called on a even number of samples produces a systematic underestimate of the median"
-                " (because `torch.tensor([1,2,3,4]).median() -> 2`). n_erd_samples is determined by n_periods"
-                " * erd_samples_per_period (where n_periods=env_iterable.shape[-3])"
-            )
-            warnings.warn(msg, UserWarning, stacklevel=2)
-
-        # TODO(ks): This should maybe be changed to include different statistic than the median (any quantile?)
-        # Would need to update the warning when changing this
-        return posterior_samples_erd_samples.median(dim=-1).values

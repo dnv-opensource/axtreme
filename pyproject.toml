@@ -22,7 +22,7 @@ packages = [
 
 [project]
 name = "axtreme"
-version = "0.1.0"
+version = "0.1.1"
 description = "A development library for the RaPiD project"
 readme = "README.md"
 requires-python = ">= 3.11"
@@ -53,15 +53,14 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "ax-platform==0.3.7",      # includes most stuff, e.g. numpy, pandas, scikit-learn, scipy, plotly, and tqdm
     "numpy>=1.26,<2.0",
     "matplotlib>=3.9",
-    "statsmodels>=0.14.2",
+    "statsmodels>=0.14.4",
     "filterpy>=1.4.5",
     "numba>=0.60.0",
     "dataclasses-json>=0.6.7",
     "gitpython>=3.1.43",
-    "torch==2.4.1",
+    "ax-platform[mysql]==0.3.7",
 ]
 
 [project.optional-dependencies]
@@ -77,30 +76,29 @@ Issues = "https://github.com/dnv-opensource/axtreme/issues"
 Changelog = "https://github.com/dnv-opensource/axtreme/blob/main/CHANGELOG.md"
 
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.3",
-    "pytest-cov>=5.0",
-    "ruff>=0.6.3",
-    "pyright>=1.1.378",
-    "mypy>=1.11.1",
-    "sourcery>=1.22",
-    "pre-commit>=3.8",
-    "Sphinx>=8.0",
-    "sphinx-argparse-cli>=1.17",
-    "sphinx-autodoc-typehints>=2.2",
+    "pytest-cov>=6.0",
+    "ruff>=0.8.3",
+    "pyright>=1.1.390",
+    "mypy>=1.13",
+    "sourcery>=1.27",
+    "pre-commit>=4.0",
+    "Sphinx>=8.1",
+    "sphinx-argparse-cli>=1.19",
+    "sphinx-autodoc-typehints>=2.5",
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-parser>=4.0",
     "furo>=2024.8",
-    "beautifulsoup4>=4.12",
-    "jinja2>=3.1",
-    "nbconvert>=7.16",
-    "jupyter>=1.0",
-    "jupyter-client>=8.6",
-    "pyarrow>=17.0",
+    "jupyter>=1.1",
     "pandas-stubs>=2.2",
-    "types-tqdm>=4.66",
-    "types-psutil>=6.0",
+    "pyarrow>=18.1",
+]
+
+[tool.uv]
+default-groups = [
+    "dev",
 ]
 find-links = [
     "https://download.pytorch.org/whl/torch",

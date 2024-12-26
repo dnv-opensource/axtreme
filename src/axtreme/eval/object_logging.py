@@ -80,8 +80,11 @@ def unpack_object(
     # sourcery skip: dict-comprehension
     updated_attribute: dict[str, Any] = {}
     for attr_name, attr_value in attributes.items():
+        # Don't process
+        if type(attr_value) is type:
+            updated_attribute[attr_name] = attr_value
         # Check if can be expanded or there is a specific processing function.
-        if hasattr(attr_value, "__dict__") or get_closest_class_value(attr_value, custom_unpacking_config):  # type: ignore[arg-type]
+        elif hasattr(attr_value, "__dict__") or get_closest_class_value(attr_value, custom_unpacking_config):  # type: ignore[arg-type]
             updated_attribute[attr_name] = unpack_object(attr_value, custom_unpacking_config, depth=depth - 1)
 
     return {"__class__": type(obj), **attributes, **updated_attribute}

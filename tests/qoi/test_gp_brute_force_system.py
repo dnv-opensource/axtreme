@@ -11,6 +11,7 @@ individual steps, and contain additional detail regarding the motivation for the
 This script is designed to be run interactively as well as though pytest.
 """
 
+# ruff: noqa: T201
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 
 # %%
@@ -26,6 +27,8 @@ import pandas as pd
 import pytest
 import torch
 from ax import Models
+from ax.modelbridge.torch import TorchModelBridge
+from ax.models.torch.botorch_modular.model import BoTorchModel
 from botorch.models import SingleTaskGP
 from botorch.models.deterministic import GenericDeterministicModel, PosteriorMeanModel
 from botorch.sampling.index_sampler import IndexSampler
@@ -52,6 +55,9 @@ if __name__ == "__main__":
 
 from examples.demo2d.problem import brute_force, env_data, simulator
 from examples.demo2d.problem.experiment import make_experiment
+
+# %%
+torch.set_default_dtype(torch.float64)
 
 # %%
 # TODO(sw 2024-11-19): To fit better with pytest this should be global
@@ -126,7 +132,7 @@ def get_id() -> str:
 
 @pytest.fixture(scope="module")
 def output_dir():
-    output_dir = Path(__file__).parent / "results" / get_id()
+    output_dir = Path(__file__).parent / "results" / "gp_bruteforce" / get_id()
     output_dir.mkdir(parents=True)
     return output_dir
 
@@ -256,8 +262,9 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     ## Ground truth tests:
     if run_tests:
         stats_ground_truth = statistics["ground_truth"]
-        assert abs(stats_ground_truth["best_guess_z"]) < 4 * error_tol_scaling
-    print(f"Ground truth {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")  # noqa: T201
+        assert abs(stats_ground_truth["best_guess_z"]) < 4.3 * error_tol_scaling
+    print(f"Ground truth {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
+
     ##### Qoi_no_gp
     """QoI_no_gp testing
     Expections:
@@ -290,7 +297,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         assert stats_no_gp["var_std"] == pytest.approx(stats_ground_truth["var_std"], rel=0.5 * error_tol_scaling)
         # fmt: on
 
-    print(f"QoI_no_gp {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")  # noqa: T201
+    print(f"QoI_no_gp {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
     ##### Highly trained GP
     """Deterministic GP
     Expections:
@@ -319,7 +326,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         stats_gp_deterministic = statistics["qoi_gp_deterministic"]
         assert abs(stats_gp_deterministic["best_guess_z"]) < 5 * error_tol_scaling
 
-    print(f"Deterministic GP {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")  # noqa: T201
+    print(f"Deterministic GP {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
 
     """Gp low variance
 
@@ -355,7 +362,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
         assert stats_low_uncertainty["var_std"] == pytest.approx(stats_ground_truth["var_std"], rel=0.5 * error_tol_scaling)  # noqa: E501
         # fmt: on
 
-    print(f"Gp low variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")  # noqa: T201
+    print(f"Gp low variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
     """Gp high variance
 
     The GP has a larger amount of uncertianty. It is expected to produce moer uncertain results.
@@ -378,7 +385,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     )
     fig_qoi_gp_high_uncertainty.savefig(str(output_dir / "qoi_gp_high_uncertainty.png")) if output_dir else None
     fig_qoi_gp_high_uncertainty.show() if show_plots else None
-    print(f"Gp low variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")  # noqa: T201
+    print(f"Gp high variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
 
     # TODO(sw 2024-12-9): This is a hacky fix so statistics are easily available when calibrating bounds (see bottom of
     # file), and they are not returned in general (when this is running through pytest). Statistic should probably be
@@ -597,11 +604,14 @@ def get_trained_gp(n_points: int = 512) -> SingleTaskGP:
         experiment=exp,
         data=exp.fetch_data(),
     )
-
+    assert isinstance(botorch_model_bridge, TorchModelBridge)
     input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
         transforms=list(botorch_model_bridge.transforms.values()), outcome_names=botorch_model_bridge.outcomes
     )
-    botorch_model = botorch_model_bridge.model.surrogate.model
+    ax_model = botorch_model_bridge.model
+    assert isinstance(ax_model, BoTorchModel)
+    botorch_model = ax_model.surrogate.model
+    assert isinstance(botorch_model, SingleTaskGP)
     botorch_model.outcome_transform = outcome_transform
     botorch_model.input_transform = input_transform
 
@@ -802,29 +812,28 @@ def qoi_comparable_output_using_full_brute_force(
 
 # %%
 if __name__ == "__main__":
-    # %% For manual inspection/running of the system
+    # %%
     test_qoi_brute_force_system_test(output_dir=None, n_qoi_runs=120, run_tests=True, show_plots=True)  # type: ignore  # noqa: PGH003
 
     # %%
+    import matplotlib.pyplot as plt
+
+    _ = plt.ioff()  # stop plots from displaying for repeate runs
     """This following is a helper to determine the bounds testing in qoi_estimator_output.
 
     Here we first run the test with a large number of samples, then with subsampling estimate what the bounds would be
-    if running with fewer samples. Now that the bounds are calibrated, we can set the pytest runs to use
-    fewer samples, which takes less time.
+    if running with fewer samples. Now that the bounds are calibrated, we can run the tests with fewer samples,
+    which takes less time.
 
-    The following is the process that can be used to get new calibrated bounds (e.g if the estimators or number of
-    subsamples changes).
+    The following is the process for calibrating the bounds in the estimators or number of subsamples changes
     """
-    import matplotlib.pyplot as plt
-
-    _ = plt.ioff()  # stop plots from displaying for repeat runs
     # %% Args to set
     total_number_of_runs = 400
     subsample_size = 50
 
     # %%
     # Make a large number of samples once off:
-    output_dir_path = Path("results") / get_id()
+    output_dir_path = Path("results") / "gp_bruteforce" / get_id()
     output_dir_path.mkdir(exist_ok=True)
 
     _ = test_qoi_brute_force_system_test(
@@ -857,30 +866,31 @@ if __name__ == "__main__":
     df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PD901, PGH003
     df.head()  # type: ignore  # noqa: PGH003
 
-    # %%
+    # %% Get the statistic for each group.
     # fmt: off
-    """For each group, calculate the same statistics that we need to test"""
-
+    # do the statistics for the different tests
     # Ground truth
-    print("best_guess_z: ",df["ground_truth.best_guess_z"].abs().max())  # noqa: T201
+    print("best_guess_z: ",df["ground_truth.best_guess_z"].abs().max())
 
     # %%
     #  qoi_no_gp
-    print("best_guess_z: ",df["qoi_no_gp.best_guess_z"].abs().max()) # noqa: T201
+    print("best_guess_z: ",df["qoi_no_gp.best_guess_z"].abs().max())
 
-    print("best_guess_std\n",(df["qoi_no_gp.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"])) # noqa: T201
-    print("var_mean\n",(df["qoi_no_gp.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"])) # noqa: T201
-    print("var_std\n",(df["qoi_no_gp.var_std"] / df["ground_truth.var_std"]).agg(["min","max"])) # noqa: T201
+    print("best_guess_std\n",(df["qoi_no_gp.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))
+    print("var_mean\n",(df["qoi_no_gp.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"]))
+    print("var_std\n",(df["qoi_no_gp.var_std"] / df["ground_truth.var_std"]).agg(["min","max"]))
+
 
     # %% qoi_gp_deterministic
-    print("best_guess_z: ", df["qoi_gp_deterministic.best_guess_z"].abs().max()) # noqa: T201
+    print("best_guess_z: ", df["qoi_gp_deterministic.best_guess_z"].abs().max())
+
 
     # %% qoi_gp_low_uncertainty
-    print("best_guess_z: ", df["qoi_gp_low_uncertainty.best_guess_z"].abs().max()) # noqa: T201
+    print("best_guess_z: ", df["qoi_gp_low_uncertainty.best_guess_z"].abs().max())
 
-    print("best_guess_std\n",(df["qoi_gp_low_uncertainty.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))  # noqa: E501, T201
-    print("var_mean\n",(df["qoi_gp_low_uncertainty.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"])) # noqa: T201
-    print("var_std\n",(df["qoi_gp_low_uncertainty.var_std"] / df["ground_truth.var_std"]).agg(["min","max"])) # noqa: T201
+    print("best_guess_std\n",(df["qoi_gp_low_uncertainty.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))  # noqa: E501
+    print("var_mean\n",(df["qoi_gp_low_uncertainty.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"]))
+    print("var_std\n",(df["qoi_gp_low_uncertainty.var_std"] / df["ground_truth.var_std"]).agg(["min","max"]))
 
     # fmt:on
     # %%

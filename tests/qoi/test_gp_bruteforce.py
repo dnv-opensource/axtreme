@@ -1,8 +1,5 @@
 """Test for gp_bruteforce."""
 
-# sourcery skip: no-loop-in-tests
-# sourcery skip: no-conditionals-in-tests
-
 # %%
 from collections.abc import Callable
 
@@ -14,7 +11,7 @@ from botorch.models.deterministic import GenericDeterministicModel, PosteriorMea
 from botorch.models.ensemble import EnsembleModel
 from botorch.sampling import IIDNormalSampler
 from botorch.sampling.index_sampler import IndexSampler
-from torch import Tensor
+from tests.qoi.utils import dummy_posterior_mean
 
 from axtreme.plotting.gp_fit import plot_1d_model
 from axtreme.qoi.gp_bruteforce import GPBruteForce
@@ -153,56 +150,6 @@ class TestSampleSurrogate:
         assert len(offset_posterior1.unique()) == offset_posterior1.numel()
 
 
-"""test _process_batch:
-Not a lot of out own code here.
-
-Integration test:
-- Check that it works on combination with `sample_surrogate`
-
-TODO:
-    - Should probably have helper to check the transforms are used properly when present.
-"""
-
-
-def dummpy_posterior_mean(x: torch.Tensor) -> torch.Tensor:
-    """This is a helper function to be used with GenericDeterministicModel to create models with deterministic output.
-
-    This can be created with the following:
-    > model = GenericDeterministicModel(dummpy_posterior_mean, num_outputs=2)
-
-    The behaviour of this function is to create:
-        - `loc` is set equal to the `env_value`
-        - `scale` is set to 1e-6
-
-    Useful because the result of sampling from the subsequent gumbel distibution is effectively deterministic.
-
-    Args:
-    x: (*b,d=1): a batch of env data, where each env datapoint has dim=1
-
-    Return:
-    (b*, 2): where the last dimension is [loc, scale]
-    """
-    scale = torch.ones_like(x) * 1e-6
-    return torch.concat([x, scale], dim=-1)
-
-
-@pytest.fixture
-def pass_through_gp():
-    """Gp for testing, where posterior samples will produces the same value as th input point.
-
-    See dummpy_posterior_mean for details.
-
-    This model should be sampled using IndexSampler. e.g `IndexSampler(torch.Size([1]))`
-    """
-    return GenericDeterministicModel(dummpy_posterior_mean, num_outputs=2)
-
-
-@pytest.fixture
-def pass_through_sampler():
-    """Draws a single pass through sample from the passed through GP."""
-    return IndexSampler(torch.Size([1]))
-
-
 class TestProcessBatch:
     """There is no a large amount of out own code to cover here.
 
@@ -215,11 +162,13 @@ class TestProcessBatch:
     """
 
     @pytest.mark.integration
-    def test__process_batch(self, pass_through_gp: GenericDeterministicModel, pass_through_sampler: IndexSampler):
+    def test__process_batch(
+        self, gp_passthrough_1p: GenericDeterministicModel, gp_passthrough_1p_sampler: IndexSampler
+    ):
         """There is a low amount of our own code in"""
         qoi = GPBruteForce(
             env_iterable=[],  # Shouldn't be used in this test
-            posterior_sampler=pass_through_sampler,
+            posterior_sampler=gp_passthrough_1p_sampler,
         )
 
         # fmt:off
@@ -236,7 +185,7 @@ class TestProcessBatch:
 
         # Run test
         # expected shape (erd_samples_per_period = 1, n_posterior_samples = 1, n_periods = 3)
-        actual_result = qoi._process_batch(env_batch, pass_through_gp)
+        actual_result = qoi._process_batch(env_batch, gp_passthrough_1p)
 
         # The largest from each row should be selected (in the shape above)
         expected_result = torch.tensor([[[4.0, 9.0, 14.0]]])
@@ -340,11 +289,12 @@ def test_posterior_samples_erd_samples(
     n_posterior_samples: int,
     erd_samples_per_period: int,
     expected_output: torch.Tensor,
+    gp_passthrough_1p: GenericDeterministicModel,
 ):
     """Checks the ERD samples for different configurations of GPBruteForce.
 
     By fixed the model, posterior samples, and gumbel samples produced, we can determinsitically trace input values
-    through to their expect value in the erd samples. This is done by using `dummpy_posterior_mean` .
+    through to their expect value in the erd samples. This is done by using `dummy_posterior_mean` .
 
     Specifically this tests:
     - Single sample of all params returns the 1 ERD sample.
@@ -361,8 +311,8 @@ def test_posterior_samples_erd_samples(
         erd_samples_per_period: number of erd samples taken
         expected_output: output of shape (n_posterior_samples, total_erd_samples) expected.
     """
-    # Create GP like object around dummpy_posterior_mean
-    model = GenericDeterministicModel(dummpy_posterior_mean, num_outputs=2)
+    # Create GP like object around dummy_posterior_mean
+    model = gp_passthrough_1p
     # Sampler that belongs with DeterministicModels
     sampler = IndexSampler(torch.Size([n_posterior_samples]))
 
@@ -393,8 +343,8 @@ def precalculate_2_posterior_samples(X: torch.Tensor) -> torch.Tensor:  # noqa: 
         - n: number of input points
         - t: number of targets
     """
-    posterior1 = dummpy_posterior_mean(X)
-    posterior2 = dummpy_posterior_mean(X)
+    posterior1 = dummy_posterior_mean(X)
+    posterior2 = dummy_posterior_mean(X)
     # increase the loc value
     posterior2[..., 0] += 10
 
@@ -484,19 +434,15 @@ def test_posterior_samples_erd_samples_grouped_by_posterior():
 
 
 def test_grad():
-    env_iterable: list[Tensor] = []
-    posterior_sampler = IndexSampler(torch.Size([1]))
-
+    # env_iterable and posterior sampler are not used in this test
     with pytest.raises(NotImplementedError):
-        _ = GPBruteForce(env_iterable, posterior_sampler, no_grad=False)
+        _ = GPBruteForce(env_iterable=[], posterior_sampler=IndexSampler(torch.Size([1])), no_grad=False)
 
 
 def test_gpu():
-    env_iterable: list[Tensor] = []
-    posterior_sampler = IndexSampler(torch.Size([1]))
-
+    # env_iterable and posterior sampler are not used in this test
     with pytest.raises(NotImplementedError):
-        _ = GPBruteForce(env_iterable, posterior_sampler, device=torch.device("cuda"))
+        _ = GPBruteForce(env_iterable=[], posterior_sampler=IndexSampler(torch.Size([1])), device=torch.device("cuda"))
 
 
 # NOTE: This functionaltiy is important for GPBruteForce, so the test is put here, but could in in a number of places.

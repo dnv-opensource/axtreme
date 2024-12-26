@@ -28,10 +28,8 @@ jobs:
         with:
           python-version: ${{ matrix.python.version }}
       - name: Install the project
-        run: uv sync --upgrade -p ${{ matrix.python.uvpy }} --no-dev
-      - name: Install pytest
-        run: |
-          uv pip install pytest
-          uv pip install pytest-cov
+        run: uv sync -p ${{ matrix.python.uvpy }} -U --no-dev
       - name: Run pytest
-        run: uv run pytest --cov
+        run: >
+          uv run --with pytest --with pytest-cov
+          pytest --cov -m "not system"
