@@ -1,0 +1,18 @@
+axtreme.eval.qoi\_job
+=====================
+
+.. automodule:: axtreme.eval.qoi_job
+   :members:
+   :exclude-members: QoIJob,QoIJobResult,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      QoIJob
+      QoIJobResult
+   
