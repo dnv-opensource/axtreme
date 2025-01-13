@@ -1,0 +1,13 @@
+axtreme.plotting.doe
+====================
+
+.. automodule:: axtreme.plotting.doe
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      plot_qoi_estimates
+   
