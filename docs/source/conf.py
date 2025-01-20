@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path("../../src").absolute()))
 
 project = "axtreme"
 copyright = "2024, DNV AS. All rights reserved."
-author = "Sebastian Winter, Kristoffer Skare"
+author = "Sebastian Winter, Kristoffer Skare, Magnus Kristiansen"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1.1"
@@ -33,11 +33,10 @@ release = "0.1.1"
 
 extensions = [
     "myst_parser",
-    "sphinx.ext.autodoc",  # upgrade to autodoc2if want to you myst markup in docstings
+    "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx_argparse_cli",
     "sphinx.ext.mathjax",
-    "matplotlib.sphinxext.plot_directive",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
     "sphinxcontrib.mermaid",
@@ -74,9 +73,6 @@ html_logo = "_static/DNV_logo_RGB.jpg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,
-    # "special-members": True,
-    # TODO(sw 2024-12-5): using "inherited-members" might be a more elegant want to achieve the below.
-    # "exclude-members": "__weakref__, __init__, __annotations__, __abstractmethods__, __module__, __parameters__, __subclasshook__",
     "exclude-members": "__weakref__",
 }
 autodoc_preserve_defaults = True

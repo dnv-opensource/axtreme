@@ -286,7 +286,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
     if run_tests:
         stats_ground_truth = statistics["ground_truth"]
         assert abs(stats_ground_truth["best_guess_z"]) < 4.3 * error_tol_scaling
-    print(f"Ground truth {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
+    print(f"Ground truth {(time.time() - start_time) // 60:.0f}:{time.time() - start_time:.2f}")
 
     ##### Qoi_no_gp
     """QoI_no_gp testing
@@ -329,7 +329,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
         assert stats_no_gp["var_std"] == pytest.approx(0, abs=1e-10 * error_tol_scaling)
         # fmt: on
 
-    print(f"QoI_no_gp {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
+    print(f"QoI_no_gp {(time.time() - start_time) // 60:.0f}:{time.time() - start_time:.2f}")
     ##### Highly trained GP
     """Deterministic GP
     Expections:
@@ -363,7 +363,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
         stats_gp_deterministic = statistics["qoi_gp_deterministic"]
         assert abs(stats_gp_deterministic["best_guess_z"]) < 5 * error_tol_scaling
 
-    print(f"Deterministic GP {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
+    print(f"Deterministic GP {(time.time() - start_time) // 60:.0f}:{time.time() - start_time:.2f}")
 
     """Gp low variance
 
@@ -405,7 +405,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
         assert stats_low_uncertainty["var_mean"] == pytest.approx(.012, rel=0.1 * error_tol_scaling)
         # fmt: on
 
-    print(f"Gp low variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
+    print(f"Gp low variance {(time.time() - start_time) // 60:.0f}:{time.time() - start_time:.2f}")
     """Gp high variance
 
     The GP has a larger amount of uncertianty. It is expected to produce moer uncertain results.
@@ -432,7 +432,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
     )
     fig_qoi_gp_high_uncertainty.savefig(str(output_dir / "qoi_gp_high_uncertainty.png")) if output_dir else None
     fig_qoi_gp_high_uncertainty.show() if show_plots else None
-    print(f"Gp high variance {(time.time()-start_time)//60:.0f}:{time.time()-start_time:.2f}")
+    print(f"Gp high variance {(time.time() - start_time) // 60:.0f}:{time.time() - start_time:.2f}")
     # TODO(sw 2024-12-9): This is a hacky fix so statistics are easily available when calibrating bounds (see bottom of
     # file), and they are not returned in general (when this is running through pytest). Statistic should probably be
     # saved with the plots as well.

@@ -102,7 +102,7 @@ def test_batch_lookahead_correct_reshape(b: None | int, n: int, d: int, m: int, 
     acqf = QoILookAhead(model=None, qoi_estimator=None)  # type: ignore[arg-type]
 
     # mock the lookahead function. Simply return the first dimension in y
-    def lookahead(x_point: torch.Tensor, y_point: torch.Tensor, yvar_point: torch.Tensor | None) -> torch.Tensor:  # noqa: ARG001
+    def lookahead(x_point: torch.Tensor, y_point: torch.Tensor, yvar_point: torch.Tensor | None) -> torch.Tensor:
         return y_point[0]
 
     acqf.lookahead = lookahead  # type: ignore[method-assign]

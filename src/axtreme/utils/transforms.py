@@ -154,7 +154,7 @@ def check_transform_not_applied(
 
     msg = (
         f"expected {transform.__class__}.{parameter_names_store} to be empty/falsey,"
-        f" instead found {getattr(transform,parameter_names_store)} indicating this transform is being used"
+        f" instead found {getattr(transform, parameter_names_store)} indicating this transform is being used"
     )
     raise AssertionError(msg)
 

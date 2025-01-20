@@ -1,31 +1,35 @@
-cff-version: 1.2.0
 title: Axtreme
-message: Ax for Extremes
-type: software
-authors:
-  - name: DNV
-    address: 'Veritasveien 1, 1363 Høvik'
-    city: Oslo
-    website: 'https://www.dnv.com/'
-  - given-names: Sebastian
-    family-names: Winter
-    email: sebastian.winter@dnv.com
-    affiliation: DNV
-  - given-names: Kristoffer
-    family-names: Skare
-    email: kristoffer.skare@dnv.com
-    affiliation: DNV
-  - given-names: Magnus
-    family-names: Kristiansen
-    email: magnus.kristiansen@dnv.com
-    affiliation: DNV
+version: 0.1.1
 abstract: >-
   A toolkit for estimating the long term behaviour
   (extremes) of expensive, stochastic, black box functions.
+type: software
+authors:
+  - name: DNV AS
+    address: 'Veritasveien 1'
+    post-code: '1363'
+    city: Høvik
+    country: NO
+    website: 'https://www.dnv.com/'
+  - given-names: Sebastian
+    family-names: Winter
+    affiliation: DNV
+    email: sebastian.winter@dnv.com
+  - given-names: Kristoffer
+    family-names: Skare
+    affiliation: DNV
+    email: kristoffer.skare@dnv.com
+  - given-names: Magnus
+    family-names: Kristiansen
+    affiliation: DNV
+    email: magnus.kristiansen@dnv.com
 keywords:
   - Design of Experiments
   - Active Learning
   - Extreme Response
 license: MIT
-url: "https://github.com/dnv-opensource/axtreme"
-version: 0.1.1
+license-url: 'https://dnv-opensource.github.io/axtreme/LICENSE.html'
+url: 'https://dnv-opensource.github.io/axtreme/README.html'
+repository-code: 'https://github.com/dnv-opensource/axtreme'
+message: 'Please cite this software using these metadata.'
+cff-version: 1.2.0

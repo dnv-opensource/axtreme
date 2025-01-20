@@ -31,13 +31,13 @@ NOTE: We make use of a more advanced set up detailed in the next section.
 class MinimalDataset(Dataset[torch.Tensor]):
     """See axtreme.data for more detailed examples."""
 
-    def __init__(self, data: NDArray[np.float64 | np.int32]) -> None:  # noqa: D107
+    def __init__(self, data: NDArray[np.float64 | np.int32]) -> None:
         self.data = data
 
-    def __len__(self) -> int:  # noqa: D105
+    def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> torch.Tensor:  # noqa: D105
+    def __getitem__(self, idx: int) -> torch.Tensor:
         return torch.from_numpy(self.data[idx, :])
 
 

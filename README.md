@@ -65,7 +65,7 @@ uv sync
 > **Note**: Using `--no-dev` will omit installing development dependencies.
 
 > **Note**: `uv` will create a new virtual environment called `.venv` in the project root directory when running
-> `uv sync` for the first time. Optionally, you can create your own using e.g. `uv venv`, before running
+> `uv sync` the first time. Optionally, you can create your own virtual environment using e.g. `uv venv`, before running
 > `uv sync`.
 
 ### 5. (Optional) Install CUDA support

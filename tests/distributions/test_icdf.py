@@ -37,7 +37,7 @@ class TestICDF:
         def mock_cdf(
             dist: Distribution,
             quantile: float,
-            max_acceptable_error: float,  # noqa: ARG001
+            max_acceptable_error: float,
             bounds: tuple[float, float],
         ) -> torch.Tensor:
             """Encodes the inputs into a single tensor which can be tracked though the function.
@@ -86,7 +86,7 @@ class TestICDF:
         def mock_cdf(
             dist: Distribution,
             quantile: float,
-            max_acceptable_error: float,  # noqa: ARG001
+            max_acceptable_error: float,
             bounds: tuple[float, float],
         ) -> torch.Tensor:
             """Encodes the inputs into a single tensor which can be tracked though the function.
@@ -135,7 +135,7 @@ class TestICDF:
         def mock_cdf(
             dist: Distribution,
             quantile: float,
-            max_acceptable_error: float,  # noqa: ARG001
+            max_acceptable_error: float,
             bounds: tuple[float, float],
         ) -> torch.Tensor:
             """Encodes the inputs into a single tensor which can be tracked though the function.

@@ -33,6 +33,9 @@ ignore = [
     "TRY003",  # Avoid specifying long messages outside the exception class
     "PLR1711", # Useless `return` statement at end of function
     "G00",     # Logging statement uses string formatting ('G00' covers all rules flagging string formatting in logging, e.g. G001, G002, etc.)
+    "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "PLW0603", # Using the global statement to update {name} is discouraged
+    "PYI041",  # Use `float` instead of `int | float`
 
     # Ruff lint rules recommended to keep enabled,
     # but which are typical candidates you might have a need to ignore,
@@ -74,8 +77,6 @@ allowed-confusables = [
 [lint.pep8-naming]
 ignore-names = [
     "test_*",
-    "setUp",
-    "tearDown",
 ]
 
 [lint.pylint]
@@ -94,7 +95,7 @@ raises-require-match-for = [
 [lint.per-file-ignores]
 # `__init__.py` specific ignores
 "__init__.py" = [
-    "D104",    # Missing docstring in public package
+    "D104",    # Missing docstring in public package  <- @TODO: Reactivate and resolve  @ ClaasRostock, 2025-01-20
     "F401",    # {name} imported but unused (NOTE: ignored as imports in `__init__.py` files are almost never used inside the module, but are intended for namespaces)
     "I001",    # Import block is un-sorted or un-formatted
     "PLC0414", # Import alias does not rename original package
@@ -108,9 +109,11 @@ raises-require-match-for = [
     "PLR2004", # Magic value used in comparison
     "ANN201",  # Missing return type annotation for public function
     "ANN202",  # Missing return type annotation for private function
+    "ARG001",  # Unused function argument: {name}
+    "ARG002",  # Unused method argument: {name}
     "INP001",  # File is part of an implicit namespace package. Add an `__init__.py`. (NOTE: tests are not intended to be a module, __init__.py hence not required.)
     "SLF001",  # Private member accessed
-    "N802",    # Function name should be lowercase
+    "N802",    # Function name should be lowercase  <- @TODO: Reactivate and resolve  @ ClaasRostock, 2025-01-20
     "TRY004",  # Prefer `TypeError` exception for invalid type
 ]
 # `stubs` specific ignores
@@ -139,6 +142,7 @@ raises-require-match-for = [
 ]
 # `tutorials` specific ignores
 "tutorials/**/*" = [
+    "D",       # Missing docstrings
     "S101",    # Use of assert detected
     "PLR2004", # Magic value used in comparison
     "INP001",  # File is part of an implicit namespace package. Add an `__init__.py`. (NOTE: tutorials are not intended to be a module, __init__.py hence not required.)
@@ -154,6 +158,11 @@ raises-require-match-for = [
     "N803", # allow capital variables (e.g X). The botorch interface requireds this
     "N806", # allow capital variables (e.g X). The botorch interface requireds this
 ]
+# utils/logging specific ignores
+"**/utils/logging.py" = [
+    "A005", # Module `logging` shadows a Python standard-library module
+]
+
 
 [lint.pydocstyle]
 convention = "google"

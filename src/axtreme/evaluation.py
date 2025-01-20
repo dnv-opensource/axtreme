@@ -144,9 +144,9 @@ class EvaluationFunction:
         y = self.simulator(x=x, n_simulations_per_point=self.n_simulations_per_point)
 
         assert y.ndim == 3, f"simulation_result.ndim must be 3, got: {y.ndim}"  # noqa: PLR2004
-        assert (
-            y.shape[1] == self.n_simulations_per_point
-        ), f"simulation_result.shape[1] must be {self.n_simulations_per_point}, got: {y.shape[1]}"
+        assert y.shape[1] == self.n_simulations_per_point, (
+            f"simulation_result.shape[1] must be {self.n_simulations_per_point}, got: {y.shape[1]}"
+        )
         assert y.shape[2] == 1, f"simulation_result.shape[2] currenlty only support single output, got: {y.shape[2]}"
 
         return y
