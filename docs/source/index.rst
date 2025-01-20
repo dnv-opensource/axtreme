@@ -23,7 +23,6 @@ axtreme Documentation
    LICENSE
 
 
-
 Indices and tables
 ==================
 
