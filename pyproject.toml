@@ -59,7 +59,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "numpy>=1.26",
+    "numpy>=1.26, <2.0",
     "matplotlib>=3.10",
     "statsmodels>=0.14.4",
     "filterpy>=1.4.5",
