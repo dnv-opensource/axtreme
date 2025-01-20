@@ -10,6 +10,9 @@ only-include = [
     "tests",
     ".coveragerc",
     ".editorconfig",
+    ".pre-commit-config.yaml",
+    "manage.py",
+    "pyproject.toml",
     "pytest.ini",
     "ruff.toml",
     "uv.lock",
@@ -37,6 +40,9 @@ maintainers = [
     { name = "Jorge Luis Mendez", email = "jorge.luis.mendez@dnv.com" },
 ]
 keywords = [
+    "Design of Experiments",
+    "Active Learning",
+    "Extreme Response",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
