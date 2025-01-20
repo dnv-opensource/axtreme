@@ -5,6 +5,14 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 ## [Unreleased]
 
+### Dependencies
+* Updated to numpy>=1.26  (from numpy>=1.26,<2.0)
+* Updated to matplotlib>=3.10  (from matplotlib>=3.9)
+* Updated to sphinx-autodoc-typehints>=3.0  (from sphinx-autodoc-typehints>=2.5)
+* Updated to pyarrow>=19.0  (from pyarrow>=18.1)
+* Updated to mypy>=1.14  (from mypy>=1.13)
+* Updated to setup-uv@v5  (from setup-uv@v2)
+
 ## [0.1.1] - 2024-12-27
 ### Added:
 Major addition of new qoi method `MarginalCDFExtrapolation`. The following helpers are alse added.
