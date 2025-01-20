@@ -111,7 +111,7 @@ class BatchInvariantSampler2d(Sampler[list[list[int]]]):
         if partial_batch_data_len % batch_shape[0] != 0:
             msg = (
                 f"Final batch will have {partial_batch_data_len} items,"
-                f" which does not fit into batch shape {torch.Size([*batch_shape[:-1] , -1])}"
+                f" which does not fit into batch shape {torch.Size([*batch_shape[:-1], -1])}"
             )
             raise ValueError(msg)
 

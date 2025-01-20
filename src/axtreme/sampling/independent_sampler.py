@@ -170,8 +170,7 @@ class IndependentMCSampler(MCSampler, ABC):
 
         # We do not expect different distibutions, but the ax/botorch codebase is large, so making this explicity.
         msg = (
-            f"Expected posterior.distribution of type MultivariateNormal or MultitaskMultivariateNormal."
-            f"Got {dist_type}"
+            f"Expected posterior.distribution of type MultivariateNormal or MultitaskMultivariateNormal.Got {dist_type}"
         )
         raise ValueError(msg)
 

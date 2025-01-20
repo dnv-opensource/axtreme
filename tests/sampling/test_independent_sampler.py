@@ -116,7 +116,7 @@ def test_forward_same_samples_used_at_different_n_points_MultivariateNormal():
     manual_base_shape = torch.tensor([[1]])
 
     class MockIndependentMCSampler(IndependentMCSampler):
-        def _construct_base_samples(self, posterior: GPyTorchPosterior) -> None:  # noqa: ARG002
+        def _construct_base_samples(self, posterior: GPyTorchPosterior) -> None:
             self.register_buffer("base_samples", manual_base_shape)
 
     sampler = MockIndependentMCSampler(sample_shape=torch.Size([1]))

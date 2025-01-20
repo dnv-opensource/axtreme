@@ -207,9 +207,9 @@ def add_simulation_data_to_experiment(
     """
     _: Any
     runner = experiment.runner
-    assert isinstance(
-        runner, LocalMetadataRunner
-    ), f"Expected experiment.runner to be of type LocalMetadataRunner, got: {type(runner)}"
+    assert isinstance(runner, LocalMetadataRunner), (
+        f"Expected experiment.runner to be of type LocalMetadataRunner, got: {type(runner)}"
+    )
 
     # Change format of inputs into parameterization dicts
     parameterizations: list[TParameterization] = []

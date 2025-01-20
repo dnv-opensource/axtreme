@@ -33,12 +33,14 @@ def observations_to_arrays(
         >>> of = [ObservationFeatures(parameters={"x1": x[0], "x2": x[1]}) for x in X]
         >>> od = [ObservationData(metric_names=["y"], means=y, covariance=np.eye(1)) for y in Y]
         >>> observations = [Observation(features=f, data=d) for f, d in zip(of, od)]
-        >>> features, f, cov = observations_to_arrays(param_names=["x1", "x2"], outcomes=["y"], observations=observations)
+        >>> features, f, cov = observations_to_arrays(
+        ...     param_names=["x1", "x2"], outcomes=["y"], observations=observations
+        ... )
         >>> assert np.array_equal(features, X)
         >>> assert np.array_equal(f, Y)
         >>> # There is only one output per x point. This will have perfect covariance with itself.
         >>> assert np.array_equal(cov, np.ones([3, 1, 1]))
-    """  # noqa: E501
+    """
     features_array = modelbridge_utils.observation_features_to_array(param_names, [o.features for o in observations])
     f, cov = modelbridge_utils.observation_data_to_array(outcomes, [o.data for o in observations])
     return features_array, f, cov

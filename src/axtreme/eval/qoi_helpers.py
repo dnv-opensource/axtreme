@@ -66,7 +66,7 @@ def plot_col_histogram(df: pd.DataFrame, ax: Axes, col_name: str = "mean", brute
         f"mean of dist {values.mean():.3f}."
         f" std of dist {values.std():.3f},"
         # Protect against divide by error error
-        f"C.o.V {values.std()/ values.mean() if values.mean() > 1e-2 else np.nan:.3f}"  # noqa: PLR2004
+        f"C.o.V {values.std() / values.mean() if values.mean() > 1e-2 else np.nan:.3f}"  # noqa: PLR2004
     )
     _ = ax.set_title(title_str)
     _ = ax.set_ylabel("density")
