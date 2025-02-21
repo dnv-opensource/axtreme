@@ -1,0 +1,17 @@
+axtreme.qoi.gp\_bruteforce
+==========================
+
+.. automodule:: axtreme.qoi.gp_bruteforce
+   :members:
+   :exclude-members: GPBruteForce,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      GPBruteForce
+   
