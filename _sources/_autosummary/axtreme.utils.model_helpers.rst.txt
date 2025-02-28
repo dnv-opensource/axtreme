@@ -1,0 +1,14 @@
+axtreme.utils.model\_helpers
+============================
+
+.. automodule:: axtreme.utils.model_helpers
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      get_target_noise_singletaskgp
+      get_training_data_singletaskgp
+   
