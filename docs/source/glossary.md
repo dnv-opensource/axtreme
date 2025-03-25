@@ -8,7 +8,7 @@
 - **environment distribution (env_dist)**:
 
 ## Dimension Notation:
-The `ax` stack (`ax`,  `botorch`, `gpytorch`, `pytorch`) comprises of a number of libraries, each with their own notation. As `axtreme` interacts with differrent parts of this stack, it is useful to know the different conventions. `axtreme` uses `botorch` tensor notation unless otherwise specifiec.
+The `ax` stack (`ax`,  `botorch`, `gpytorch`, `pytorch`) comprises of a number of libraries, each with their own notation. As `axtreme` interacts with differrent parts of this stack, it is useful to know the different conventions. `axtreme` uses `botorch` tensor notation unless otherwise specified.
 
 ### Botorch tensor notation.
 key terms that we make use of that we should define:
