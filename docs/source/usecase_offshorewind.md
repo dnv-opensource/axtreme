@@ -4,39 +4,39 @@ The following offshore wind usecase is used to introduce the `axtreme` package, 
 ## Overview
 An offshore wind turbine is being designed to operate for 20 years. The engineers have information about the typical weather conditions (called the environment conditions), and have a slow but accurate stochastic simulator of the response experienced by the turbine in a give weather condition. In order to know their design will survive for the 20 year period they need to know (amongst other things) the Ultimate Limit State (ULS). This is the largest response the wind turbine is experiences in 20 years of operation.
 
-Because of randomness in the weather and the turbine's response, the largest response experienced in a 20 year period is not a fixed values, and has a distribution. This distribution is called the  the Extreme Response Distribution (ERD). The engineers are specifically interested in knowing the median of this distribution (this is called their Quantity of Interest (QoI)).
+Because of randomness in the weather and the turbine's response, the largest response experienced in a 20 year period is not a fixed values, and has a distribution. This distribution is called the Extreme Response Distribution (ERD). The engineers are specifically interested in knowing the median of this distribution (this is called their Quantity of Interest (QoI)).
 
 ![long_term_response_dist](img/usecase_offshorewind/long_term_response_distribution.png)
 
 The following details the environment samples and simulator.
 
-### Environment Samples:
-The environment represents the factors that effect the wind turbine, and these are used as inputs to the simulator. Typically these are weather conditions such as wind and wave information. The environment distribution then represents how likely it is that a condition will be experience by the wind turbine.
+### Environment Samples
+The environment represents the factors that effect the wind turbine, and these are used as inputs to the simulator. Typically these are weather conditions such as wind and wake information. The environment distribution then represents how likely it is that a condition will be experienced by the wind turbine.
 
 The environment distribution reports "long-term" conditions. This means it represents the average conditions (e.g wind speed) over an hour. This is different to the instantaneous conditions, which are called "short-term" conditions. Short-term conditions are typically (stochastically) generated within the simulator from the long term conditions. This one of the factors causing stochastic output in the simulator.
 
 ### Wind Turbine Simulator $f:X -> Y$
 This stochastic function predicts the response caused by a given environment condition.
-- Input: Takes a "long-term" environment condition $x$ . e.g average wind speed and turbulence.
-- Output: The turbines maximum response $y$ during an hour of operation in those conditions.  The response is stochastic as the model internally randomly generates an hour on instantaneous weather that satisfies the long term average $x$. As there are many patterns of instantaneous weather, each which may produce different responses, the output is stochastic
+- Input: Takes a "long-term" environment condition $x$, e.g average wind speed and turbulence.
+- Output: The turbines maximum response $y$ during an hour of operation in those conditions.  The response is stochastic as the model internally randomly generates an hour of instantaneous weather that satisfies the long term average $x$. As there are many patterns of instantaneous weather, each which may produce different responses, the output is stochastic
 
-## Possible Solutions:
+## Possible Solutions
 
-### Naive approach:
+### Naive approach
 If the simulator was fast we could use the following process to calculate the QoI:
 - Taking one period worth of environment samples.
 - Running them through the simulator, creating one period worth of responses.
 - Taking the largest responses in that period.
 
-This produces a single sample of the ERD. The process could be be repeated until enough samples were obtains to estimate the QoI.
+This produces a single sample of the ERD. The process could be repeated until enough samples are obtained to estimate the QoI.
 
-### Traditional Approaches:
-Method such as Environment Contouring have been create to approximate the QoI with fewer runs of the simulator. These work better than the Naive approach, but have shortcomings.
+### Traditional Approaches
+Methods such as Environment Contouring have been created to approximate the QoI with fewer runs of the simulator. These work better than the Naive approach, but have shortcomings.
 
 
-### `axtreme` approach:
+### `axtreme` approach
 The `axtreme` package deals with this problem by using a fast surrogate model in place of the real simulator when performing the QoI calculations. The process consists of 3 key steps (detailed further in "Basic Concepts"):
-1) #### Build an uncertainty-aware Surrogate Model.
+1) #### Build an uncertainty-aware Surrogate Model:
 Once a small dataset has been created with the simulator (input and output pairs), a surrogate model can be fit to this dataset. For the surrogate to be useful it should:
 - Properly capture the (possibly non-Gaussian) randomness in the simulators response.
 - Be uncertainty aware: Using a surrogate model introduces uncertainty regarding the quality of the fit. Without knowing this uncertainty, it is difficult to trust the results calculated using the surrogate.
