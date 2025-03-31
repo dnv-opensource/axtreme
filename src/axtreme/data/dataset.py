@@ -61,4 +61,4 @@ class MinimalDataset(Dataset[T]):
             (e.g tuples, dicts, int, float, numpy, torch). DataLoader internally convers to torch object.
             For specific DataLoader transformation/consumption see `torch._utils.collate.default_collate`.
         """
-        return cast(T, self.data[idx])
+        return cast("T", self.data[idx])
