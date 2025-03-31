@@ -297,7 +297,7 @@ simulator_samples = sim(np.array([[0.5, 0.5]]), n_simulations_per_point=200).fla
 x_points = np.linspace(simulator_samples.min(), simulator_samples.max(), 100)
 
 _ = plt.hist(simulator_samples, bins=len(simulator_samples) // 9, density=True, label="Simulator")
-_ = plt.plot(x_points, pred_dist.pdf(x_points), label="Surrogate")
+_ = plt.plot(x_points, pred_dist.pdf(x_points), label="Surrogate")  # pyright: ignore[reportAttributeAccessIssue]
 _ = plt.xlabel("Response value")
 _ = plt.ylabel("pdf")
 _ = plt.title("Surrogate distribution vs Simulator distribution at point x = [0.5, 0.5]")
@@ -324,7 +324,7 @@ surrogate_distribution = scipy.stats.multivariate_normal(mean, covariance)
 surrogate_distribution_samples = surrogate_distribution.rvs(size=5, random_state=6)
 for sample in surrogate_distribution_samples:
     sample_dist = dist(loc=sample[0], scale=sample[1])
-    _ = plt.plot(x_points, sample_dist.pdf(x_points), c="grey", alpha=0.5)
+    _ = plt.plot(x_points, sample_dist.pdf(x_points), c="grey", alpha=0.5)  # pyright: ignore[reportAttributeAccessIssue]
 
 _ = plt.plot(x_points, pred_dist.pdf(x_points), c="orange", label="Surrogate Mean")
 _ = plt.plot([], [], label="Posterior Samples", c="grey")  # hacky way to add a label
@@ -414,8 +414,8 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torc
     if not isinstance(estimates, torch.Tensor):  # pyright: ignore[reportUnnecessaryIsInstance]
         estimates = torch.tensor(estimates)
 
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # pyright: ignore[attr-defined, reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # pyright: ignore[attr-defined, reportAttributeAccessIssue]
+    mean = estimator.posterior_sampler.mean(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
+    var = estimator.posterior_sampler.var(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
 
     return mean, var
 
