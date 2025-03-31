@@ -414,8 +414,8 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torc
     if not isinstance(estimates, torch.Tensor):  # pyright: ignore[reportUnnecessaryIsInstance]
         estimates = torch.tensor(estimates)
 
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
+    mean = estimator.posterior_sampler.mean(estimates, -1)  # pyright: ignore[attr-defined, reportAttributeAccessIssue]
+    var = estimator.posterior_sampler.var(estimates, -1)  # pyright: ignore[attr-defined, reportAttributeAccessIssue]
 
     return mean, var
 
