@@ -326,7 +326,7 @@ for sample in surrogate_distribution_samples:
     sample_dist = dist(loc=sample[0], scale=sample[1])
     _ = plt.plot(x_points, sample_dist.pdf(x_points), c="grey", alpha=0.5)  # pyright: ignore[reportAttributeAccessIssue]
 
-_ = plt.plot(x_points, pred_dist.pdf(x_points), c="orange", label="Surrogate Mean")
+_ = plt.plot(x_points, pred_dist.pdf(x_points), c="orange", label="Surrogate Mean")  # pyright: ignore[reportAttributeAccessIssue]
 _ = plt.plot([], [], label="Posterior Samples", c="grey")  # hacky way to add a label
 _ = plt.title("Distribution of possible responses at x = [0.5, 0.5]")
 _ = plt.xlabel("Response value")
