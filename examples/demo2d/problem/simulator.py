@@ -35,7 +35,7 @@ def dummy_simulator_function(x: NDArray[np.float64]) -> NDArray[np.float64]:
     """
     location = _true_loc_func(x)
     scale = _true_scale_func(x)
-    sample = cast(NDArray[np.float64], gumbel_r.rvs(loc=location, scale=scale))
+    sample = cast("NDArray[np.float64]", gumbel_r.rvs(loc=location, scale=scale))
     return sample.reshape(-1, 1)
 
 
@@ -74,7 +74,7 @@ class DummySimulatorSeeded(Simulator):
         samples = []
         for loc_i, scale_i, seed_i in zip(location, scale, seeds, strict=True):
             sample = cast(
-                NDArray[np.float64],
+                "NDArray[np.float64]",
                 gumbel_r.rvs(loc=loc_i, scale=scale_i, random_state=seed_i, size=n_simulations_per_point),
             )
             samples.append(sample)

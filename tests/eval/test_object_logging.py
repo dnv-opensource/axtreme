@@ -139,7 +139,7 @@ def test_unpack_object_integration():
     # gp brute force
     n_periods = 50
     sampler = SizableSequentialSampler(
-        data_source=cast(Sized, dataset),
+        data_source=cast("Sized", dataset),
         num_samples=N_ENV_SAMPLES_PER_PERIOD * n_periods,
     )
     batch_sampler = BatchInvariantSampler2d(

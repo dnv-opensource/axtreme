@@ -325,13 +325,13 @@ def add_json_data_to_experiment(
         # The parameters should always be of type dict[str, float]
         # So we use cast to tell mypy that we know this is the case
         trial_parameters: list[dict[str, float]] = [
-            cast(dict[str, float], arm_data["parameters"]) for arm_data in trial_arms.values()
+            cast("dict[str, float]", arm_data["parameters"]) for arm_data in trial_arms.values()
         ]
 
         # The metrics should always be of type dict[str, dict[str, float]]
         # So we use cast to tell mypy that we know this is the case
         trial_metrics: list[dict[str, dict[str, float | None]]] = [
-            cast(dict[str, dict[str, float | None]], arm_data["metrics"]) for arm_data in trial_arms.values()
+            cast("dict[str, dict[str, float | None]]", arm_data["metrics"]) for arm_data in trial_arms.values()
         ]
         _ = add_metric_data_to_experiment(
             experiment=experiment,
