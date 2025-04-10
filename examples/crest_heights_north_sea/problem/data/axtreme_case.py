@@ -4,6 +4,7 @@
 @author: grams
 """
 
+# %%
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as scst
@@ -85,8 +86,9 @@ h = 110  # water depth 110 m
 n_ss = 2922 * 10**4
 Hs, Tp = sample_seastates(n_ss, weib_prms, lognorm_prms, hslim=7.5)
 # plt.figure()
-# plt.plot(hs, tp, '.')
+# plt.plot(Hs, Tp, ".")
 
+# %%
 # find jonswap gamma, Tm01 and Tm02
 
 gamma = gamma_rpc205(Hs, Tp)
@@ -116,3 +118,5 @@ c_100 = np.sort(c_max3hr)[-i_100]
 # x = np.zeros(n_ss)
 # x[:c_max3hr.size] = c_max3hr
 # c_100_alt = np.quantile(x, 1 - 1/nR)
+
+# %%
