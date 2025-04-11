@@ -21,6 +21,7 @@ upper case? or is it enough that we all that stuff in problem is constant?
 
 import numpy as np
 from ax import (
+    Experiment,
     SearchSpace,
 )
 from ax.core import ParameterType, RangeParameter
@@ -29,6 +30,15 @@ from scipy.stats import gumbel_r
 from torch.utils.data import DataLoader, Dataset
 
 from axtreme.data.dataset import MinimalDataset
+from axtreme.experiment import make_experiment
+from axtreme.simulator import utils as sim_utils
+from axtreme.simulator.base import Simulator
+
+# This allows us to run as interactive and as a module.
+if __name__ == "__main__":
+    import simulator  # type: ignore[import-not-found]
+else:
+    from . import simulator
 
 # %%
 ### Pick the search space over which to create a surrogate
@@ -46,11 +56,37 @@ SEARCH_SPACE = SearchSpace(
 DIST = gumbel_r
 
 # %%
+sim: Simulator = sim_utils.simulator_from_func(simulator.MaxCrestHeightSimulator)
+
+# Define the number of env samples that make a period
+_n_years_in_period = 10**4  # 10,000 years
+
+_n_sea_states_in_year = 2922
+_sea_state_duration = 3 * 60 * 60  # 3 hours
+_n_seconds_in_year = _n_sea_states_in_year * _sea_state_duration
+_n_sea_states_in_period = _n_years_in_period * _n_seconds_in_year // _sea_state_duration
+
+N_ENV_SAMPLES_PER_PERIOD = 1000  # Arbitrary number of env samples per period
+
+# %%
+# TODO(@henrikstoklandberg): Find/define the bruteforce QOI for this problem and period
+
+
+# %%
+### Automatically set up you experiment using the sim, search_space, and dist defined above.
+def make_exp() -> Experiment:
+    """Convience function return a fresh Experiement of this problem."""
+    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
+    # Functions are working on the same problem and are comparable
+    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=N_ENV_SAMPLES_PER_PERIOD)
+
+
+# %%
 # dataset and dataloader
 dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution.npy"))
 
-print("dataset.data: ", dataset.data)
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 # %%
+# TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
