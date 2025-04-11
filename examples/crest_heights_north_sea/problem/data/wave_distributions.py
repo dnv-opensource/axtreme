@@ -6,6 +6,9 @@ Created on Tue Nov 26 11:11:37 2019
 @author: oding
 """
 
+# mypy: ignore-errors
+# ruff: noqa: ANN001, ANN002, ANN003, ANN101, ANN201, ANN202, ANN203, D103, D104, D105, D200, D400, N802, N803, PLR2004, PLR2005, S307, G010, PGH003, TRY002
+
 import numpy as np
 from scipy.stats import weibull_min
 
@@ -38,7 +41,7 @@ def to_2d_1n(x: float | np.ndarray):
     return x
 
 
-class ProbabilityDistribution:
+class ProbabilityDistribution:  # noqa: D101
     def cdf(self, x: np.ndarray):
         """Cumulative distribution function.
 
@@ -194,7 +197,7 @@ class ProbabilityDistribution:
 class Weibull(ProbabilityDistribution):
     "Base class for all distributions that can be expressed as Weibull."
 
-    def __init__(self, alpha: float, beta: float, gamma: float = 0):
+    def __init__(self, alpha: float, beta: float, gamma: float = 0) -> None:
         """Constructor.
 
         Parameters
@@ -215,7 +218,7 @@ class Weibull(ProbabilityDistribution):
         self._weib_min = weibull_min(c=self.beta, loc=self.gamma, scale=self.alpha)
 
         self.shape = np.broadcast_shapes(self.alpha.shape, self.beta.shape, self.gamma.shape)
-        assert len(self.shape) == 2 and self.shape[1] == 1, "Error in shapes of input arrays."
+        assert len(self.shape) == 2 and self.shape[1] == 1, "Error in shapes of input arrays."  # noqa: PT018
 
     def pdf(self, x: np.ndarray):
         """Probability density function.
@@ -311,7 +314,7 @@ class Weibull(ProbabilityDistribution):
 class ForristallCrest(Weibull):
     """Class for Forristall (2000) crest distribution."""
 
-    def __init__(self, hs: float, t01: float, k01: float, h: float):
+    def __init__(self, hs: float, t01: float, k01: float, h: float) -> None:
         """Constructor.
 
         Parameters

@@ -1,7 +1,9 @@
-# %%
+# %%  # noqa: D100
+
 import matplotlib.pyplot as plt
 import numpy as np
-from axtreme_case import sample_seastates
+
+from .axtreme_case import sample_seastates
 
 # %%
 # example use/testing
@@ -13,8 +15,8 @@ h = 110  # water depth 110 m
 N_y = 10**4
 n_ss = 2922 * N_y
 Hs, Tp = sample_seastates(n_ss, weib_prms, lognorm_prms, hslim=7.5)
-_ = plt.figure()
-_ = plt.plot(Hs, Tp, ".")
+plt.figure()  # type: ignore  # noqa: PGH003
+plt.plot(Hs, Tp, ".")  # type: ignore  # noqa: PGH003
 
 
 # %%
