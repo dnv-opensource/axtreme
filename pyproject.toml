@@ -138,6 +138,10 @@ include = [
     "examples",
     "tutorials",
 ]
+exclude = [
+    "examples/crest_heights_north_sea/problem/data/axtreme_case.py",
+    "examples/crest_heights_north_sea/problem/data/wave_distributions.py",
+    ]
 
 typeCheckingMode = "basic"
 useLibraryCodeForTypes = true
