@@ -5,9 +5,9 @@
 As users of the axtreme package we always need to:
 1) Define the search space our problem lies within.
 2) Define distribution we want to use to represent the output of the simulator.
-3) Combine these with the simulator to create an Ax experiement.
+3) Combine these with the simulator to create an Ax experiment.
 
-Convience items also defined here:
+Convenience items also defined here:
 - importance datasets generated.
 
 Guidance for creating/choosing the above is provided in `tutorials` (@melih)
@@ -47,14 +47,15 @@ SEARCH_SPACE = SearchSpace(
 )
 
 # %%
-### Pick a distibution that you belive captures the noise behvaiour of your simulator
+### Pick a distibution that you belive captures the noise behaviour of your simulator
 DIST = gumbel_r
 
 # %%
 sim: Simulator = sim_utils.simulator_from_func(simulator.MaxCrestHeightSimulator)
 
 # Define the number of env samples that make a period
-_n_years_in_period = 10**4  # 10,000 years
+# _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
+_n_years_in_period = 1
 
 _n_sea_states_in_year = 2922
 _sea_state_duration = 3 * 60 * 60  # 3 hours
@@ -68,9 +69,9 @@ N_ENV_SAMPLES_PER_PERIOD = 1000  # Arbitrary number of env samples per period
 
 
 # %%
-### Automatically set up you experiment using the sim, search_space, and dist defined above.
+### Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
-    """Convience function return a fresh Experiement of this problem."""
+    """Convience function returns a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=N_ENV_SAMPLES_PER_PERIOD)
