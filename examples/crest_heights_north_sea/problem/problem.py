@@ -19,6 +19,7 @@ upper case? or is it enough that we all that stuff in problem is constant?
 
 # %%
 
+import brute_force
 import numpy as np
 import simulator
 from ax import (
@@ -51,7 +52,7 @@ SEARCH_SPACE = SearchSpace(
 DIST = gumbel_r
 
 # %%
-sim: Simulator = sim_utils.simulator_from_func(simulator.MaxCrestHeightSimulator)
+sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simulator_function)
 
 # Define the number of env samples that make a period
 # _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
@@ -63,9 +64,6 @@ _n_seconds_in_year = _n_sea_states_in_year * _sea_state_duration
 _n_sea_states_in_period = _n_years_in_period * _n_seconds_in_year // _sea_state_duration
 
 N_ENV_SAMPLES_PER_PERIOD = 1000  # Arbitrary number of env samples per period
-
-# %%
-# TODO(@henrikstoklandberg): Find/define the bruteforce QOI for this problem and period
 
 
 # %%
@@ -79,10 +77,13 @@ def make_exp() -> Experiment:
 
 # %%
 # dataset and dataloader
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution.npy"))
-
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution_1000_years.npy"))
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
+# %%
+# Get brute force QOI for this problem and period
+brut_force_qoi = brute_force.brute_force_calc(dataloader)
+print(brut_force_qoi)
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
