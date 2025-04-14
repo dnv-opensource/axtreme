@@ -1,15 +1,21 @@
 """Additional Metric implemenations."""
 
+import copy
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from ax import Data, Metric
+import torch
+from ax import Arm, BatchTrial, Data, Metric, Models, Trial
 from ax.core.base_trial import BaseTrial
 from ax.core.metric import MetricFetchResult
 from ax.utils.common.result import Ok
 
+from axtreme.qoi.qoi_estimator import QoIEstimator
+from axtreme.utils import transforms
+
 if TYPE_CHECKING:
     from axtreme.evaluation import SimulationPointResults
+from typing import cast
 
 
 class LocalMetadataMetric(Metric):
@@ -37,26 +43,161 @@ class LocalMetadataMetric(Metric):
     trial information directly, the only thing that should be in metadata is run result.
     """
 
-    # TODO(sw): Make it explictly support single arm trial
-    def fetch_trial_data(  # noqa: D102
+    def fetch_trial_data(
         self,
         trial: BaseTrial,
         **kwargs: Any,  # noqa: ANN401, ARG002 NOTE: kwargs is needed to match the signature of the parent class.
     ) -> MetricFetchResult:
-        records = []
-        for arm_name in trial.arms_by_name:
-            point_result: SimulationPointResults = trial.run_metadata["simulation_result"]
-            metrics_columns = point_result.metric_data(self.name)
-            # The data that must be contained in the results can be found here: Data.REQUIRED_COLUMNS
-            # Required keys are {"arm_name","metric_name", "mean", "sem"}
-            # Additional info can be found here: ax.core.data.BaseData
-            records.append(
-                {
-                    "arm_name": arm_name,
-                    "trial_index": trial.index,
-                    "metric_name": self.name,
-                    **metrics_columns,
-                }
+        """Fetches the data from the trial metadata."""
+        arm = _single_arm_trail(trial)
+
+        point_result: SimulationPointResults = trial.run_metadata["simulation_result"]
+        metrics_columns = point_result.metric_data(self.name)
+        # The data that must be contained in the results can be found here: Data.REQUIRED_COLUMNS
+        # Required keys are {"arm_name","metric_name", "mean", "sem"}
+        # Additional info can be found here: ax.core.data.BaseData
+        data = {
+            "arm_name": arm.name,
+            "trial_index": trial.index,
+            "metric_name": self.name,
+            **metrics_columns,
+        }
+
+        return Ok(value=Data(df=pd.DataFrame([data])))
+
+
+def _single_arm_trail(trial: BaseTrial) -> Arm:
+    """Ensure the trial is a Trial with a single arm.
+
+    This helper is useful as Metric subclasses need to support BaseTrials, otherwise they break polymorphism
+    (e.g SubClassMetric can no longer be used in place of it parent class Metric). In Ax there are 2 type of trials
+    (Trial and BatchTrial, see https://ax.dev/docs/core/#trial-vs-batch-trial), and we are typically only interested in
+    supporting `Trail`. This helper deals with the checking and typing.
+
+    Args:
+        trial: The trial to check.
+
+    Return:
+        The arm of a single arm trail, or exception.
+    """
+    if isinstance(trial, BatchTrial):
+        raise NotImplementedError("BatchTrial is not supported for LocalMetadataMetric.")
+
+    # We proceed with duck typing rather than explicitly checking type Trial
+    trial = cast("Trial", trial)
+    arm = trial.arm
+
+    if arm is None:
+        raise ValueError("Trial has no Arm. It cannot be evaluated.")
+
+    return arm
+
+
+class QoIMetric(Metric):
+    """Helper for recording the QoI estimate over the course of an Experiment.
+
+    This helper records the score of a QoIEstimator. Internally it trains a GP on all non-tracking metrics for trials up
+    to the current trial (e.g if the `Experiment` has 10 trails total, the QoI estimate for trail 5 will use all trials
+    0-5 inclusive in the GP). The QoIEstimator is then run using the GP.
+
+    This metric should be used as a tracking metric (e.g `_tracking_metrics` attribute `Experiment`).
+    `_tracking_metrics` signify that these metrics should not be modelled with a GP (Note: this still need to be
+    explicitly set when creating GPs).
+    """
+
+    # What is the metric
+
+    # Note on subclasses: input signature can wbe whatever you want
+    def __init__(
+        self,
+        name: str,
+        qoi_estimator: QoIEstimator,
+        minimum_data_points: int = 5,
+        lower_is_better: bool | None = None,
+        properties: dict[str, Any] | None = None,
+        *,
+        attach_transforms: bool = False,
+    ) -> None:
+        """Initialize the QoIMetric.
+
+        Args:
+            name: The name of the metric.
+            qoi_estimator: The QoI estimator to use to calculate the metric.
+            minimum_data_points: The minimum number of datapoints the experiment must have before the GP is trained and
+                the QoI is actually run.
+            lower_is_better: Flag for metrics which should be minimized. Typically we are not interested in
+                minimising/maximising QoIs so this values should be `None`.
+            properties: Dictionary of this metric's properties.
+            attach_transforms: If True, attaches the input and outcome transforms required of the GP to operate in the
+                problem space. This assume `qoi_estimator` have attributes `input_transform` and `outcome_transform`
+                where these should be attached. TODO(sw 11-4-25): remove when issue #19 is addressed.
+        """
+        super().__init__(name=name, lower_is_better=lower_is_better, properties=properties)
+
+        self.qoi_estimator = copy.deepcopy(qoi_estimator)
+        self.minimum_data_points = minimum_data_points
+        self.attach_transforms = attach_transforms
+
+    def fetch_trial_data(
+        self,
+        trial: BaseTrial,
+        **kwargs: Any,  # noqa: ANN401, ARG002 NOTE: kwargs is needed to match the signature of the parent class.
+    ) -> MetricFetchResult:
+        """Fetch the data for a trial.
+
+        See class docstring for overview.
+
+        Returns:
+            The data result in effect byt the amount of data available by this trial. If v
+            - available data < `minimum_data-points`: `mean` and `sem` are NaN.
+            - available data >= `minimum_data-points`: `mean` is the mean QoIEstimate, `sem` is the standard error of
+                the measure deviation. The standard error corresponds to the standard deviation of the distribution as
+                each sample is a prediction of the measure (the QoI).
+        """
+        arm = _single_arm_trail(trial)
+        exp = trial.experiment
+
+        qoi_mean = torch.nan
+        qoi_sem = torch.nan
+
+        if trial.index >= self.minimum_data_points:
+            non_tracking_metrics = exp.optimization_config.metrics
+            # Its possible the experiment has more trails than the current one.
+            # The calculation at this point should only be with the data seen prior and including the current trial.
+            data = exp.fetch_trials_data(
+                trial_indices=range(trial.index + 1),
+                # Tracking metric need to be excluded to avoid recursion
+                metrics=non_tracking_metrics,
             )
 
-        return Ok(value=Data(df=pd.DataFrame.from_records(records)))
+            botorch_model_bridge = Models.BOTORCH_MODULAR(experiment=exp, data=data, fit_tracking_metrics=False)
+
+            if self.attach_transforms:
+                input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
+                    transforms=list(botorch_model_bridge.transforms.values()),
+                    outcome_names=botorch_model_bridge.outcomes,
+                )
+
+                # TODO(sw 14-4-25): Quick and dirty fix to revisit in issue #19.
+                self.qoi_estimator.input_transform = input_transform  # type: ignore[attr-defined]
+                self.qoi_estimator.outcome_transform = outcome_transform  # type: ignore[attr-defined]
+
+            model = botorch_model_bridge.model.surrogate.model
+            estimates = self.qoi_estimator(model)
+            qoi_mean = float(self.qoi_estimator.mean(estimates))
+            qoi_sem = float(self.qoi_estimator.var(estimates) ** 0.5)
+
+        # The data that must be contained in the results can be found here: Data.REQUIRED_COLUMNS
+        # Required keys are {"arm_name","metric_name", "mean", "sem"}
+        # Additional info can be found here: ax.core.data.BaseData
+
+        # TODO(sw 11/04/25): can we attach the raw values qoi predictions to this as well?
+        data = {
+            "arm_name": arm.name,
+            "trial_index": trial.index,
+            "metric_name": self.name,
+            "mean": qoi_mean,
+            "sem": qoi_sem,
+        }
+
+        return Ok(value=Data(df=pd.DataFrame([data])))
