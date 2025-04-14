@@ -1,9 +1,12 @@
 """Define the simulator."""
 
+from typing import cast
+
 import numpy as np
 
 from axtreme.simulator.base import Simulator
 
+# TODO (@am-kaiser): Can we find a nicer solution for that? (AK 25-04-14)
 # This allows us to run as interactive and as a module.
 if __name__ == "__main__":
     from data.axtreme_case import (  # type: ignore[import-not-found]
@@ -14,7 +17,12 @@ if __name__ == "__main__":
     )
     from data.wave_distributions import ForristallCrest  # type: ignore[import-not-found]
 else:
-    from .data.axtreme_case import Tm01_from_Tp_gamma, Tm02_from_Tp_gamma, gamma_rpc205, omega_to_k_rpc205
+    from .data.axtreme_case import (
+        Tm01_from_Tp_gamma,
+        Tm02_from_Tp_gamma,
+        gamma_rpc205,
+        omega_to_k_rpc205,
+    )
     from .data.wave_distributions import ForristallCrest
 
 
@@ -23,7 +31,7 @@ def max_crest_height_simulator_function(
     water_depth: float = 110,
     sample_period: float = 3,
 ) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
-    """Generate a sample from a Gumbel distribution where the location and scale are a function of x.
+    """Generate the maximum crest height for an input environment x.
 
     Parameters:
         x: (n,2) array of points to simulate, corresponds to hs (significant wave height) and tp (peak wave period)
@@ -51,16 +59,11 @@ def max_crest_height_simulator_function(
     return c_max_in_period.reshape(-1, 1)
 
 
+# TODO(@am-kaiser): add seeded version of the class (AK 25-04-14)
 class MaxCrestHeightSimulator(Simulator):
-    """A seeded version of ``max_crest_height_gumbel_simulator_function`` conforming to the ``Simulator`` protocol.
+    """A class version of ``max_crest_height_gumbel_simulator_function`` conforming to the ``Simulator`` protocol.
 
-    The each unique point in the x domain has a fixed seed used when generating samples. this can be
-    useful for reproducibility. Points still appear "semi" random, as points close together use completly different
-    seeds.
-
-    Details:
-        - Points which differ only after the 10th decimal place get the same random seed.
-        - Co-ordinates at the same unique point will produce the exact same results. IT
+    For each unique point in the x domain n_simulations_per_point samples are generated.
     """
 
     def __call__(
@@ -81,13 +84,10 @@ class MaxCrestHeightSimulator(Simulator):
             An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
             points.
         """
-        # for each unique x point create a unique seed
-        seeds = np.linspace(0, n_simulations_per_point, 1, dtype=int)  # AK: does not do anything so far
-
         samples = []
-        for seed in seeds:
-            _ = np.random.default_rng(seed)
+        for _ in np.arange(start=0, stop=n_simulations_per_point, step=1):
             sample = max_crest_height_simulator_function(x, water_depth, sample_period)
             samples.append(sample)
 
-        return np.expand_dims(np.stack(samples), axis=-1)  # AK ToDo: need too check if the dimensions are correct
+        result = np.stack(samples, axis=1)
+        return cast("np.ndarray[tuple[int, int, int], np.dtype[np.float64]]", result)
