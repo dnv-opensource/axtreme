@@ -128,7 +128,10 @@ disable_error_code = [
     "misc",
     "import-untyped",
 ]
-
+exclude = [
+    "examples/crest_heights_north_sea/problem/data/axtreme_case.py",
+    "examples/crest_heights_north_sea/problem/data/wave_distributions.py",
+    ]
 
 [tool.pyright]
 stubPath = "stubs"
