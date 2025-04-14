@@ -20,6 +20,7 @@ upper case? or is it enough that we all that stuff in problem is constant?
 # %%
 
 import numpy as np
+import simulator
 from ax import (
     Experiment,
     SearchSpace,
@@ -33,12 +34,6 @@ from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import make_experiment
 from axtreme.simulator import utils as sim_utils
 from axtreme.simulator.base import Simulator
-
-# This allows us to run as interactive and as a module.
-if __name__ == "__main__":
-    import simulator  # type: ignore[import-not-found]
-else:
-    from . import simulator
 
 # %%
 ### Pick the search space over which to create a surrogate

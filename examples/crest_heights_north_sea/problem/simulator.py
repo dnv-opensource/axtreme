@@ -4,26 +4,17 @@ from typing import cast
 
 import numpy as np
 
-from axtreme.simulator.base import Simulator
+# TODO (@am-kaiser): Had to remove the if main part to make problem.py work
+# but we need to find a solution for the jupyter notebook example (AK 25-04-14)
+from data.axtreme_case import (  # type: ignore[import-not-found]
+    Tm01_from_Tp_gamma,
+    Tm02_from_Tp_gamma,
+    gamma_rpc205,
+    omega_to_k_rpc205,
+)
+from data.wave_distributions import ForristallCrest  # type: ignore[import-not-found]
 
-# TODO (@am-kaiser): Can we find a nicer solution for that? (AK 25-04-14)
-# This allows us to run as interactive and as a module.
-if __name__ == "__main__":
-    from data.axtreme_case import (  # type: ignore[import-not-found]
-        Tm01_from_Tp_gamma,
-        Tm02_from_Tp_gamma,
-        gamma_rpc205,
-        omega_to_k_rpc205,
-    )
-    from data.wave_distributions import ForristallCrest  # type: ignore[import-not-found]
-else:
-    from .data.axtreme_case import (
-        Tm01_from_Tp_gamma,
-        Tm02_from_Tp_gamma,
-        gamma_rpc205,
-        omega_to_k_rpc205,
-    )
-    from .data.wave_distributions import ForristallCrest
+from axtreme.simulator.base import Simulator
 
 
 def max_crest_height_simulator_function(
