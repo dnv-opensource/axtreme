@@ -12,14 +12,3 @@ def collect_data() -> pd.DataFrame:
     current_dir = Path(__file__).parent
     numpy = np.load(current_dir / "data/long_term_distribution.npy")
     return pd.DataFrame(numpy, columns=["Hs", "Tp"])
-
-
-# %%
-# example use/testing
-data = collect_data()
-print(data.head())
-print(data.describe())
-print("Shape of data: ", data.shape)
-
-
-# %%
