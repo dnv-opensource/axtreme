@@ -1,6 +1,7 @@
 """Helper for working with scipy distibutions."""
 
 import inspect
+from collections.abc import Sequence
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -81,7 +82,8 @@ def fit_dist_with_uncertainty(
     # Has to return the logprob of dataset given a set of params
     # Typically this is implementented on the object which has the data stored internally
     # Using closure to conform to the function signature and still have access to the data
-    def loglike(params: ArrayLike) -> float:
+    # Note: they type here is a bit loose, but the effect of this is contained and this function will be overwritten.
+    def loglike(params: Sequence[int | float]) -> float:
         return np.sum(dist.logpdf(data, *params))
 
     # GenericLikelihoodModel documentation example shows the data should also be passed here

@@ -111,6 +111,7 @@ source .venv/bin/activate
 ```
 
 ### 7. Install pre-commit hooks
+`pre-commit` can be used locally as a convenience tool to run checks such as pyright and ruff. If you choose to use it, you should check that the dependencies and versions match that in `pyproject.toml`.
 The `.pre-commit-config.yaml` file in the project root directory contains a configuration for pre-commit hooks.
 To install the pre-commit hooks defined therein in your local git repository, run:
 ```sh
@@ -187,27 +188,6 @@ uv run pytest --cov=rapid --cov-branch --cov-report=json --cov-report=term-missi
 
 See axtreme's [documentation][axtreme_docs] on GitHub pages.
 
-## Notes on Design Decisions
-
-### Imports
-We are breaking this rule, and often import classes etc. This follows the approach taken in packages such as `pytorch` `botorch` etc.
-#### Definition
-[Google code standard](https://google.github.io/styleguide/pyguide.html#22-imports) suggests:
-> "Use import statements for packages and modules only, not for individual types, classes, or functions"
-#### pros
-* often package with similar names (e.g utils), but the actual method required is clear diferentiated.
-* Less verbose
-#### cons
-* Breaking some recommended practice, not sure what they impact will be.
-
-### Numpy vs. Tensors
-* Numpy: Working with ax/in general
-* Torch: working inside or touching "Botorch Layer", or anywhere need gpu or grad
-#### pros
-* If work mostly with tensor need to constantly convert them to numpy when winteracting with ax, plot etc.
-#### cons
-* numpy and tensors have slightly different interfaces
-* Means we don't have one default way of working
 
 ## Meta
 

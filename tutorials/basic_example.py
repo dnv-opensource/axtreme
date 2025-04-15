@@ -30,6 +30,7 @@ from ax import (
     SearchSpace,
 )
 from ax.core import GeneratorRun, ObservationFeatures, ParameterType, RangeParameter
+from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
 from matplotlib.axes import Axes
@@ -194,8 +195,8 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # %%
 # For this specific problem we have precalculated a large number of brute force ERD samples.
 # This allows up to treat the brute_force_qoi_estimate as a point for the purpose of this tutorial.
-erd_samples = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
-brute_force_qoi_estimate = np.median(erd_samples)
+precalced_erd_samples = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 
 # %% [markdown]
@@ -399,7 +400,7 @@ for points in n_training_points:
 
 
 # %%
-def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor | NDArray[Any]) -> tuple[torch.Tensor, torch.Tensor]:
     """TODO: clean this up or delete.
 
     Args:
@@ -408,14 +409,14 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torc
 
     Returns:
         tensor1: the mean of the estimates, with shape *b
-        tensor1: the mean of the estimates, with shape *b
+        tensor1: the variance of the estimates, with shape *b
 
     """
-    if not isinstance(estimates, torch.Tensor):  # pyright: ignore[reportUnnecessaryIsInstance]
+    if not isinstance(estimates, torch.Tensor):
         estimates = torch.tensor(estimates)
 
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
+    mean = estimator.posterior_sampler.mean(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+    var = estimator.posterior_sampler.var(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
 
     return mean, var
 
@@ -424,7 +425,7 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torc
 _, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
-    mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))
+    mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))  # type: ignore[assignment]
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
@@ -538,9 +539,22 @@ exp_sobol = make_exp()
 sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
 
 
-def sobol_generator_run(_: Experiment) -> GeneratorRun:  # pyright: ignore[reportRedeclaration]
-    return sobol.gen(1)
+def create_sobol_generator(sobol: ModelBridge) -> Callable[[Experiment], GeneratorRun]:
+    """Closure helper to run a sobol generator in the interface run_trails required.
 
+    Note the typing is a bit general -> should be a sobol generatror.
+
+    Returns:
+        Callable[[Experiment], GeneratorRun]: A function that takes an experiment and returns a generator run.
+    """
+
+    def sobol_generator_run(_: Experiment) -> GeneratorRun:
+        return sobol.gen(1)
+
+    return sobol_generator_run
+
+
+sobol_generator_run = create_sobol_generator(sobol)
 
 qoi_results_sobol = run_trials(
     experiment=exp_sobol,
@@ -639,7 +653,6 @@ print(candidate, result)
 
 # %%
 acqf_class = QoILookAhead
-posterior_sampler = sampling.MeanSampler()
 
 
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
@@ -663,7 +676,7 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
         botorch_acqf_class=acqf_class,
         acquisition_options={
             "qoi_estimator": qoi_estimator,
-            "sampler": posterior_sampler,
+            "sampler": sampling.MeanSampler(),
         },
     )
 
@@ -694,14 +707,9 @@ exp_look_ahead = make_exp()
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
-
-def sobol_generator_run(_: Experiment) -> GeneratorRun:  # pyright: ignore[reportRedeclaration]
-    return sobol.gen(1)
-
-
 qoi_results_look_ahead = run_trials(
     experiment=exp_look_ahead,
-    warm_up_generator=sobol_generator_run,
+    warm_up_generator=create_sobol_generator(sobol),
     doe_generator=look_ahead_generator_run,
     qoi_estimator=qoi_estimator,
     warm_up_runs=warm_up_runs,
@@ -755,10 +763,10 @@ def plot_raw_ut_estimates(
 
 
 # %%
-mean, var = get_mean_var(qoi_estimator, qoi_results_sobol)
-ax = plot_raw_ut_estimates(mean, var, name="Sobol")
-mean, var = get_mean_var(qoi_estimator, qoi_results_look_ahead)
-ax = plot_raw_ut_estimates(mean, var, ax=ax, color="green", name="look ahead")
+baseline_mean, baseline_var = get_mean_var(qoi_estimator, qoi_results_sobol)
+ax = plot_raw_ut_estimates(baseline_mean, baseline_var, name="Sobol")
+lookahead_mean, lookahead_var = get_mean_var(qoi_estimator, qoi_results_look_ahead)
+ax = plot_raw_ut_estimates(lookahead_mean, lookahead_var, ax=ax, color="green", name="look ahead")
 _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
