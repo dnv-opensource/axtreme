@@ -4,14 +4,13 @@ import copy
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-import torch
 from ax import Arm, BatchTrial, Data, Metric, Models, Trial
 from ax.core.base_trial import BaseTrial
 from ax.core.metric import MetricFetchResult
 from ax.utils.common.result import Ok
 
+from axtreme import qoi
 from axtreme.qoi.qoi_estimator import QoIEstimator
-from axtreme.utils import transforms
 
 if TYPE_CHECKING:
     from axtreme.evaluation import SimulationPointResults
@@ -85,6 +84,7 @@ def _single_arm_trail(trial: BaseTrial) -> Arm:
 
     # We proceed with duck typing rather than explicitly checking type Trial
     trial = cast("Trial", trial)
+    # This internally throws an error if more than 1 arm is attached.
     arm = trial.arm
 
     if arm is None:
@@ -103,6 +103,12 @@ class QoIMetric(Metric):
     This metric should be used as a tracking metric (e.g `_tracking_metrics` attribute `Experiment`).
     `_tracking_metrics` signify that these metrics should not be modelled with a GP (Note: this still need to be
     explicitly set when creating GPs).
+
+    Pseudo code Example:
+    >>> qoi_estimator = qoi.GPBruteForce(...)  # or any other QoIEstimator
+    >>> qoi_metric = QoIMetric(name="QoIMetric", qoi_estimator=qoi_estimator, attach_transforms=True)
+    >>> experiment = Experiment(...)
+    >>> experiment.add_tracking_metric(qoi_metric)
     """
 
     # What is the metric
@@ -157,30 +163,27 @@ class QoIMetric(Metric):
         arm = _single_arm_trail(trial)
         exp = trial.experiment
 
-        qoi_mean = torch.nan
-        qoi_sem = torch.nan
+        qoi_mean = float("nan")
+        qoi_sem = float("nan")
 
-        if trial.index >= self.minimum_data_points:
+        # Trail has 0 based indexing, add 1 to get count of data points
+        if (trial.index + 1) >= self.minimum_data_points:
             non_tracking_metrics = exp.optimization_config.metrics
             # Its possible the experiment has more trails than the current one.
             # The calculation at this point should only be with the data seen prior and including the current trial.
             data = exp.fetch_trials_data(
                 trial_indices=range(trial.index + 1),
                 # Tracking metric need to be excluded to avoid recursion
-                metrics=non_tracking_metrics,
+                metrics=list(non_tracking_metrics.values()),
             )
 
             botorch_model_bridge = Models.BOTORCH_MODULAR(experiment=exp, data=data, fit_tracking_metrics=False)
 
+            # Likely removed as part of issue #19
             if self.attach_transforms:
-                input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-                    transforms=list(botorch_model_bridge.transforms.values()),
-                    outcome_names=botorch_model_bridge.outcomes,
+                self.qoi_estimator = qoi.utils.attach_transforms_to_qoi_estimator(
+                    botorch_model_bridge, self.qoi_estimator
                 )
-
-                # TODO(sw 14-4-25): Quick and dirty fix to revisit in issue #19.
-                self.qoi_estimator.input_transform = input_transform  # type: ignore[attr-defined]
-                self.qoi_estimator.outcome_transform = outcome_transform  # type: ignore[attr-defined]
 
             model = botorch_model_bridge.model.surrogate.model
             estimates = self.qoi_estimator(model)
@@ -192,6 +195,8 @@ class QoIMetric(Metric):
         # Additional info can be found here: ax.core.data.BaseData
 
         # TODO(sw 11/04/25): can we attach the raw values qoi predictions to this as well?
+        # They attach additional stuff here: .venv\Lib\site-packages\ax\metrics\noisy_function.py
+        # Suspect it works like a standard pd dataframe - can add extra stuff in if you would like to
         data = {
             "arm_name": arm.name,
             "trial_index": trial.index,
