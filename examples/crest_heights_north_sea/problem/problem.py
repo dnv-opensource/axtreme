@@ -20,7 +20,7 @@ upper case? or is it enough that we all that stuff in problem is constant?
 # %%
 
 import numpy as np
-import simulator
+import simulator  # type: ignore[import]
 from ax import (
     Experiment,
     SearchSpace,
