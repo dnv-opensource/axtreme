@@ -19,9 +19,10 @@ upper case? or is it enough that we all that stuff in problem is constant?
 
 # %%
 
-import brute_force
+import brute_force  # type: ignore[import]
+import matplotlib.pyplot as plt
 import numpy as np
-import simulator
+import simulator  # type: ignore[import]
 from ax import (
     Experiment,
     SearchSpace,
@@ -56,9 +57,10 @@ sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simula
 
 # Define the number of env samples that make a period
 # _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
-_n_years_in_period = 1
+_n_years_in_period = 1000
 
 _n_sea_states_in_year = 2922
+_n_sea_states_in_period = _n_years_in_period * _n_sea_states_in_year
 _sea_state_duration = 3 * 60 * 60  # 3 hours
 _n_seconds_in_year = _n_sea_states_in_year * _sea_state_duration
 _n_sea_states_in_period = _n_years_in_period * _n_seconds_in_year // _sea_state_duration
@@ -77,13 +79,28 @@ def make_exp() -> Experiment:
 
 # %%
 # dataset and dataloader
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution_1000_years.npy"))
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
+    np.load(f"data/long_term_distribution_{_n_years_in_period}_years.npy")
+)
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 # %%
 # Get brute force QOI for this problem and period
-brut_force_qoi = brute_force.brute_force_calc(dataloader)
+brut_force_return_value, brut_force_qoi = brute_force.collect_or_calculate_results(
+    dataloader, _n_sea_states_in_year, _n_sea_states_in_period, num_estimates=1_000
+)
 print(brut_force_qoi)
+# %%
+# Plot brute force QOI
+_ = plt.hist(brut_force_return_value, bins=100, density=True)
+_ = plt.title("R-year return value distribution")  # type: ignore[assignment]
+_ = plt.xlabel("R-year return value")  # type: ignore[assignment]
+_ = plt.ylabel("Density")  # type: ignore[assignment]
+_ = plt.axvline(brut_force_qoi, color="red", label="QoI")  # type: ignore[assignment]
+_ = plt.legend()  # type: ignore[assignment]
+plt.grid(True)  # noqa: FBT003
+
+
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
