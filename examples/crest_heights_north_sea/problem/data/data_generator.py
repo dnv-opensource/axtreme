@@ -3,9 +3,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from axtreme_case import sample_seastates
 from numpy.typing import NDArray
-
-from .axtreme_case import sample_seastates
 
 
 def generate_data(n_years_in_period: int, n_sea_states_in_year: int) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
@@ -28,12 +27,12 @@ def generate_data(n_years_in_period: int, n_sea_states_in_year: int) -> tuple[ND
 
 # %%
 if __name__ == "__main__":
-    N_y = 1000
+    N_y = 100
     Hs, Tp = generate_data(n_years_in_period=N_y, n_sea_states_in_year=2922)
 
     plt.figure()  # type: ignore  # noqa: PGH003
     plt.plot(Hs, Tp, ".")  # type: ignore  # noqa: PGH003
 
     # Save the data as a .npy file
-    np.save(f"long_term_distribution_{N_y}_years.npy", np.column_stack((Hs, Tp)))
+    np.save(f"long_term_distribution_{N_y}_years_no_hslim.npy", np.column_stack((Hs, Tp)))
 # %%
