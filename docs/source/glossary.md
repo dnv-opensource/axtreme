@@ -3,7 +3,7 @@
 - **Extreme Response Distribtuion (ERD):** Distribution of the largest response experienced over a timeframe. e.g distribution of the largest response a windturbine will experience in 20 years of operation.
 - **period**: A sample of the environment for the timeframe of interest. e.g 20 years worth of samples of the env dist.
     - `n_periods` The number of these periods.
-    - `period_len`: the number of samples require to create timeframe of interest.
+    - `period_len`: the number of samples required to create the timeframe of interest.
         - e.g timeframe is 1 year, and env samples are for 1 day, then `period_len=365.25`
 - **environment distribution (env_dist)**:
 - **problem space**: Refers to the input variables and responses before any transforms/standardization have occurred. For example `ax.ModelBridge` operates in the problem space because it takes raw/untransformed x value and produce raw/untransformed y values.

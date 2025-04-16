@@ -24,12 +24,12 @@ class LocalMetadataMetric(Metric):
     (e.g. `see <https://ax.dev/tutorials/gpei_hartmann_developer.html#8.-Defining-custom-metrics>`_)
     In general, this method should only 'fetch' the results from somewhere else where they have been run.
     For example, Runner deploys simulation of remote, this connects to remote and collects result.
-    This is local implementation of this patter, where results are stored on trail metadata.
+    This is local implementation of this patter, where results are stored on trial metadata.
 
     This is useful when:
     - Running a single simulation produces multiple output metrics
     (meaning the simulation doesn't need to be run as many times)
-    - Want to execute the simulation when `trail.run()` is called
+    - Want to execute the simulation when `trial.run()` is called
 
     Note:
         This object is coupled with LocalMetadataRunner, through SimulationPointResults
@@ -48,7 +48,7 @@ class LocalMetadataMetric(Metric):
         **kwargs: Any,  # noqa: ANN401, ARG002 NOTE: kwargs is needed to match the signature of the parent class.
     ) -> MetricFetchResult:
         """Fetches the data from the trial metadata."""
-        arm = _single_arm_trail(trial)
+        arm = _single_arm_trial(trial)
 
         point_result: SimulationPointResults = trial.run_metadata["simulation_result"]
         metrics_columns = point_result.metric_data(self.name)
@@ -65,19 +65,19 @@ class LocalMetadataMetric(Metric):
         return Ok(value=Data(df=pd.DataFrame([data])))
 
 
-def _single_arm_trail(trial: BaseTrial) -> Arm:
+def _single_arm_trial(trial: BaseTrial) -> Arm:
     """Ensure the trial is a Trial with a single arm.
 
     This helper is useful as Metric subclasses need to support BaseTrials, otherwise they break polymorphism
     (e.g SubClassMetric can no longer be used in place of it parent class Metric). In Ax there are 2 type of trials
     (Trial and BatchTrial, see https://ax.dev/docs/core/#trial-vs-batch-trial), and we are typically only interested in
-    supporting `Trail`. This helper deals with the checking and typing.
+    supporting `Trial`. This helper deals with the checking and typing.
 
     Args:
         trial: The trial to check.
 
     Return:
-        The arm of a single arm trail, or exception.
+        The arm of a single arm trial, or exception.
     """
     if isinstance(trial, BatchTrial):
         raise NotImplementedError("BatchTrial is not supported for LocalMetadataMetric.")
@@ -97,7 +97,7 @@ class QoIMetric(Metric):
     """Helper for recording the QoI estimate over the course of an Experiment.
 
     This helper records the score of a QoIEstimator. Internally it trains a GP on all non-tracking metrics for trials up
-    to the current trial (e.g if the `Experiment` has 10 trails total, the QoI estimate for trail 5 will use all trials
+    to the current trial (e.g if the `Experiment` has 10 trials total, the QoI estimate for trial 5 will use all trials
     0-5 inclusive in the GP). The QoIEstimator is then run using the GP.
 
     This metric should be used as a tracking metric (e.g `_tracking_metrics` attribute `Experiment`).
@@ -154,22 +154,23 @@ class QoIMetric(Metric):
         See class docstring for overview.
 
         Returns:
-            The data result in effect byt the amount of data available by this trial. If v
+            The data returned is effect by the total amount of data available by this trial (e.g this trial and earlier
+            trials).
             - available data < `minimum_data-points`: `mean` and `sem` are NaN.
             - available data >= `minimum_data-points`: `mean` is the mean QoIEstimate, `sem` is the standard error of
                 the measure deviation. The standard error corresponds to the standard deviation of the distribution as
                 each sample is a prediction of the measure (the QoI).
         """
-        arm = _single_arm_trail(trial)
+        arm = _single_arm_trial(trial)
         exp = trial.experiment
 
         qoi_mean = float("nan")
         qoi_sem = float("nan")
 
-        # Trail has 0 based indexing, add 1 to get count of data points
+        # trial has 0 based indexing, add 1 to get count of data points
         if (trial.index + 1) >= self.minimum_data_points:
             non_tracking_metrics = exp.optimization_config.metrics
-            # Its possible the experiment has more trails than the current one.
+            # Its possible the experiment has more trials than the current one.
             # The calculation at this point should only be with the data seen prior and including the current trial.
             data = exp.fetch_trials_data(
                 trial_indices=range(trial.index + 1),

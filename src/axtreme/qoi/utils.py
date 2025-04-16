@@ -1,4 +1,4 @@
-"Util funciton for working with QoIEstimators."
+"Util function for working with QoIEstimators."
 
 import copy
 from typing import TypeVar
@@ -19,7 +19,7 @@ def attach_transforms_to_qoi_estimator(model_bridge: ModelBridge, qoi_estimator:
     """Attaches appropriate botorch transforms to a QoIEstimator.
 
     NOTE: this approach is a hick fix to a wider problem we are yet to solve elegantly. Our QoIEstimators need to
-    opeate in the "problem space" but the botorch models passed to the QoIEstimator have been put in the "Model space"
+    operate in the "problem space" but the botorch models passed to the QoIEstimator have been put in the "Model space"
     by ax.
 
     The current approach is to find the botorch transforms that should be applied, and give them to the QoIEstimator.
