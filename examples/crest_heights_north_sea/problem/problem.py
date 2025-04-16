@@ -57,7 +57,7 @@ sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simula
 
 # Define the number of env samples that make a period
 # _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
-_n_years_in_period = 1000
+_n_years_in_period = 100
 
 _n_sea_states_in_year = 2922
 _n_sea_states_in_period = _n_years_in_period * _n_sea_states_in_year
@@ -80,27 +80,61 @@ def make_exp() -> Experiment:
 # %%
 # dataset and dataloader
 dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
-    np.load(f"data/long_term_distribution_{_n_years_in_period}_years.npy")
+    np.load(f"data/long_term_distribution_{_n_years_in_period}_years_no_hslim.npy")
 )
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 # %%
-# Get brute force QOI for this problem and period
-brut_force_return_value, brut_force_qoi = brute_force.collect_or_calculate_results(
-    dataloader, _n_sea_states_in_year, _n_sea_states_in_period, num_estimates=1_000
+# Get brute force QOI for this problem and period using the quantile method
+quantile_brut_force_return_values, quantile_brut_force_return_mean, quantile_brut_force_return_variance = (
+    brute_force.collect_or_calculate_results(
+        dataloader, _n_sea_states_in_year, _n_sea_states_in_period, num_estimates=1_000, brut_force_type="quantile"
+    )
 )
-print(brut_force_qoi)
+# %%
+print(quantile_brut_force_return_values.shape)
 # %%
 # Plot brute force QOI
-_ = plt.hist(brut_force_return_value, bins=100, density=True)
+_ = plt.hist(quantile_brut_force_return_values, bins=100, density=True)
 _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
 _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
 _ = plt.ylabel("Density")  # type: ignore[assignment]
-_ = plt.axvline(brut_force_qoi, color="red", label="QoI")  # type: ignore[assignment]
+_ = plt.axvspan(
+    quantile_brut_force_return_mean - quantile_brut_force_return_variance,
+    quantile_brut_force_return_mean + quantile_brut_force_return_variance,
+    alpha=0.5,
+    color="red",
+    label="variance",
+)
+_ = plt.axvline(quantile_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
 _ = plt.legend()  # type: ignore[assignment]
 plt.grid(True)  # noqa: FBT003
 
-
+# %%
+# Get brute force QOI for this problem and period using the chunck method
+chunck_brut_force_return_values, chunck_brut_force_return_mean, chunck_brut_force_return_variance = (
+    brute_force.collect_or_calculate_results(
+        dataloader, _n_sea_states_in_year, _n_sea_states_in_period, num_estimates=1_000, brut_force_type="chunck"
+    )
+)
+# %%
+print(chunck_brut_force_return_values.shape)
+# %%
+# Plot brute force QOI
+_ = plt.hist(chunck_brut_force_return_values, bins=100, density=True)
+_ = plt.title("R-year return value distribution")  # type: ignore[assignment]
+_ = plt.xlabel("R-year return value")  # type: ignore[assignment]
+_ = plt.ylabel("Density")  # type: ignore[assignment]
+_ = plt.axvspan(
+    chunck_brut_force_return_mean - chunck_brut_force_return_variance,
+    chunck_brut_force_return_mean + chunck_brut_force_return_variance,
+    alpha=0.5,
+    color="red",
+    label="variance",
+)
+_ = plt.axvline(chunck_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
+_ = plt.legend()  # type: ignore[assignment]
+plt.grid(True)  # noqa: FBT003
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader

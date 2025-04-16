@@ -42,7 +42,8 @@ def collect_or_calculate_results(
     n_sea_states_in_year: int,
     n_sea_states_in_period: int,
     num_estimates: int = 2_000,
-) -> tuple[Tensor, Tensor]:
+    brut_force_type: str = "quantile",
+) -> tuple[Tensor, Tensor, Tensor]:
     """Return a saved result for the desired length of time if available, otherwise calculate the result.
 
     New results will also be saved within this directory.
@@ -52,13 +53,14 @@ def collect_or_calculate_results(
         n_sea_states_in_year: number of sea states in one year
         n_sea_states_in_period: number of sea states in whole period
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
+        brut_force_type: Choose how the QoI shall be estimated.
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
     # Calculate the number of samples that create a single period of the ERD
     period_length = dataloader.dataset.data.shape[0]  # type: ignore[attr-defined]
-    results_path = _results_dir / f"{_result_file_name(period_length)}.json"
+    results_path = _results_dir / f"{_result_file_name(period_length)}_{brut_force_type}.json"
 
     samples = torch.tensor([])
 
@@ -67,11 +69,26 @@ def collect_or_calculate_results(
             results = json.load(fp)
             samples = torch.tensor(results["samples"])
 
+    # to reduce run time for testing
+    year_return_value = 10
+
     # make any additional samples required
     if len(samples) < num_estimates:
-        new_samples = brute_force_calc(
-            dataloader, n_sea_states_in_year, n_sea_states_in_period, num_estimates - len(samples)
-        )
+        if brut_force_type == "quantile":
+            new_samples = quantile_brute_force_calc(
+                dataloader,
+                n_sea_states_in_year,
+                num_estimates - len(samples),
+                year_return_value,
+            )
+        elif brut_force_type == "chunck":
+            new_samples = chunck_brute_force_calc(
+                dataloader,
+                n_sea_states_in_period,
+                n_sea_states_in_year,
+                num_estimates - len(samples),
+                year_return_value,
+            )
 
         samples = torch.concat([samples, new_samples])
         # save results
@@ -80,17 +97,47 @@ def collect_or_calculate_results(
     elif len(samples) > num_estimates:
         samples = samples[:num_estimates]
 
-    return samples, samples.median()
+    return samples, samples.mean(), samples.var()
 
 
-def brute_force_calc(
+def quantile_brute_force_calc(
+    dataloader: DataLoader[tuple[Tensor, ...]],
+    n_sea_states_in_year: int = 2922,
+    num_estimates: int = 2_000,
+    year_return_value: int = 100,
+) -> Tensor:
+    """Calculate the QOI by brute force using quantiles.
+
+    Args:
+        dataloader: The dataloader to use to get the environment samples.
+             - Each batch should have shape (batch_size, d)
+             - The sum of the batch sizes returned by iterating through the dataloader should be a period length
+             - To get different results for each brute force estimate, the dataloader needs to give different
+               data each time it is iterated through. This can be done by using e.g a RandomSampler.
+        n_sea_states_in_year: number of sea states in one year
+        num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
+        year_return_value: year for the return value
+
+    Returns:
+        The QoI values calculated for each period. Shape (num_estimates,)
+    """
+    return_value = zeros(num_estimates)
+    for i in tqdm.tqdm(range(num_estimates)):
+        simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(dataloader.dataset.data)  # type: ignore  # noqa: PGH003
+
+        return_value[i] = float(np.quantile(simulator_samples, 1 - 1 / (n_sea_states_in_year * year_return_value)))
+
+    return return_value
+
+
+def chunck_brute_force_calc(
     dataloader: DataLoader[tuple[Tensor, ...]],
     n_sea_states_in_period: int,
     n_sea_states_in_year: int = 2922,
     num_estimates: int = 2_000,
     year_return_value: int = 100,
 ) -> Tensor:
-    """Calculate the QOI by brute force.
+    """Calculate the QOI by brute force by splitting the data into year_return_value chunck.
 
     Args:
         dataloader: The dataloader to use to get the environment samples.
@@ -106,18 +153,16 @@ def brute_force_calc(
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    return_value = zeros(num_estimates)
-    for i in tqdm.tqdm(range(num_estimates)):
-        max_crest_height_iterration = []
+    maxs = []
+    for _ in tqdm.tqdm(range(num_estimates)):
+        chunck_indices = np.append(
+            np.arange(0, n_sea_states_in_period, year_return_value * n_sea_states_in_year), n_sea_states_in_period
+        )
 
-        for batch in dataloader:
-            samples = batch[0].to("cpu").numpy().reshape(1, 2)
+        for idx, chunck_index in enumerate(chunck_indices[1:]):
+            samples = dataloader.dataset.data[chunck_indices[idx] : chunck_index, :]  # type: ignore[attr-defined]
 
             simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(samples)  # type: ignore  # noqa: PGH003
-            max_crest_height_iterration.append(simulator_samples)
+            maxs.append(simulator_samples.max())
 
-        x = np.zeros(n_sea_states_in_period)
-        x[: np.array(max_crest_height_iterration).ravel().size] = np.array(max_crest_height_iterration).ravel()
-        return_value[i] = float(np.quantile(x, 1 - 1 / (n_sea_states_in_year * year_return_value)))
-
-    return return_value
+    return torch.FloatTensor(maxs)
