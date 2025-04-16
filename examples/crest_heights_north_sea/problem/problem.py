@@ -100,7 +100,7 @@ _ = plt.hist(quantile_brut_force_return_values, bins=100, density=True)
 _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
 _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
 _ = plt.ylabel("Density")  # type: ignore[assignment]
-_ = plt.axvspan(
+plt.axvspan(
     quantile_brut_force_return_mean - quantile_brut_force_return_variance,
     quantile_brut_force_return_mean + quantile_brut_force_return_variance,
     alpha=0.5,
@@ -126,7 +126,7 @@ _ = plt.hist(chunck_brut_force_return_values, bins=100, density=True)
 _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
 _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
 _ = plt.ylabel("Density")  # type: ignore[assignment]
-_ = plt.axvspan(
+plt.axvspan(
     chunck_brut_force_return_mean - chunck_brut_force_return_variance,
     chunck_brut_force_return_mean + chunck_brut_force_return_variance,
     alpha=0.5,
