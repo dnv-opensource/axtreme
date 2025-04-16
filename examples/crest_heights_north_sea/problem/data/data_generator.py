@@ -1,5 +1,8 @@
-# %%  # noqa: D100
+# ruff: noqa: PGH004
+# ruff: noqa
+# type: ignore
 
+# %%
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,4 +38,3 @@ if __name__ == "__main__":
 
     # Save the data as a .npy file
     np.save(f"long_term_distribution_{N_y}_years_no_hslim.npy", np.column_stack((Hs, Tp)))
-# %%

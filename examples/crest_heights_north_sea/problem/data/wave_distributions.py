@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
+# ruff: noqa: PGH004
+# ruff: noqa
+# type: ignore
 """Various distributions for wave crests and wave heights.
 
 Created on Tue Nov 26 11:11:37 2019
 
 @author: oding
 """
-
-# mypy: ignore-errors
-# ruff: noqa: ANN001, ANN002, ANN003, ANN101, ANN201, ANN202, ANN203, D103, D104, D105, D200, D400, N802, N803, PLR2004, PLR2005, S307, G010, PGH003, TRY002
 
 import numpy as np
 from scipy.stats import weibull_min
