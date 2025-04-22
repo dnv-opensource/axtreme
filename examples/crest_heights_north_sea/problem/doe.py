@@ -5,35 +5,30 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy
 import torch
 from ax import (
     Experiment,
 )
-from ax.core import GeneratorRun, ObservationFeatures
+from ax.core import GeneratorRun
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
 from env_data import collect_data  # type: ignore[import-not-found]
 from matplotlib.axes import Axes
 from numpy.typing import NDArray
-from plotly.subplots import make_subplots
-from problem import DIST, N_ENV_SAMPLES_PER_PERIOD, SEARCH_SPACE  # type: ignore[import-not-found]
+from problem import DIST, N_ENV_SAMPLES_PER_PERIOD, SEARCH_SPACE, make_exp  # type: ignore[import-not-found]
 from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 from torch.utils.data import DataLoader
 
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
-from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
-from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface, plot_surface_over_2d_search_space
-from axtreme.plotting.histogram3d import histogram_surface3d
+from axtreme.experiment import add_sobol_points_to_experiment
+from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.sampling.ut_sampler import UTSampler
-from axtreme.simulator import utils as sim_utils
-from axtreme.simulator.base import Simulator
-from axtreme.utils import population_estimators, transforms
+from axtreme.utils import transforms
 
 torch.set_default_dtype(torch.float64)
 device = "cpu"
@@ -43,62 +38,15 @@ search_space = SEARCH_SPACE
 n_env_samples_per_period = N_ENV_SAMPLES_PER_PERIOD
 dist = DIST
 
-# %%
-sim: Simulator = sim_utils.simulator_from_func(max_crest_height_simulator_function)
-
-# %%
-
-
-fig = make_subplots(
-    rows=1,
-    cols=1,
-    specs=[[{"type": "surface"}]],
-    subplot_titles=("Simulation",),
-)
-
-
-# Plot the underlying function
-_ = fig.add_trace(plot_surface_over_2d_search_space(search_space, funcs=[max_crest_height_simulator_function]).data[0])
-
-# Label the plot
-_ = fig.update_scenes(
-    {
-        "xaxis": {"title": "Hs"},
-        "yaxis": {"title": "Tp"},
-        "zaxis": {"title": "response"},
-    }
-)
-
-# Remove colorbar
-_ = fig.update_traces(showscale=False)
-
-# Make figure span the whole window
-_ = fig.update_layout(
-    autosize=True,
-    width=1200,
-    height=800,
-    margin={"l": 0, "r": 0, "t": 50, "b": 0},
-)
-
-fig.show()
 
 # %%
 raw_data: pd.DataFrame = collect_data()
 
 # we convert this data to Numpy for ease of use from here on out
 env_data: NDArray[np.float64] = raw_data.to_numpy()
-fig = histogram_surface3d(env_data)
-_ = fig.update_layout(title_text="Environment distribution estimate from samples")
-_ = fig.update_layout(scene_aspectmode="cube")
-fig.show()
-
 
 # %%
-###COPIED FROM THE basic_example.py FOR NOW!!
-# define the time span
-N_ENV_SAMPLES_PER_PERIOD = 1000
-
-
+# Bruteforce estimate placeholder
 n_erd_samples = 1000
 erd_samples = []
 for _ in range(n_erd_samples):
@@ -108,101 +56,8 @@ for _ in range(n_erd_samples):
     responses = max_crest_height_simulator_function(period_sample)
     erd_samples.append(responses.max())
 
-_, axes = plt.subplots(ncols=2, figsize=(12, 5))
-
-# plot the ERD distribution
-_ = axes[0].hist(erd_samples, bins=100, density=True)
-population_median_est_dist = population_estimators.sample_median_se(torch.tensor(erd_samples))
-_ = ax_twin = axes[0].twinx()
-_ = population_estimators.plot_dist(population_median_est_dist, ax=ax_twin, c="orange", label="QOI estimate")
-_ = ax_twin.set_ylabel("Estimated PDF")
-_ = ax_twin.legend()
-_ = axes[0].set_title(
-    f"Extreme response distribution\n"
-    f"(each result represents the largest \nresponse seen {N_ENV_SAMPLES_PER_PERIOD} length period)"
-)
-_ = axes[0].set_xlabel("Response value")
-_ = axes[0].set_ylabel("Density")
-_ = axes[0].grid(visible=True)
-
-# Plot the estimated QoI distribution
-_ = population_estimators.plot_dist(population_median_est_dist, ax=axes[1], c="orange")
-_ = axes[1].set_title("Sample estimate \nof population median (QOI)")
-_ = axes[1].set_xlabel("Response value")
-_ = axes[1].grid(visible=True)
-
-
 brute_force_qoi_estimate = np.median(erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
-
-
-# %%
-### Automatically set up you experiment using the sim, search_space, and dist defined above.
-def make_exp() -> Experiment:
-    """Convience function return a fresh Experiement of this problem."""
-    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
-    # Functions are working on the same problem and are comparable
-    return make_experiment(sim, search_space, dist, n_simulations_per_point=n_env_samples_per_period)
-
-
-exp = make_exp()
-
-# %%
-# Add random x points to the experiment
-add_sobol_points_to_experiment(exp, n_iter=30, seed=8)
-
-# Use ax to generate a surrogate
-botorch_model_bridge = Models.BOTORCH_MODULAR(
-    experiment=exp,
-    data=exp.fetch_data(),
-)
-
-pred_mean, pred_covariance = botorch_model_bridge.predict([ObservationFeatures(parameters={"Hs": 15, "Tp": 15})])
-
-# Lets compare the output distribution of the surrogate and the simulator at this point
-pred_dist = dist(loc=pred_mean["loc"], scale=pred_mean["scale"])
-simulator_samples = sim(np.array([[15, 15]]), n_simulations_per_point=200).flatten()
-
-
-x_points = np.linspace(simulator_samples.min(), simulator_samples.max(), 100)
-
-_ = plt.hist(simulator_samples, bins=len(simulator_samples) // 9, density=True, label="Simulator")
-_ = plt.plot(x_points, pred_dist.pdf(x_points), label="Surrogate")  # pyright: ignore[reportAttributeAccessIssue]
-_ = plt.xlabel("Response value")
-_ = plt.ylabel("pdf")
-_ = plt.title("Surrogate distribution vs Simulator distribution at point (Hs,Tp) = [15, 15]")
-_ = plt.legend()
-plt.show()
-
-# %% [markdown]
-# The surrogate also contains uncertainty about its estimate. Lets plot the other distributions that the surrogate
-# believes are possible.
-
-# %%
-mean = np.array([pred_mean["loc"], pred_mean["scale"]])
-mean = mean.flatten()
-
-covariance = np.array(
-    [
-        [pred_covariance["loc"]["loc"], pred_covariance["loc"]["scale"]],
-        [pred_covariance["scale"]["loc"], pred_covariance["scale"]["scale"]],
-    ]
-)
-covariance = covariance.reshape(2, 2)
-
-surrogate_distribution = scipy.stats.multivariate_normal(mean, covariance)
-surrogate_distribution_samples = surrogate_distribution.rvs(size=5, random_state=6)
-for sample in surrogate_distribution_samples:
-    sample_dist = dist(loc=sample[0], scale=sample[1])
-    _ = plt.plot(x_points, sample_dist.pdf(x_points), c="grey", alpha=0.5)  # pyright: ignore[reportAttributeAccessIssue]
-
-_ = plt.plot(x_points, pred_dist.pdf(x_points), c="orange", label="Surrogate Mean")  # pyright: ignore[reportAttributeAccessIssue]
-_ = plt.plot([], [], label="Posterior Samples", c="grey")  # hacky way to add a label
-_ = plt.title("Distribution of possible responses at (Hs,Tp) = [15, 15]")
-_ = plt.xlabel("Response value")
-_ = plt.ylabel("pdf")
-_ = plt.legend()
-plt.show()
 
 
 # %%
@@ -402,6 +257,8 @@ scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
 
 # %%
+# TODO(@henrikstoklandberg): This is plot looks a bit suprising, should be investigated before the we do the final DOE
+# steps.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # pyright: ignore[reportAttributeAccessIssue]
