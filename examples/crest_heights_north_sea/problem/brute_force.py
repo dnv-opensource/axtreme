@@ -5,7 +5,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import torch
 import tqdm
 from simulator import max_crest_height_simulator_function  # type: ignore[import]
@@ -24,12 +27,13 @@ class ResultsObject:
     # statistics are optional
     statistics: dict[str, float]
     samples: list[float]
+    env_data: list[float]
 
     @classmethod
-    def from_samples(cls, samples: torch.Tensor) -> "ResultsObject":
+    def from_samples(cls, samples: torch.Tensor, env_data: torch.Tensor) -> "ResultsObject":
         """Create the object directly from samples."""
         statistics = {"median": float(samples.median()), "mean": float(samples.mean())}
-        return ResultsObject(statistics=statistics, samples=samples.tolist())
+        return ResultsObject(statistics=statistics, samples=samples.tolist(), env_data=env_data.tolist())
 
 
 def _result_file_name(period_length: int) -> str:
@@ -43,6 +47,7 @@ def collect_or_calculate_results(
     n_sea_states_in_period: int,
     num_estimates: int = 2_000,
     brut_force_type: str = "quantile",
+    year_return_value: int = 10,
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Return a saved result for the desired length of time if available, otherwise calculate the result.
 
@@ -54,23 +59,25 @@ def collect_or_calculate_results(
         n_sea_states_in_period: number of sea states in whole period
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
         brut_force_type: Choose how the QoI shall be estimated.
+        year_return_value: return value given in years
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
     # Calculate the number of samples that create a single period of the ERD
     period_length = dataloader.dataset.data.shape[0]  # type: ignore[attr-defined]
-    results_path = _results_dir / f"{_result_file_name(period_length)}_{brut_force_type}.json"
+    results_path = (
+        _results_dir / f"{_result_file_name(period_length)}_{brut_force_type}_{year_return_value}_return_year.json"
+    )
 
     samples = torch.tensor([])
+    max_location = torch.tensor([])
 
     if results_path.exists():
         with results_path.open() as fp:
             results = json.load(fp)
             samples = torch.tensor(results["samples"])
-
-    # to reduce run time for testing
-    year_return_value = 10
+            max_location = torch.tensor(results["env_data"])
 
     # make any additional samples required
     if len(samples) < num_estimates:
@@ -82,7 +89,7 @@ def collect_or_calculate_results(
                 year_return_value,
             )
         elif brut_force_type == "chunck":
-            new_samples = chunck_brute_force_calc(
+            new_samples, new_max_location = chunck_brute_force_calc(
                 dataloader,
                 n_sea_states_in_period,
                 n_sea_states_in_year,
@@ -91,9 +98,11 @@ def collect_or_calculate_results(
             )
 
         samples = torch.concat([samples, new_samples])
+        max_location = torch.concat([max_location, new_max_location])
+
         # save results
         with results_path.open("w") as fp:
-            json.dump(asdict(ResultsObject.from_samples(samples)), fp)
+            json.dump(asdict(ResultsObject.from_samples(samples, max_location)), fp)
     elif len(samples) > num_estimates:
         samples = samples[:num_estimates]
 
@@ -136,7 +145,7 @@ def chunck_brute_force_calc(
     n_sea_states_in_year: int = 2922,
     num_estimates: int = 2_000,
     year_return_value: int = 100,
-) -> Tensor:
+) -> tuple[Tensor, Tensor]:
     """Calculate the QOI by brute force by splitting the data into year_return_value chunck.
 
     Note: At the meeting with Odin on the 22.04.25 it was decided that this is the appropriate method.
@@ -156,6 +165,7 @@ def chunck_brute_force_calc(
         The QoI values calculated for each period. Shape (num_estimates,)
     """
     maxs = []
+    maxs_location = []
     for _ in tqdm.tqdm(range(num_estimates)):
         chunck_indices = np.append(
             np.arange(0, n_sea_states_in_period, year_return_value * n_sea_states_in_year), n_sea_states_in_period
@@ -167,4 +177,68 @@ def chunck_brute_force_calc(
             simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(samples)  # type: ignore  # noqa: PGH003
             maxs.append(simulator_samples.max())
 
-    return torch.FloatTensor(maxs)
+            # Get env data corresponding to max(c_max)
+            max_index = np.argmax(simulator_samples)
+            maxs_location.append(samples[max_index, :])
+
+    return torch.FloatTensor(maxs), torch.FloatTensor(maxs_location)
+
+
+class FileNotFoundCustomError(Exception):
+    """Exception raised when the brute force file is not found."""
+
+
+def create_extrem_value_location_scatter_plot(brut_force_file_name: str) -> None:
+    """Make scatter plot of the extrem value location.
+
+    The plot shows where in the (Hs, Tp) the maxima of c_max occured
+    when using the brut force approach.
+
+    Args:
+        brut_force_file_name: file name where the brutforce results are stored.
+    """
+    brut_force_file_path = _results_dir / brut_force_file_name
+    if brut_force_file_path.exists():
+        with brut_force_file_path.open() as fp:
+            results = json.load(fp)
+            max_location = torch.tensor(results["env_data"])
+    else:
+        raise FileNotFoundCustomError(f"File {brut_force_file_path} not found.")
+
+    _ = plt.scatter(max_location[:, 0], max_location[:, 1], s=1, alpha=0.5)
+    _ = plt.title("Extrem value location")  # type: ignore[assignment]
+    _ = plt.xlabel("Hs")  # type: ignore[assignment]
+    _ = plt.ylabel("Tp")  # type: ignore[assignment]
+    plt.grid(True)  # noqa: FBT003
+
+    plt.savefig(str(brut_force_file_path).replace(".json", "_scatter.png"))
+
+
+def create_extrem_value_location_kde_plot(brut_force_file_name: str) -> None:
+    """Make KDE (kernel density estimate) plot of the extrem value location.
+
+    The plot shows where in the (Hs, Tp) the maxima of c_max occured
+    when using the brut force approach.
+
+    Args:
+        brut_force_file_name: file name where the brutforce results are stored.
+    """
+    brut_force_file_path = _results_dir / brut_force_file_name
+    if brut_force_file_path.exists():
+        with brut_force_file_path.open() as fp:
+            results = json.load(fp)
+            max_location = pd.DataFrame(results["env_data"], columns=["Hs", "Tp"])
+    else:
+        raise FileNotFoundCustomError(f"File {brut_force_file_path} not found.")
+
+    _ = sns.kdeplot(
+        data=max_location,
+        x="Hs",
+        y="Tp",
+        fill=True,
+    )
+    _ = plt.title("Extrem value location")  # type: ignore[assignment]
+    _ = plt.xlabel("Hs")  # type: ignore[assignment]
+    _ = plt.ylabel("Tp")  # type: ignore[assignment]
+
+    plt.savefig(str(brut_force_file_path).replace(".json", "_kde.png"))

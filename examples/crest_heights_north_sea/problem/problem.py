@@ -40,11 +40,11 @@ from axtreme.simulator.base import Simulator
 # %%
 ### Pick the search space over which to create a surrogate
 # TODO(@henrikstoklandberg): Decide on the search space.
-# For now this is based on the min and max of the env data/long_term_distribution.npy
+# For now this is based on the min and max of the env data/long_term_distribution_10000_years.npy
 SEARCH_SPACE = SearchSpace(
     parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
+        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=20),
+        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=0, upper=37),
     ]
 )
 
@@ -56,8 +56,7 @@ DIST = gumbel_r
 sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simulator_function)
 
 # Define the number of env samples that make a period
-# _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
-_n_years_in_period = 100
+_n_years_in_period = 10**3
 
 _n_sea_states_in_year = 2922
 _n_sea_states_in_period = _n_years_in_period * _n_sea_states_in_year
@@ -67,11 +66,13 @@ _n_sea_states_in_period = _n_years_in_period * _n_seconds_in_year // _sea_state_
 
 N_ENV_SAMPLES_PER_PERIOD = 1000  # Arbitrary number of env samples per period
 
+year_return_value = 10
+
 
 # %%
 ### Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
-    """Convience function returns a fresh Experiement of this problem."""
+    """Convenience function returns a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=N_ENV_SAMPLES_PER_PERIOD)
@@ -80,46 +81,23 @@ def make_exp() -> Experiment:
 # %%
 # dataset and dataloader
 dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
-    np.load(f"data/long_term_distribution_{_n_years_in_period}_years_no_hslim.npy")
+    np.load(f"data/long_term_distribution_{_n_years_in_period}_years.npy")
 )
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 # %%
-# Get brute force QOI for this problem and period using the quantile method
-quantile_brut_force_return_values, quantile_brut_force_return_mean, quantile_brut_force_return_variance = (
-    brute_force.collect_or_calculate_results(
-        dataloader, _n_sea_states_in_year, _n_sea_states_in_period, num_estimates=1_000, brut_force_type="quantile"
-    )
-)
-# %%
-print(quantile_brut_force_return_values.shape)
-# %%
-# Plot brute force QOI
-_ = plt.hist(quantile_brut_force_return_values, bins=100, density=True)
-_ = plt.title("R-year return value distribution")  # type: ignore[assignment]
-_ = plt.xlabel("R-year return value")  # type: ignore[assignment]
-_ = plt.ylabel("Density")  # type: ignore[assignment]
-plt.axvspan(
-    quantile_brut_force_return_mean - quantile_brut_force_return_variance,
-    quantile_brut_force_return_mean + quantile_brut_force_return_variance,
-    alpha=0.5,
-    color="red",
-    label="variance",
-)
-_ = plt.axvline(quantile_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
-_ = plt.legend()  # type: ignore[assignment]
-plt.grid(True)  # noqa: FBT003
-
-# %%
 # Get brute force QOI for this problem and period using the chunck method
 chunck_brut_force_return_values, chunck_brut_force_return_mean, chunck_brut_force_return_variance = (
     brute_force.collect_or_calculate_results(
-        dataloader, _n_sea_states_in_year, _n_sea_states_in_period, num_estimates=1_000, brut_force_type="chunck"
+        dataloader,
+        _n_sea_states_in_year,
+        _n_sea_states_in_period,
+        num_estimates=1_000,
+        brut_force_type="chunck",
+        year_return_value=year_return_value,
     )
 )
-# %%
-print(chunck_brut_force_return_values.shape)
 # %%
 # Plot brute force QOI
 _ = plt.hist(chunck_brut_force_return_values, bins=100, density=True)
@@ -136,5 +114,12 @@ plt.axvspan(
 _ = plt.axvline(chunck_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
 _ = plt.legend()  # type: ignore[assignment]
 plt.grid(True)  # noqa: FBT003
+
+# %% Plot scatter plot of brut force solution for extrem value location
+brute_force.create_extrem_value_location_scatter_plot("n_sample_per_period_2922000_chunck_10_return_year.json")
+
+# %% Plot kde plot of brut force solution for extrem value location
+# Note: Is very slow especially for large datasets
+brute_force.create_extrem_value_location_kde_plot("n_sample_per_period_2922000_chunck_10_return_year.json")
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
