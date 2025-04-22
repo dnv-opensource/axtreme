@@ -1,3 +1,6 @@
+# noqa: ALL
+# type: ignore
+# ruff: noqa: ERA001 PGH003 PGH004 TD002 F841
 # %% [markdown]
 # # Basic example
 # This notebook demonstrates using `axtreme` to solve a toy problem.
@@ -437,8 +440,8 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
 
 # Note: if you are interested, the following allows you to see the result of the QoIEstimator if uncertainty is ignored.
 # this may not be a very good estimate if the simulator mean doesn't match the surrogate.
-# from axtreme.eval.qoi import qoi_ignoring_gp_uncertainty  # noqa: ERA001
-# result_no_gp_uncertainty = qoi_ignoring_gp_uncertainty(qoi_estimator_gp_brute_force, model)  # noqa: ERA001
+# from axtreme.eval.qoi import qoi_ignoring_gp_uncertainty
+# result_no_gp_uncertainty = qoi_ignoring_gp_uncertainty(qoi_estimator_gp_brute_force, model)
 
 # %% [markdown]
 # ## DoE: efficiently reduce uncertainty in the QoI.
@@ -764,7 +767,7 @@ _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
 
-# %%
+
 # %% Make a grid
 point_per_dim = 21
 x1 = torch.linspace(0, 1, point_per_dim)
@@ -813,7 +816,8 @@ _ = ax.set_title("QoI Surface Plot")
 plt.show()
 
 # %%
-"""SIMQoI acquisition function that looks ahead at possible models and optimize according to a quantity of interest."""
+"""OptimalLookAhead acquisition function that looks ahead at possible models and optimize according to a quantity of
+interest."""
 
 import warnings
 from contextlib import ExitStack
@@ -835,7 +839,7 @@ from axtreme.simulator.base import Simulator
 from axtreme.utils.model_helpers import get_target_noise_singletaskgp, get_training_data_singletaskgp
 
 
-class SimQoI(AcquisitionFunction):
+class OptimalLookAhead(AcquisitionFunction):
     """QoILookAhead is a generic acquisition function that estimates the usefulness of a design point.
 
     It estimates the usefulness of a design point by:
@@ -984,7 +988,8 @@ class SimQoI(AcquisitionFunction):
             yvar_from_se = yvar * np.sqrt(200)
             # yvar = _get_fantasy_observation_noise(self.model, x)
 
-            # The below is the functionality of the _get_fantasy_observation_noise(self.model, x), originally used for yvar in QoILookAhead
+            # The below is the functionality of the _get_fantasy_observation_noise(self.model, x), originally used for
+            #  yvar in QoILookAhead
             # Gaurenteeed to be (n,d)
             model_train_x = get_training_data_singletaskgp(model)
             # # Gaurenteeed to be (n,m) due to rejecting batched_models
@@ -1000,7 +1005,7 @@ class SimQoI(AcquisitionFunction):
             # print("model_yvar[0]", model_yvar[0])
             print("yvar.shape", yvar.shape)
             print("model_yvar.shape", model_yvar.shape)
-            yvar = x_obs_noise  # model_yvar
+            # yvar = x_obs_noise  # model_yvar
             # print("sim_point_results[0]", sim_point_results[0])
             # print("yvar_sqrt[0]", yvar_sqrt[0])
             # print("yvar_squared[0]", yvar_squared[0])
@@ -1033,7 +1038,7 @@ class SimQoI(AcquisitionFunction):
             # the results of the different y samples need to be aggregated.
             # Use a bespoke aggregator if provided by the sampler, otherwise use the mean
             if hasattr(self.sampler, "mean"):  # noqa: SIM108
-                lookahead_var = self.sampler.mean(dim=0)  # type: ignore  # noqa: PGH003
+                lookahead_var = self.sampler.mean(dim=0)  # type: ignore
             else:
                 lookahead_var = lookahead_var.mean(dim=0)
 
@@ -1361,7 +1366,7 @@ def reject_if_batched_model(model: SingleTaskGP) -> None:
         raise NotImplementedError(msg)
 
 
-@acqf_input_constructor(SimQoI)
+@acqf_input_constructor(OptimalLookAhead)
 def construct_inputs_sim_qoi(
     model: SingleTaskGP,
     qoi_estimator: QoIEstimator,
@@ -1394,11 +1399,11 @@ def construct_inputs_sim_qoi(
     }
 
 
-@optimizer_argparse.register(SimQoI)
+@optimizer_argparse.register(OptimalLookAhead)
 def _argparse_qoi_look_ahead(
     # NOTE: this is a bit of a non-standard implementation because we need to update params in a nested dict. Would
     #  prefer to set the key values directly here
-    acqf: SimQoI,
+    acqf: OptimalLookAhead,
     # needs to accept the variety of args it is handed, and then pick the relevant ones
     **kwargs: Any,  # noqa: ANN401
 ) -> dict[str, Any]:
@@ -1411,7 +1416,8 @@ def _argparse_qoi_look_ahead(
         TorchModelBridge.gen(
             ...                                 # Other parameters there that are not relevant
             model_gen_options: {
-                optimise_kwargs: {              # content of this key later used like `botorch.optim.optimize_acqf(**optimise_kwargs)`  # noqa: E501
+                optimise_kwargs: {              # content of this key later used like `botorch.optim.optimize_acqf
+                (**optimise_kwargs)`  # noqa: E501
                     options: {                  # This is a parameter of `botorch.optim.optimize_acqf`
                         with_grad: False        # Example of some optimization params that can be passed
                         ...
@@ -1444,14 +1450,16 @@ def _argparse_qoi_look_ahead(
     Args:
         acqf: Acqusiton that will be passed.
         kwargs:
-            - everything passed in value of `optimizer_kwargs` in `model.gen(model_gen_options = {optimizer_kwargs ={}})` can be found with
+            - everything passed in value of `optimizer_kwargs` in `model.gen(model_gen_options =
+            {optimizer_kwargs ={}})`
+            can be found with
             `kwargs[optimizer_options]`
 
     Returns:
         dict of args unpacked to `botorch.optim.optimize_acqf`.
             - All args are set with this, excluding the following:
                 - `acq_function`,`bounds`,`q`,`inequality_constraints`,`fixed_features`,`post_processing_func`
-    """  # noqa: E501
+    """
     # Start by using the default arg constructure, then adding in any kwargs that were passed in.
 
     # NOTE: this is an internal method, using it is an anti pattern.
@@ -1481,7 +1489,7 @@ def _argparse_qoi_look_ahead(
 
 
 # %%
-acqf = SimQoI
+acqf = OptimalLookAhead
 posterior_sampler = sampling.MeanSampler()
 
 
@@ -1578,7 +1586,7 @@ _ = ax.set_ylabel("Response")
 _ = ax.legend()
 
 # %% How long does a single run take
-acqusition = SimQoI(model, qoi_estimator, sim)
+acqusition = OptimalLookAhead(model, qoi_estimator, sim)
 scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 print("scores", scores)
 
@@ -1602,642 +1610,8 @@ _ = ax.plot_surface(grid_x1, grid_x2, scores, cmap="viridis", edgecolor="none") 
 _ = ax.set_xlabel("x1")
 _ = ax.set_ylabel("x2")
 _ = ax.set_zlabel("score")  # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_title("Score surface plot SimQoI")
+_ = ax.set_title("Score surface plot OptimalLookAhead")
 print("max_score ", scores.max())
-
-
-# %%
-n_iter = 10  # 40
-qoi_iter = 1
-warm_up_runs = 1
-
-# %%
-# Calculate and plot the Estimator Uncertainty drop if the optimal DOE point is selected each time
-
-
-# Helper function to calculate QoI variance for a given experiment and additional data
-def calculate_qoi_variance_with_additional_data(exp, qoi_estimator, additional_data):
-    # Add the additional data to the experiment
-    trial = exp.new_trial(generator_run=additional_data)
-    _ = trial.run()
-    _ = trial.mark_completed()
-
-    # Generate the surrogate model
-    model_bridge = Models.BOTORCH_MODULAR(
-        experiment=exp,
-        data=exp.fetch_data(),
-    )
-
-    # Update the QoI estimator with the new transforms
-    input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-        transforms=list(model_bridge.transforms.values()), outcome_names=model_bridge.outcomes
-    )
-    qoi_estimator.input_transform = input_transform
-    qoi_estimator.outcome_transform = outcome_transform
-
-    # Calculate the QoI
-    model = model_bridge.model.surrogate.model
-    qoi_samples = qoi_estimator(model=model)
-    # _, var = get_mean_var(qoi_estimator, torch.tensor(qoi_samples))
-    _, var = get_mean_var(qoi_estimator, qoi_samples.clone().detach())
-    return var.mean().item()
-
-
-# %%
-# Initialize the experiment and QoI estimator
-exp_optimal = make_exp()
-sobol = Models.SOBOL(search_space=exp_optimal.search_space, seed=5)
-
-# Warm-up phase
-for _ in range(warm_up_runs):
-    generator_run = sobol.gen(1)
-    trial = exp_optimal.new_trial(generator_run)
-    _ = trial.run()
-    _ = trial.mark_completed()
-
-# Perform DOE by selecting the optimal point at each step
-optimal_qoi_variances = []
-for i in range(n_iter):
-    # Create a grid of candidate points
-    grid_np_flat = grid_np.reshape(-1, 2)
-
-    # Evaluate the QoI variance for each candidate point
-    variances = []
-    for candidate in grid_np_flat:
-        # Create a new GeneratorRun with the candidate point
-        candidate_data = GeneratorRun(
-            arms=[exp_optimal.search_space.construct_arm(parameters={"x1": candidate[0], "x2": candidate[1]})]
-        )
-        variance = calculate_qoi_variance_with_additional_data(exp_optimal, qoi_estimator, candidate_data)
-        variances.append(variance)
-    print(f"finished evaluating candidate points for iteration {i}")
-
-    # Select the candidate point that minimizes the QoI variance
-    optimal_index = np.argmin(variances)
-    optimal_point = grid_np_flat[optimal_index]
-    optimal_qoi_variances.append(variances[optimal_index])
-
-    # Add the optimal point to the experiment
-    optimal_data = GeneratorRun(
-        arms=[exp_optimal.search_space.construct_arm(parameters={"x1": optimal_point[0], "x2": optimal_point[1]})]
-    )
-    trial = exp_optimal.new_trial(generator_run=optimal_data)
-    _ = trial.run()
-    _ = trial.mark_completed()
-    print(f"Iteration {i + 1}/{n_iter}: Optimal point: {optimal_point}, Variance: {optimal_qoi_variances[-1]}")
-
-# %%
-from concurrent.futures import ThreadPoolExecutor
-
-from tqdm import tqdm
-
-# %%
-
-# Initialize the experiment and QoI estimator
-exp_optimal = make_exp()
-sobol = Models.SOBOL(search_space=exp_optimal.search_space, seed=5)
-
-
-def calculate_qoi_variance_parallel(exp, qoi_estimator, candidate_points, max_workers=4):
-    """Calculate QoI variance for multiple candidate points in parallel."""
-
-    def worker(candidate):
-        candidate_data = GeneratorRun(
-            arms=[exp.search_space.construct_arm(parameters={"x1": candidate[0], "x2": candidate[1]})]
-        )
-        return calculate_qoi_variance_with_additional_data(exp, qoi_estimator, candidate_data)
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        variances = list(
-            tqdm(executor.map(worker, candidate_points), total=len(candidate_points), desc="Evaluating candidates")
-        )
-    return variances
-
-
-# Perform DOE by selecting the optimal point at each step
-optimal_qoi_variances = []
-for i in range(n_iter):
-    # Create a grid of candidate points
-    grid_np_flat = grid_np.reshape(-1, 2)
-
-    # Evaluate the QoI variance for each candidate point in parallel
-    variances = calculate_qoi_variance_parallel(exp_optimal, qoi_estimator, grid_np_flat, max_workers=8)
-
-    # Select the candidate point that minimizes the QoI variance
-    optimal_index = np.argmin(variances)
-    optimal_point = grid_np_flat[optimal_index]
-    optimal_qoi_variances.append(variances[optimal_index])
-
-    # Add the optimal point to the experiment
-    optimal_data = GeneratorRun(
-        arms=[exp_optimal.search_space.construct_arm(parameters={"x1": optimal_point[0], "x2": optimal_point[1]})]
-    )
-    trial = exp_optimal.new_trial(generator_run=optimal_data)
-    _ = trial.run()
-    _ = trial.mark_completed()
-    print(f"Iteration {i + 1}/{n_iter}: Optimal point: {optimal_point}, Variance: {optimal_qoi_variances[-1]}")
-
-# %%
-# Plot the results
-mean, var = get_mean_var(qoi_estimator, qoi_results_sobol)
-ax = plot_raw_ut_estimates(mean, var, name="Sobol")
-mean, var = get_mean_var(qoi_estimator, qoi_results_look_ahead)
-ax = plot_raw_ut_estimates(mean, var, ax=ax, color="green", name="Look Ahead")
-ax.plot(
-    range(1, len(optimal_qoi_variances) + 1),
-    optimal_qoi_variances,
-    label="Optimal DOE",
-    color="red",
-    linestyle="--",
-)
-_ = ax.axhline(brute_force_qoi_estimate, c="black", label="Brute Force Value")
-_ = ax.set_xlabel("Number of DOE Iterations")
-_ = ax.set_ylabel("Response")
-_ = ax.legend()
-
-
-# %%
-def run_optimal_doe_robust(experiment, simulator, qoi_estimator, n_iterations=10, grid_size=21, warm_up_runs=3):
-    """
-    Robust implementation of optimal DOE that handles calculation errors.
-
-    This implementation adds error handling and additional warm-up points.
-    """
-    # Initialize with more warm-up points using Sobol to ensure sufficient data
-    sobol = Models.SOBOL(search_space=experiment.search_space, seed=5)
-    for _ in range(max(warm_up_runs, 3)):  # Ensure at least 3 warm-up points
-        generator_run = sobol.gen(1)
-        trial = experiment.new_trial(generator_run=generator_run)
-        _ = trial.run()
-        _ = trial.mark_completed()
-
-    # Create grid of candidate points
-    x1 = torch.linspace(0, 1, grid_size)
-    x2 = torch.linspace(0, 1, grid_size)
-    grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
-    grid = torch.stack([grid_x1, grid_x2], dim=-1)
-    grid_points = grid.reshape(-1, 2)
-
-    optimal_qoi_variances = []
-    optimal_points = []
-
-    # Main DOE loop
-    for i in range(n_iterations):
-        print(f"Starting iteration {i + 1}/{n_iterations}")
-
-        # Get current model
-        model_bridge = Models.BOTORCH_MODULAR(
-            experiment=experiment,
-            data=experiment.fetch_data(),
-        )
-
-        # Update QoI estimator with transforms
-        input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-            transforms=list(model_bridge.transforms.values()), outcome_names=model_bridge.outcomes
-        )
-        qoi_estimator.input_transform = input_transform
-        qoi_estimator.outcome_transform = outcome_transform
-
-        model = model_bridge.model.surrogate.model
-
-        # Safely get initial QoI variance
-        try:
-            initial_qoi = qoi_estimator(model)
-            _, initial_var = get_mean_var(qoi_estimator, initial_qoi)
-            initial_variance = initial_var.item()
-        except Exception as e:
-            print(f"Warning: Could not calculate initial variance: {e}")
-            # Use posterior variance directly as a fallback
-            posterior = model.posterior(torch.tensor([[0.5, 0.5]]))
-            initial_variance = posterior.variance.mean().item()
-
-        # Alternative approach: Calculate variance of DOE points using model's predictive uncertainty
-        param_order = list(experiment.search_space.parameters.keys())
-        variances = []
-
-        # Process grid points in batches to improve performance
-        batch_size = 20
-        for batch_start in range(0, len(grid_points), batch_size):
-            batch_end = min(batch_start + batch_size, len(grid_points))
-            batch = grid_points[batch_start:batch_end]
-
-            try:
-                # For each point in the grid, evaluate its impact on reducing uncertainty
-                for idx, point in enumerate(batch):
-                    try:
-                        # Direct approach: Use the simulator to get results for this point
-                        param_dict = {"x1": float(point[0]), "x2": float(point[1])}
-                        evaluation_function = EvaluationFunction(
-                            simulator=simulator,
-                            output_dist=dist,
-                            parameter_order=param_order,
-                            n_simulations_per_point=200,
-                        )
-                        result = evaluation_function(parameters=param_dict)
-
-                        # Extract means and observation noise
-                        means = torch.tensor(result.means)
-                        cov = torch.tensor(result.cov)
-                        obs_noise = torch.diagonal(cov).unsqueeze(0)
-
-                        # Create fantasy model with this additional point
-                        if isinstance(model.likelihood, FixedNoiseGaussianLikelihood):
-                            fantasy_model = conditional_update(
-                                model, X=point.unsqueeze(0), Y=means.unsqueeze(0), observation_noise=obs_noise
-                            )
-                        else:
-                            fantasy_model = conditional_update(
-                                model, X=point.unsqueeze(0), Y=means.unsqueeze(0), observation_noise=None
-                            )
-
-                        # Safely calculate QoI with the fantasy model
-                        try:
-                            qoi_estimates = qoi_estimator(fantasy_model)
-                            _, var_tensor = get_mean_var(qoi_estimator, qoi_estimates)
-                            point_variance = var_tensor.item()
-                        except Exception as qoi_err:
-                            print(f"QoI calculation failed: {qoi_err}. Using fallback method.")
-                            # Fallback: Check predictive variance at high-value points in space
-                            test_points = torch.rand(20, 2)
-                            point_variance = fantasy_model.posterior(test_points).variance.mean().item()
-
-                        variances.append(point_variance)
-
-                    except Exception as point_err:
-                        print(f"Error evaluating point {point.numpy()}: {point_err}")
-                        variances.append(float("inf"))
-
-                # if batch_start % 100 == 0:
-                # print(f"  Evaluated {batch_start + len(batch)}/{len(grid_points)} points")
-
-            except Exception as batch_err:
-                print(f"Error in batch processing: {batch_err}")
-                # Add placeholder values
-                variances.extend([float("inf")] * len(batch))
-
-        # Find the point with minimum variance
-        if not variances or all(v == float("inf") for v in variances):
-            print("No valid points found. Using Sobol for this iteration instead.")
-            # Fallback to Sobol if all points failed
-            optimal_data = sobol.gen(1)
-            optimal_qoi_variances.append(initial_variance)
-        else:
-            min_idx = np.argmin(variances)
-            min_variance = variances[min_idx]
-            optimal_point = grid_points[min_idx]
-            optimal_qoi_variances.append(min_variance)
-            optimal_points.append(optimal_point.numpy())
-
-            # Add the optimal point to the experiment
-            optimal_data = GeneratorRun(
-                arms=[
-                    experiment.search_space.construct_arm(
-                        parameters={"x1": float(optimal_point[0]), "x2": float(optimal_point[1])}
-                    )
-                ]
-            )
-
-            print(f"Iteration {i + 1}/{n_iterations}:")
-            print(f"  Optimal point: {optimal_point.numpy()}")
-            print(f"  QoI variance: {min_variance:.6f}")
-
-            if initial_variance > 0:
-                variance_reduction = initial_variance - min_variance
-                reduction_pct = (variance_reduction / initial_variance) * 100
-                print(f"  Variance reduction: {variance_reduction:.6f} ({reduction_pct:.2f}%)")
-
-        # Run the trial with the selected point
-        trial = experiment.new_trial(generator_run=optimal_data)
-        _ = trial.run()
-        _ = trial.mark_completed()
-
-    return optimal_qoi_variances, optimal_points
-
-
-# %%
-# Run the optimal DOE with the robust implementation
-exp_optimal = make_exp()
-optimal_qoi_variances, optimal_points = run_optimal_doe_robust(
-    experiment=exp_optimal,
-    simulator=sim,
-    qoi_estimator=qoi_estimator,
-    n_iterations=40,  # 10,
-    grid_size=21,
-    warm_up_runs=3,  # Using more warm-up points
-)
-
-
-# Plot the results
-plt.figure(figsize=(12, 6))
-
-# Plot QoI variance reduction
-plt.subplot(1, 2, 1)
-plt.plot(range(1, len(optimal_qoi_variances) + 1), optimal_qoi_variances, "ro-", label="Optimal DOE")
-
-# Add comparison to original methods
-mean, var = get_mean_var(qoi_estimator, qoi_results_sobol)
-plt.plot(range(1, len(mean) + 1), var.numpy(), "bo-", label="Sobol")
-mean, var = get_mean_var(qoi_estimator, qoi_results_look_ahead)
-plt.plot(range(1, len(mean) + 1), var.numpy(), "go-", label="QoI LookAhead")
-
-plt.xlabel("Number of DOE Iterations")
-plt.ylabel("QoI Variance")
-plt.title("Comparison of DOE Methods")
-plt.legend()
-plt.grid(True)
-
-# Plot the selected points
-plt.subplot(1, 2, 2)
-optimal_points = np.array(optimal_points)
-plt.scatter(
-    optimal_points[:, 0], optimal_points[:, 1], c=range(len(optimal_points)), cmap="viridis", s=100, edgecolors="k"
-)
-
-for i, point in enumerate(optimal_points):
-    plt.annotate(str(i + 1), (point[0], point[1]), xytext=(5, 5), textcoords="offset points")
-
-plt.xlim(0, 1)
-plt.ylim(0, 1)
-plt.xlabel("x1")
-plt.ylabel("x2")
-plt.title("Optimal DOE Points Sequence")
-plt.colorbar(label="Iteration")
-plt.grid(True)
-
-plt.tight_layout()
-plt.show()
-
-
-# %%
-def run_optimal_doe_robust(
-    experiment, simulator, qoi_estimator, n_iterations=10, grid_size=21, warm_up_runs=3, qoi_iter=1
-):
-    """
-    Robust implementation of optimal DOE that handles calculation errors.
-
-    This implementation adds error handling and additional warm-up points.
-
-    Args:
-        experiment: Experiment to perform DOE on.
-        simulator: Simulator function.
-        qoi_estimator: The function to estimate the QOI.
-        n_iterations: Number of DOE iterations.
-        grid_size: Number of points in each dimension for the grid.
-        warm_up_runs: Number of warm-up runs to perform before DOE.
-        qoi_iter: How often to calculate the QOI. If set to 1, the QOI will be calculated after every run.
-
-    Returns:
-        tuple:
-            - List of QoI variances at each iteration
-            - List of optimal points
-            - np.ndarray: Array of QoI results similar to run_trials
-    """
-    # Initialize with more warm-up points using Sobol to ensure sufficient data
-    sobol = Models.SOBOL(search_space=experiment.search_space, seed=5)
-
-    # Track QoI results in the same format as run_trials
-    qoi_results = []
-
-    # Add warm up points
-    for _ in range(max(warm_up_runs, 3)):  # Ensure at least 3 warm-up points
-        generator_run = sobol.gen(1)
-        trial = experiment.new_trial(generator_run=generator_run)
-        _ = trial.run()
-        _ = trial.mark_completed()
-
-    # Create grid of candidate points
-    x1 = torch.linspace(0, 1, grid_size)
-    x2 = torch.linspace(0, 1, grid_size)
-    grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
-    grid = torch.stack([grid_x1, grid_x2], dim=-1)
-    grid_points = grid.reshape(-1, 2)
-
-    optimal_qoi_variances = []
-    optimal_points = []
-
-    # Calculate QoI for the initial model after warm-up
-    model_bridge = Models.BOTORCH_MODULAR(
-        experiment=experiment,
-        data=experiment.fetch_data(),
-    )
-
-    # Update QoI estimator with transforms
-    input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-        transforms=list(model_bridge.transforms.values()), outcome_names=model_bridge.outcomes
-    )
-    qoi_estimator.input_transform = input_transform
-    qoi_estimator.outcome_transform = outcome_transform
-
-    # Get initial QoI samples and add to results
-    try:
-        initial_qoi_samples = qoi_estimator(model=model_bridge.model.surrogate.model)
-        qoi_results.append(initial_qoi_samples.detach().numpy())
-    except Exception as e:
-        print(f"Warning: Error calculating initial QoI samples: {e}")
-        # Add placeholder - this won't match the structure exactly but prevents errors
-        qoi_results.append(np.array([[0.0]]))
-
-    # Main DOE loop
-    for i in range(n_iterations):
-        print(f"Starting iteration {i + 1}/{n_iterations}")
-
-        # Get current model
-        model_bridge = Models.BOTORCH_MODULAR(
-            experiment=experiment,
-            data=experiment.fetch_data(),
-        )
-
-        # Update QoI estimator with transforms
-        input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-            transforms=list(model_bridge.transforms.values()), outcome_names=model_bridge.outcomes
-        )
-        qoi_estimator.input_transform = input_transform
-        qoi_estimator.outcome_transform = outcome_transform
-
-        model = model_bridge.model.surrogate.model
-
-        # Safely get initial QoI variance
-        try:
-            initial_qoi = qoi_estimator(model)
-            _, initial_var = get_mean_var(qoi_estimator, initial_qoi)
-            initial_variance = initial_var.item()
-        except Exception as e:
-            print(f"Warning: Could not calculate initial variance: {e}")
-            # Use posterior variance directly as a fallback
-            posterior = model.posterior(torch.tensor([[0.5, 0.5]]))
-            initial_variance = posterior.variance.mean().item()
-
-        # Alternative approach: Calculate variance of DOE points using model's predictive uncertainty
-        param_order = list(experiment.search_space.parameters.keys())
-        variances = []
-
-        # Process grid points in batches to improve performance
-        batch_size = 20
-        for batch_start in range(0, len(grid_points), batch_size):
-            batch_end = min(batch_start + batch_size, len(grid_points))
-            batch = grid_points[batch_start:batch_end]
-
-            try:
-                # For each point in the grid, evaluate its impact on reducing uncertainty
-                for idx, point in enumerate(batch):
-                    try:
-                        # Direct approach: Use the simulator to get results for this point
-                        param_dict = {"x1": float(point[0]), "x2": float(point[1])}
-                        evaluation_function = EvaluationFunction(
-                            simulator=simulator,
-                            output_dist=dist,
-                            parameter_order=param_order,
-                            n_simulations_per_point=200,
-                        )
-                        result = evaluation_function(parameters=param_dict)
-
-                        # Extract means and observation noise
-                        means = torch.tensor(result.means)
-                        cov = torch.tensor(result.cov)
-                        obs_noise = torch.diagonal(cov).unsqueeze(0)
-
-                        # Create fantasy model with this additional point
-                        if isinstance(model.likelihood, FixedNoiseGaussianLikelihood):
-                            fantasy_model = conditional_update(
-                                model, X=point.unsqueeze(0), Y=means.unsqueeze(0), observation_noise=obs_noise
-                            )
-                        else:
-                            fantasy_model = conditional_update(
-                                model, X=point.unsqueeze(0), Y=means.unsqueeze(0), observation_noise=None
-                            )
-
-                        # Safely calculate QoI with the fantasy model
-                        try:
-                            qoi_estimates = qoi_estimator(fantasy_model)
-                            _, var_tensor = get_mean_var(qoi_estimator, qoi_estimates)
-                            point_variance = var_tensor.item()
-                        except Exception as qoi_err:
-                            print(f"QoI calculation failed: {qoi_err}. Using fallback method.")
-                            # Fallback: Check predictive variance at high-value points in space
-                            test_points = torch.rand(20, 2)
-                            point_variance = fantasy_model.posterior(test_points).variance.mean().item()
-
-                        variances.append(point_variance)
-
-                    except Exception as point_err:
-                        print(f"Error evaluating point {point.numpy()}: {point_err}")
-                        variances.append(float("inf"))
-
-                # if batch_start % 100 == 0:
-                # print(f"  Evaluated {batch_start + len(batch)}/{len(grid_points)} points")
-
-            except Exception as batch_err:
-                print(f"Error in batch processing: {batch_err}")
-                # Add placeholder values
-                variances.extend([float("inf")] * len(batch))
-
-        # Find the point with minimum variance
-        if not variances or all(v == float("inf") for v in variances):
-            print("No valid points found. Using Sobol for this iteration instead.")
-            # Fallback to Sobol if all points failed
-            optimal_data = sobol.gen(1)
-            optimal_qoi_variances.append(initial_variance)
-        else:
-            min_idx = np.argmin(variances)
-            min_variance = variances[min_idx]
-            optimal_point = grid_points[min_idx]
-            optimal_qoi_variances.append(min_variance)
-            optimal_points.append(optimal_point.numpy())
-
-            # Add the optimal point to the experiment
-            optimal_data = GeneratorRun(
-                arms=[
-                    experiment.search_space.construct_arm(
-                        parameters={"x1": float(optimal_point[0]), "x2": float(optimal_point[1])}
-                    )
-                ]
-            )
-
-            print(f"Iteration {i + 1}/{n_iterations}:")
-            print(f"  Optimal point: {optimal_point.numpy()}")
-            print(f"  QoI variance: {min_variance:.6f}")
-
-            if initial_variance > 0:
-                variance_reduction = initial_variance - min_variance
-                reduction_pct = (variance_reduction / initial_variance) * 100
-                print(f"  Variance reduction: {variance_reduction:.6f} ({reduction_pct:.2f}%)")
-
-        # Run the trial with the selected point
-        trial = experiment.new_trial(generator_run=optimal_data)
-        _ = trial.run()
-        _ = trial.mark_completed()
-
-        # Calculate and store the QoI samples after adding the point
-        if i % qoi_iter == 0:
-            # Update the model with the new point
-            model_bridge = Models.BOTORCH_MODULAR(
-                experiment=experiment,
-                data=experiment.fetch_data(),
-            )
-
-            # Update transforms
-            input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-                transforms=list(model_bridge.transforms.values()), outcome_names=model_bridge.outcomes
-            )
-            qoi_estimator.input_transform = input_transform
-            qoi_estimator.outcome_transform = outcome_transform
-
-            # Get QoI samples and add to results
-            try:
-                qoi_samples = qoi_estimator(model=model_bridge.model.surrogate.model)
-                qoi_results.append(qoi_samples.detach().numpy())
-            except Exception as e:
-                print(f"Warning: Error calculating QoI samples: {e}")
-                # Add the last successful QoI result if available, otherwise placeholder
-                if qoi_results:
-                    qoi_results.append(qoi_results[-1])
-                else:
-                    qoi_results.append(np.array([[0.0]]))
-
-    # Stack QoI results into a single array
-    qoi_results_array = np.vstack(qoi_results)
-
-    return optimal_qoi_variances, optimal_points, qoi_results_array
-
-
-# %%# Run the optimal DOE with the robust implementation that returns QoI results
-exp_optimal = make_exp()
-optimal_qoi_variances, optimal_points, qoi_results_optimal = run_optimal_doe_robust(
-    experiment=exp_optimal,
-    simulator=sim,
-    qoi_estimator=qoi_estimator,
-    n_iterations=40,
-    grid_size=21,
-    warm_up_runs=3,
-    qoi_iter=1,  # Calculate QoI after every iteration
-)
-
-# %%
-# Now you can make the plot that compares all methods
-plt.figure(figsize=(12, 6))
-
-# Get mean and variance for the optimal DOE results
-mean_opt, var_opt = get_mean_var(qoi_estimator, qoi_results_optimal)
-
-# Plot the QoI estimates and their uncertainty for all methods
-mean, var = get_mean_var(qoi_estimator, qoi_results_sobol)
-ax = plot_raw_ut_estimates(mean, var, name="Sobol")
-mean, var = get_mean_var(qoi_estimator, qoi_results_look_ahead)
-ax = plot_raw_ut_estimates(mean, var, ax=ax, color="green", name="Look Ahead")
-ax = plot_raw_ut_estimates(mean_opt, var_opt, ax=ax, color="purple", name="Optimal DOE")
-# mean_bf, var_bf = get_mean_var(qoi_estimator, qoi_results_look_ahead_sim)
-# ax = plot_raw_ut_estimates(mean_bf, var_bf, ax=ax, color="red", name="Brute Force")
-
-_ = ax.axhline(brute_force_qoi_estimate, c="black", label="Brute Force Value")
-_ = ax.set_xlabel("Number of DOE Iterations")
-_ = ax.set_ylabel("Response")
-_ = ax.legend()
-plt.title("Comparison of DOE Methods")
-plt.tight_layout()
-plt.show()
-
-
-# %%
 
 
 # %%
