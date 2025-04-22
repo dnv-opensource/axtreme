@@ -139,6 +139,8 @@ def chunck_brute_force_calc(
 ) -> Tensor:
     """Calculate the QOI by brute force by splitting the data into year_return_value chunck.
 
+    Note: At the meeting with Odin on the 22.04.25 it was decided that this is the appropriate method.
+
     Args:
         dataloader: The dataloader to use to get the environment samples.
              - Each batch should have shape (batch_size, d)
