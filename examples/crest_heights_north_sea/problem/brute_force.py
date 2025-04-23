@@ -151,7 +151,7 @@ if __name__ == "__main__":
     extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
         n_years_in_period,
         n_sea_states_in_year,
-        num_estimates=1_000,
+        num_estimates=20,
         year_return_value=year_return_value,
     )
 
@@ -161,13 +161,13 @@ if __name__ == "__main__":
     _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
     _ = plt.ylabel("Density")  # type: ignore[assignment]
     plt.axvspan(
-        extrem_response_mean - extrem_response_variance,
-        extrem_response_mean + extrem_response_variance,
+        (extrem_response_mean - extrem_response_variance).item(),
+        (extrem_response_mean + extrem_response_variance).item(),
         alpha=0.5,
         color="red",
         label="variance",
     )
-    _ = plt.axvline(extrem_response_mean, color="red", label="mean")  # type: ignore[assignment]
+    _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
     _ = plt.legend()  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003
 
