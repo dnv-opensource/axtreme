@@ -25,7 +25,7 @@ def generate_data(n_years_in_period: int, n_sea_states_in_year: int) -> tuple[ND
     lognorm_prms = (1.557, 0.403, 0.408, 0.005, 0.137, 0.454)
 
     n_ss = n_sea_states_in_year * n_years_in_period
-    return sample_seastates(n_ss, weib_prms, lognorm_prms, hslim=7.5)
+    return sample_seastates(n_ss, weib_prms, lognorm_prms, seed=1234, hslim=0)
 
 
 # %%
@@ -37,4 +37,6 @@ if __name__ == "__main__":
     plt.plot(Hs, Tp, ".")  # type: ignore  # noqa: PGH003
 
     # Save the data as a .npy file
-    np.save(f"long_term_distribution_{N_y}_years_no_hslim.npy", np.column_stack((Hs, Tp)))
+    np.save(f"long_term_distribution_{N_y}_years.npy", np.column_stack((Hs, Tp)))
+
+# %%

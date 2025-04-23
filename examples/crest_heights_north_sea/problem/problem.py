@@ -20,7 +20,6 @@ upper case? or is it enough that we all that stuff in problem is constant?
 # %%
 
 import brute_force  # type: ignore[import]
-import matplotlib.pyplot as plt
 import numpy as np
 import simulator  # type: ignore[import]
 from ax import (
@@ -56,7 +55,10 @@ DIST = gumbel_r
 sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simulator_function)
 
 # Define the number of env samples that make a period
-_n_years_in_period = 10**3
+# _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
+_n_years_in_period = 100
+
+year_return_value = 10
 
 _n_sea_states_in_year = 2922
 _n_sea_states_in_period = _n_years_in_period * _n_sea_states_in_year
@@ -86,40 +88,16 @@ dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
-# %%
-# Get brute force QOI for this problem and period using the chunck method
-chunck_brut_force_return_values, chunck_brut_force_return_mean, chunck_brut_force_return_variance = (
-    brute_force.collect_or_calculate_results(
-        dataloader,
-        _n_sea_states_in_year,
-        _n_sea_states_in_period,
-        num_estimates=1_000,
-        brut_force_type="chunck",
-        year_return_value=year_return_value,
-    )
-)
-# %%
-# Plot brute force QOI
-_ = plt.hist(chunck_brut_force_return_values, bins=100, density=True)
-_ = plt.title("R-year return value distribution")  # type: ignore[assignment]
-_ = plt.xlabel("R-year return value")  # type: ignore[assignment]
-_ = plt.ylabel("Density")  # type: ignore[assignment]
-plt.axvspan(
-    chunck_brut_force_return_mean - chunck_brut_force_return_variance,
-    chunck_brut_force_return_mean + chunck_brut_force_return_variance,
-    alpha=0.5,
-    color="red",
-    label="variance",
-)
-_ = plt.axvline(chunck_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
-_ = plt.legend()  # type: ignore[assignment]
-plt.grid(True)  # noqa: FBT003
 
-# %% Plot scatter plot of brut force solution for extrem value location
-brute_force.create_extrem_value_location_scatter_plot("n_sample_per_period_2922000_chunck_10_return_year.json")
+# %%
+# Get brute force QOI for this problem and period
+extrem_response_values, extrem_response_mean, extrem_response_variance = brute_force.collect_or_calculate_results(
+    _n_years_in_period,
+    _n_sea_states_in_year,
+    num_estimates=20,
+    year_return_value=year_return_value,
+)
 
-# %% Plot kde plot of brut force solution for extrem value location
-# Note: Is very slow especially for large datasets
-brute_force.create_extrem_value_location_kde_plot("n_sample_per_period_2922000_chunck_10_return_year.json")
+
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader

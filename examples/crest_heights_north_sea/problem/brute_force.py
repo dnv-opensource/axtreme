@@ -1,5 +1,6 @@
 """Obtain a brute force estimate of the Extreme Response Distribution (ERD)."""
 
+# %%
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -11,9 +12,10 @@ import pandas as pd
 import seaborn as sns
 import torch
 import tqdm
+from numpy.typing import NDArray
 from simulator import max_crest_height_simulator_function  # type: ignore[import]
-from torch import Tensor, zeros
-from torch.utils.data import DataLoader
+from torch import Tensor
+from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
 _results_dir: Path = Path(__file__).parent / "results" / "brute_force"
 if not _results_dir.exists():
@@ -36,17 +38,10 @@ class ResultsObject:
         return ResultsObject(statistics=statistics, samples=samples.tolist(), env_data=env_data.tolist())
 
 
-def _result_file_name(period_length: int) -> str:
-    """Generate the file name from the period length."""
-    return f"n_sample_per_period_{period_length}"
-
-
 def collect_or_calculate_results(
-    dataloader: DataLoader[tuple[Tensor, ...]],
+    n_years_in_period: int,
     n_sea_states_in_year: int,
-    n_sea_states_in_period: int,
     num_estimates: int = 2_000,
-    brut_force_type: str = "quantile",
     year_return_value: int = 10,
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Return a saved result for the desired length of time if available, otherwise calculate the result.
@@ -54,9 +49,8 @@ def collect_or_calculate_results(
     New results will also be saved within this directory.
 
     Args:
-        dataloader: Dataloader objective of environment data
+        n_years_in_period: number of years to simulate
         n_sea_states_in_year: number of sea states in one year
-        n_sea_states_in_period: number of sea states in whole period
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
         brut_force_type: Choose how the QoI shall be estimated.
         year_return_value: return value given in years
@@ -64,11 +58,7 @@ def collect_or_calculate_results(
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    # Calculate the number of samples that create a single period of the ERD
-    period_length = dataloader.dataset.data.shape[0]  # type: ignore[attr-defined]
-    results_path = (
-        _results_dir / f"{_result_file_name(period_length)}_{brut_force_type}_{year_return_value}_return_year.json"
-    )
+    results_path = _results_dir / f"{int(n_years_in_period)}_year_sim_{year_return_value}_year_return_value.json"
 
     samples = torch.tensor([])
     max_location = torch.tensor([])
@@ -81,21 +71,11 @@ def collect_or_calculate_results(
 
     # make any additional samples required
     if len(samples) < num_estimates:
-        if brut_force_type == "quantile":
-            new_samples = quantile_brute_force_calc(
-                dataloader,
-                n_sea_states_in_year,
-                num_estimates - len(samples),
-                year_return_value,
-            )
-        elif brut_force_type == "chunck":
-            new_samples, new_max_location = chunck_brute_force_calc(
-                dataloader,
-                n_sea_states_in_period,
-                n_sea_states_in_year,
-                num_estimates - len(samples),
-                year_return_value,
-            )
+        new_samples, new_max_location = brute_force(
+            year_return_value * n_sea_states_in_year,
+            n_years_in_period,
+            num_estimates,
+        )
 
         samples = torch.concat([samples, new_samples])
         max_location = torch.concat([max_location, new_max_location])
@@ -109,77 +89,69 @@ def collect_or_calculate_results(
     return samples, samples.mean(), samples.var()
 
 
-def quantile_brute_force_calc(
-    dataloader: DataLoader[tuple[Tensor, ...]],
-    n_sea_states_in_year: int = 2922,
-    num_estimates: int = 2_000,
-    year_return_value: int = 100,
-) -> Tensor:
-    """Calculate the QOI by brute force using quantiles.
+def brute_force(period_length: int, n_years_in_period: int, num_estimates: int = 2_000) -> tuple[Tensor, Tensor]:
+    """Produces brute force samples of the Extreme Response Distribution.
 
     Args:
-        dataloader: The dataloader to use to get the environment samples.
-             - Each batch should have shape (batch_size, d)
-             - The sum of the batch sizes returned by iterating through the dataloader should be a period length
-             - To get different results for each brute force estimate, the dataloader needs to give different
-               data each time it is iterated through. This can be done by using e.g a RandomSampler.
-        n_sea_states_in_year: number of sea states in one year
+        period_length: The number of samples that create a single period of the ERD
+        n_years_in_period: The number of years used to create the environment data. Only needed to load the
+        correct dataset.
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
-        year_return_value: year for the return value
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    return_value = zeros(num_estimates)
-    for i in tqdm.tqdm(range(num_estimates)):
-        simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(dataloader.dataset.data)  # type: ignore  # noqa: PGH003
+    data: NDArray[np.float64] = np.load(
+        Path(__file__).parent / "data" / f"long_term_distribution_{n_years_in_period}_years.npy"
+    )
+    dataset = TensorDataset(torch.Tensor(data))
 
-        return_value[i] = float(np.quantile(simulator_samples, 1 - 1 / (n_sea_states_in_year * year_return_value)))
+    dataloader = DataLoader(
+        dataset,
+        batch_size=4096,
+        sampler=RandomSampler(dataset, num_samples=period_length, replacement=True),
+    )
 
-    return return_value
+    return _brute_force_calc(dataloader, num_estimates)
 
 
-def chunck_brute_force_calc(
+def _brute_force_calc(
     dataloader: DataLoader[tuple[Tensor, ...]],
-    n_sea_states_in_period: int,
-    n_sea_states_in_year: int = 2922,
     num_estimates: int = 2_000,
-    year_return_value: int = 100,
 ) -> tuple[Tensor, Tensor]:
-    """Calculate the QOI by brute force by splitting the data into year_return_value chunck.
-
-    Note: At the meeting with Odin on the 22.04.25 it was decided that this is the appropriate method.
+    """Calculate the QOI by brute force by splitting the data into batches.
 
     Args:
         dataloader: The dataloader to use to get the environment samples.
              - Each batch should have shape (batch_size, d)
-             - The sum of the batch sizes returned by iterating through the dataloader should be a period length
+             - The sum of the batch sizes returned by iterating through the dataloader should be a return period
              - To get different results for each brute force estimate, the dataloader needs to give different
                data each time it is iterated through. This can be done by using e.g a RandomSampler.
-        n_sea_states_in_year: number of sea states in one year
-        n_sea_states_in_period: number of sea states in whole period
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
-        year_return_value: year for the return value
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    maxs = []
+    maxs = torch.zeros(num_estimates)
     maxs_location = []
-    for _ in tqdm.tqdm(range(num_estimates)):
-        chunck_indices = np.append(
-            np.arange(0, n_sea_states_in_period, year_return_value * n_sea_states_in_year), n_sea_states_in_period
-        )
+    for i in tqdm.tqdm(range(num_estimates)):
+        current_max = float("-inf")
 
-        for idx, chunck_index in enumerate(chunck_indices[1:]):
-            samples = dataloader.dataset.data[chunck_indices[idx] : chunck_index, :]  # type: ignore[attr-defined]
+        # Get max(c_max) for return period which is specified in dataloader
+        for batch in dataloader:
+            samples = batch[0].to("cpu").numpy()
 
             simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(samples)  # type: ignore  # noqa: PGH003
-            maxs.append(simulator_samples.max())
 
-            # Get env data corresponding to max(c_max)
-            max_index = np.argmax(simulator_samples)
-            maxs_location.append(samples[max_index, :])
+            simulator_samples_max = simulator_samples.max()
+            if simulator_samples_max > current_max:
+                current_max = simulator_samples_max
+
+                # Get env data corresponding to max(c_max)
+                max_index = np.argmax(simulator_samples)
+                maxs_location.append(samples[max_index, :])
+
+        maxs[i] = current_max
 
     return torch.FloatTensor(maxs), torch.FloatTensor(maxs_location)
 
@@ -242,3 +214,47 @@ def create_extrem_value_location_kde_plot(brut_force_file_name: str) -> None:
     _ = plt.ylabel("Tp")  # type: ignore[assignment]
 
     plt.savefig(str(brut_force_file_path).replace(".json", "_kde.png"))
+
+
+# %%
+if __name__ == "__main__":
+    # Set parameters for simulation
+    n_years_in_period = 100
+    year_return_value = 10
+    n_sea_states_in_year = 2922
+
+    # Get brute force QOI for this problem and period
+    extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
+        n_years_in_period,
+        n_sea_states_in_year,
+        num_estimates=20,
+        year_return_value=year_return_value,
+    )
+
+    # Plot brute force QOI
+    _ = plt.hist(extrem_response_values, bins=100, density=True)
+    _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
+    _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
+    _ = plt.ylabel("Density")  # type: ignore[assignment]
+    plt.axvspan(
+        (extrem_response_mean - extrem_response_variance).item(),
+        (extrem_response_mean + extrem_response_variance).item(),
+        alpha=0.5,
+        color="red",
+        label="variance",
+    )
+    _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
+    _ = plt.legend()  # type: ignore[assignment]
+    plt.grid(True)  # noqa: FBT003
+
+    # %% Plot scatter plot of brut force solution for extrem value location
+    create_extrem_value_location_scatter_plot(
+        f"{n_years_in_period}_year_sim_{year_return_value}_year_return_value.json"
+    )
+
+    # %% Plot kde plot of brut force solution for extrem value location
+    # Note: Is very slow especially for large datasets
+    create_extrem_value_location_kde_plot(f"{n_years_in_period}_year_sim_{year_return_value}_year_return_value.json")
+
+
+# %%
