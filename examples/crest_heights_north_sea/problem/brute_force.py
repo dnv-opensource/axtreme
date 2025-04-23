@@ -42,6 +42,7 @@ def collect_or_calculate_results(
     n_sea_states_in_year: int,
     n_sea_states_in_period: int,
     num_estimates: int = 2_000,
+    year_return_value: int = 100,
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Return a saved result for the desired length of time if available, otherwise calculate the result.
 
@@ -52,6 +53,7 @@ def collect_or_calculate_results(
         n_sea_states_in_year: number of sea states in one year
         n_sea_states_in_period: number of sea states in whole period
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
+        year_return_value: R-year return value
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
@@ -66,9 +68,6 @@ def collect_or_calculate_results(
         with results_path.open() as fp:
             results = json.load(fp)
             samples = torch.tensor(results["samples"])
-
-    # to reduce run time for testing
-    year_return_value = 10
 
     # make any additional samples required
     if len(samples) < num_estimates:

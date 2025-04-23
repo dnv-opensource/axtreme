@@ -59,6 +59,8 @@ sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simula
 # _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
 _n_years_in_period = 100
 
+year_return_value = 10
+
 _n_sea_states_in_year = 2922
 _n_sea_states_in_period = _n_years_in_period * _n_sea_states_in_year
 _sea_state_duration = 3 * 60 * 60  # 3 hours
@@ -94,10 +96,10 @@ chunck_brut_force_return_values, chunck_brut_force_return_mean, chunck_brut_forc
         _n_sea_states_in_year,
         _n_sea_states_in_period,
         num_estimates=1_000,
+        year_return_value=year_return_value,
     )
 )
-# %%
-print(chunck_brut_force_return_values.shape)
+
 # %%
 # Plot brute force QOI
 _ = plt.hist(chunck_brut_force_return_values, bins=100, density=True)
@@ -114,5 +116,6 @@ plt.axvspan(
 _ = plt.axvline(chunck_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
 _ = plt.legend()  # type: ignore[assignment]
 plt.grid(True)  # noqa: FBT003
+
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
