@@ -33,6 +33,8 @@ from axtreme.utils import transforms
 torch.set_default_dtype(torch.float64)
 device = "cpu"
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 # %%
 search_space = SEARCH_SPACE
 n_env_samples_per_period = N_ENV_SAMPLES_PER_PERIOD
