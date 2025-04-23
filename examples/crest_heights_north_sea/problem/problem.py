@@ -82,7 +82,7 @@ def make_exp() -> Experiment:
 # %%
 # dataset and dataloader
 dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
-    np.load(f"data/long_term_distribution_{_n_years_in_period}_years_no_hslim.npy")
+    np.load(f"data/long_term_distribution_{_n_years_in_period}_years.npy")
 )
 
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
@@ -92,10 +92,9 @@ dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 # Get brute force QOI for this problem and period
 chunck_brut_force_return_values, chunck_brut_force_return_mean, chunck_brut_force_return_variance = (
     brute_force.collect_or_calculate_results(
-        dataloader,
+        _n_years_in_period,
         _n_sea_states_in_year,
-        _n_sea_states_in_period,
-        num_estimates=1_000,
+        num_estimates=20,
         year_return_value=year_return_value,
     )
 )
