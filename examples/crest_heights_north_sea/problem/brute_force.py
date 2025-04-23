@@ -1,10 +1,12 @@
 """Obtain a brute force estimate of the Extreme Response Distribution (ERD)."""
 
+# %%
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import tqdm
@@ -52,9 +54,7 @@ def collect_or_calculate_results(
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    results_path = (
-        _results_dir / f"brut_force_{int(n_years_in_period)}_year_sim_{year_return_value}_year_return_value.json"
-    )
+    results_path = _results_dir / f"{int(n_years_in_period)}_year_sim_{year_return_value}_year_return_value.json"
 
     samples = torch.tensor([])
 
@@ -82,10 +82,10 @@ def collect_or_calculate_results(
 
 
 def brute_force(period_length: int, n_years_in_period: int, num_estimates: int = 2_000) -> torch.Tensor:
-    """Produces brute force samples of the Extreme Response Distibtuion.
+    """Produces brute force samples of the Extreme Response Distribution.
 
     Args:
-        period_length: The number of samples the create a single period of the ERD
+        period_length: The number of samples that create a single period of the ERD
         n_years_in_period: The number of years used to create the environment data. Only needed to load the
         correct dataset.
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
@@ -116,7 +116,7 @@ def _brute_force_calc(
     Args:
         dataloader: The dataloader to use to get the environment samples.
              - Each batch should have shape (batch_size, d)
-             - The sum of the batch sizes returned by iterating through the dataloader should be a period length
+             - The sum of the batch sizes returned by iterating through the dataloader should be a return period
              - To get different results for each brute force estimate, the dataloader needs to give different
                data each time it is iterated through. This can be done by using e.g a RandomSampler.
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
@@ -138,3 +138,37 @@ def _brute_force_calc(
         maxs[i] = current_max
 
     return maxs
+
+
+# %%
+if __name__ == "__main__":
+    # Set parameters for simulation
+    n_years_in_period = 100
+    year_return_value = 10
+    n_sea_states_in_year = 2922
+
+    # Get brute force QOI for this problem and period
+    extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
+        n_years_in_period,
+        n_sea_states_in_year,
+        num_estimates=1_000,
+        year_return_value=year_return_value,
+    )
+
+    # Plot brute force QOI
+    _ = plt.hist(extrem_response_values, bins=100, density=True)
+    _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
+    _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
+    _ = plt.ylabel("Density")  # type: ignore[assignment]
+    plt.axvspan(
+        extrem_response_mean - extrem_response_variance,
+        extrem_response_mean + extrem_response_variance,
+        alpha=0.5,
+        color="red",
+        label="variance",
+    )
+    _ = plt.axvline(extrem_response_mean, color="red", label="mean")  # type: ignore[assignment]
+    _ = plt.legend()  # type: ignore[assignment]
+    plt.grid(True)  # noqa: FBT003
+
+# %%

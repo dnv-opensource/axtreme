@@ -20,7 +20,6 @@ upper case? or is it enough that we all that stuff in problem is constant?
 # %%
 
 import brute_force  # type: ignore[import]
-import matplotlib.pyplot as plt
 import numpy as np
 import simulator  # type: ignore[import]
 from ax import (
@@ -90,31 +89,13 @@ dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 # %%
 # Get brute force QOI for this problem and period
-chunck_brut_force_return_values, chunck_brut_force_return_mean, chunck_brut_force_return_variance = (
-    brute_force.collect_or_calculate_results(
-        _n_years_in_period,
-        _n_sea_states_in_year,
-        num_estimates=20,
-        year_return_value=year_return_value,
-    )
+extrem_response_values, extrem_response_mean, extrem_response_variance = brute_force.collect_or_calculate_results(
+    _n_years_in_period,
+    _n_sea_states_in_year,
+    num_estimates=20,
+    year_return_value=year_return_value,
 )
 
-# %%
-# Plot brute force QOI
-_ = plt.hist(chunck_brut_force_return_values, bins=100, density=True)
-_ = plt.title("R-year return value distribution")  # type: ignore[assignment]
-_ = plt.xlabel("R-year return value")  # type: ignore[assignment]
-_ = plt.ylabel("Density")  # type: ignore[assignment]
-plt.axvspan(
-    chunck_brut_force_return_mean - chunck_brut_force_return_variance,
-    chunck_brut_force_return_mean + chunck_brut_force_return_variance,
-    alpha=0.5,
-    color="red",
-    label="variance",
-)
-_ = plt.axvline(chunck_brut_force_return_mean, color="red", label="mean")  # type: ignore[assignment]
-_ = plt.legend()  # type: ignore[assignment]
-plt.grid(True)  # noqa: FBT003
 
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
