@@ -36,25 +36,21 @@ class ResultsObject:
 
 
 def collect_or_calculate_results(
-    n_years_in_period: int,
-    n_sea_states_in_year: int,
+    period_length: int,
     num_estimates: int = 2_000,
-    year_return_value: int = 100,
 ) -> tuple[Tensor, Tensor, Tensor]:
     """Return a saved result for the desired length of time if available, otherwise calculate the result.
 
     New results will also be saved within this directory.
 
     Args:
-        n_years_in_period: number of years to simulate
-        n_sea_states_in_year: number of sea states in one year
+        period_length: The number of samples that create a single period of the ERD
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
-        year_return_value: R-year return value
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    results_path = _results_dir / f"{int(n_years_in_period)}_year_sim_{year_return_value}_year_return_value.json"
+    results_path = _results_dir / f"{int(period_length)}_period_length.json"
 
     samples = torch.tensor([])
 
@@ -66,8 +62,7 @@ def collect_or_calculate_results(
     # make any additional samples required
     if len(samples) < num_estimates:
         new_samples = brute_force(
-            year_return_value * n_sea_states_in_year,
-            n_years_in_period,
+            period_length,
             num_estimates,
         )
 
@@ -81,21 +76,17 @@ def collect_or_calculate_results(
     return samples, samples.mean(), samples.var()
 
 
-def brute_force(period_length: int, n_years_in_period: int, num_estimates: int = 2_000) -> torch.Tensor:
+def brute_force(period_length: int, num_estimates: int = 2_000) -> torch.Tensor:
     """Produces brute force samples of the Extreme Response Distribution.
 
     Args:
         period_length: The number of samples that create a single period of the ERD
-        n_years_in_period: The number of years used to create the environment data. Only needed to load the
-        correct dataset.
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    data: NDArray[np.float64] = np.load(
-        Path(__file__).parent / "data" / f"long_term_distribution_{n_years_in_period}_years.npy"
-    )
+    data: NDArray[np.float64] = np.load(Path(__file__).parent / "data" / "long_term_distribution.npy")
     dataset = TensorDataset(torch.Tensor(data))
 
     dataloader = DataLoader(
@@ -143,16 +134,14 @@ def _brute_force_calc(
 # %%
 if __name__ == "__main__":
     # Set parameters for simulation
-    n_years_in_period = 100
     year_return_value = 10
     n_sea_states_in_year = 2922
+    period_length = year_return_value * n_sea_states_in_year
 
     # Get brute force QOI for this problem and period
     extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
-        n_years_in_period,
-        n_sea_states_in_year,
+        period_length,
         num_estimates=20,
-        year_return_value=year_return_value,
     )
 
     # Plot brute force QOI

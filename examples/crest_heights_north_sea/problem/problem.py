@@ -33,7 +33,7 @@ from axtreme.simulator import utils as sim_utils
 from axtreme.simulator.base import Simulator
 
 # %%
-### Pick the search space over which to create a surrogate
+# Pick the search space over which to create a surrogate
 # TODO(@henrikstoklandberg): Decide on the search space.
 # For now this is based on the min and max of the env data/long_term_distribution.npy
 SEARCH_SPACE = SearchSpace(
@@ -44,29 +44,30 @@ SEARCH_SPACE = SearchSpace(
 )
 
 # %%
-### Pick a distibution that you belive captures the noise behaviour of your simulator
+# Pick a distribution that you believe captures the noise behaviour of the simulator
 DIST = gumbel_r
 
 # %%
+# Load simulator
 sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simulator_function)
 
-# Define the number of env samples that make a period
-# _n_years_in_period = 10**4  # 10,000 years  # noqa: ERA001
-_n_years_in_period = 100
-
+# %%
+# Convert usecase specific naming conventions to ax conventions
 year_return_value = 10
+n_sea_states_in_year = 2922
 
-_n_sea_states_in_year = 2922
-_n_sea_states_in_period = _n_years_in_period * _n_sea_states_in_year
-_sea_state_duration = 3 * 60 * 60  # 3 hours
-_n_seconds_in_year = _n_sea_states_in_year * _sea_state_duration
-_n_sea_states_in_period = _n_years_in_period * _n_seconds_in_year // _sea_state_duration
+# In ax a period refers to a time length that a single extreme response relates to
+# which is in this use case the number of sea states in the desired return period
+period_length = year_return_value * n_sea_states_in_year
 
-N_ENV_SAMPLES_PER_PERIOD = 1000  # Arbitrary number of env samples per period
+# %%
+# Set axtreme specific parameters
+N_ENV_SAMPLES_PER_PERIOD = 1000  # The number of simulations to run for each point in the experiment.
+num_estimates = 20  # The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
 
 # %%
-### Automatically set up your experiment using the sim, search_space, and dist defined above.
+# Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
     """Convience function returns a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
@@ -77,10 +78,8 @@ def make_exp() -> Experiment:
 # %%
 # Get brute force QOI for this problem and period
 extrem_response_values, extrem_response_mean, extrem_response_variance = brute_force.collect_or_calculate_results(
-    _n_years_in_period,
-    _n_sea_states_in_year,
-    num_estimates=20,
-    year_return_value=year_return_value,
+    period_length,
+    num_estimates=num_estimates,
 )
 
 
