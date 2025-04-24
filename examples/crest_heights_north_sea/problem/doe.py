@@ -223,8 +223,8 @@ scores = scores.reshape(grid.shape[:-1])
 # steps.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
-_ = ax.view_init(elev=30, azim=45)  # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # pyright: ignore[reportAttributeAccessIssue]
+_ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
+_ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
 _ = ax.set_xlabel("x1")
 _ = ax.set_ylabel("x2")
 _ = ax.set_zlabel("score")  # pyright: ignore[reportAttributeAccessIssue]
