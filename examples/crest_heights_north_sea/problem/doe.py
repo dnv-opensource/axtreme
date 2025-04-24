@@ -25,6 +25,7 @@ from axtreme.acquisition import QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
 from axtreme.experiment import add_sobol_points_to_experiment
 from axtreme.metrics import QoIMetric
+from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.utils import transforms
@@ -178,6 +179,13 @@ run_trials(
     doe_runs=n_iter,
 )
 
+# %%
+# Plot the surface of some trials
+fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(exp_sobol, warm_up_runs)
+fig_trial_warm_up.show()
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter)
+fig_last_trial.show()
+
 
 # %%
 # Define the model to use.
@@ -311,6 +319,13 @@ run_trials(
     doe_runs=n_iter,
 )
 
+# %%
+# Plot the surface of some trials
+fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(exp_look_ahead, warm_up_runs)
+fig_trial_warm_up.show()
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_look_ahead, n_iter)
+fig_last_trial.show()
+
 
 # %% [markdown]
 # ### Plot the results
@@ -368,4 +383,6 @@ _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
+
+
 # %%
