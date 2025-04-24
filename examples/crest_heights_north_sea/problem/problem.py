@@ -20,18 +20,14 @@ upper case? or is it enough that we all that stuff in problem is constant?
 # %%
 
 import brute_force  # type: ignore[import]
-import numpy as np
 import simulator  # type: ignore[import]
 from ax import (
     Experiment,
     SearchSpace,
 )
 from ax.core import ParameterType, RangeParameter
-from numpy.typing import NDArray
 from scipy.stats import gumbel_r
-from torch.utils.data import DataLoader, Dataset
 
-from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import make_experiment
 from axtreme.simulator import utils as sim_utils
 from axtreme.simulator.base import Simulator
@@ -76,15 +72,6 @@ def make_exp() -> Experiment:
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=N_ENV_SAMPLES_PER_PERIOD)
-
-
-# %%
-# dataset and dataloader
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
-    np.load(f"data/long_term_distribution_{_n_years_in_period}_years.npy")
-)
-
-dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 
 # %%
