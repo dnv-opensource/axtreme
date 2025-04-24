@@ -11,6 +11,7 @@ from ax import (
 )
 from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
+from problem import brut_force_qoi, period_length
 from scipy.stats import gumbel_r
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
@@ -25,10 +26,6 @@ from axtreme.utils import population_estimators, transforms
 
 # %%
 # Set up Qoi estimator
-year_return_value = 10
-n_sea_states_in_year = 2922
-qoi_n_samples_per_period = year_return_value * n_sea_states_in_year  # number of samples in desired period
-
 n_env_samples = 1_000
 
 ## Load environment data
@@ -43,7 +40,7 @@ posterior_sampler = UTSampler()
 
 qoi_estimator = MarginalCDFExtrapolation(
     env_iterable=dataloader,
-    period_len=qoi_n_samples_per_period,
+    period_len=period_length,
     quantile=torch.tensor(0.5),
     quantile_accuracy=torch.tensor(0.01),
     posterior_sampler=posterior_sampler,
@@ -64,17 +61,7 @@ SEARCH_SPACE = SearchSpace(
         RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
         RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
     ],
-    # Hs <= 1.5 Tp
-    # parameter_constraints=[ParameterConstraint(constraint_dict={"Hs": 1.0, "Tp": -1.5}, bound=0)],  # noqa: ERA001
 )
-
-# %% Plot search space vs environment data
-_, axes = plt.subplots(1, figsize=(5, 5))
-_ = axes.scatter(data[:, 1], data[:, 0])
-tp_range = np.linspace(data[:, 0].min(), data[:, 0].max(), 100)
-_ = axes.plot(tp_range, 1.5 * tp_range, color="red")
-axes.set_xlabel("Tp")
-axes.set_ylabel("Hs")
 
 
 # %%
@@ -84,7 +71,7 @@ def make_exp() -> Experiment:
 
 
 # %%
-n_training_points = [30, 50, 128]  # , 512]
+n_training_points = [30, 50]  # , 128 , 512]
 results = []
 
 for points in n_training_points:
@@ -138,9 +125,11 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
-    # ax.axvline(brute_force_qoi_estimate, c="orange", label="Brute force results") # noqa: ERA001
+    ax.axvline(brut_force_qoi, c="orange", label="Brute force results")
 
     ax.set_title(f"QoI estimate with {n_points} training points")
     ax.set_xlabel("Response")
     ax.set_ylabel("Density")
     ax.legend()
+
+# %%

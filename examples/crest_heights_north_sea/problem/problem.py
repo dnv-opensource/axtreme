@@ -18,8 +18,8 @@ upper case? or is it enough that we all that stuff in problem is constant?
 """
 
 # %%
-
 import brute_force  # type: ignore[import]
+import numpy as np
 import simulator  # type: ignore[import]
 from ax import (
     Experiment,
@@ -82,6 +82,7 @@ extrem_response_values, extrem_response_mean, extrem_response_variance = brute_f
     num_estimates=num_estimates,
 )
 
+brut_force_qoi = np.median(extrem_response_values)
 
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
