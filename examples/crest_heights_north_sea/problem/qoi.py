@@ -11,7 +11,7 @@ from ax import (
 )
 from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
-from problem import brut_force_qoi, period_length
+from problem import brut_force_qoi, period_length  # type: ignore[import-not-found]
 from scipy.stats import gumbel_r
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
@@ -111,14 +111,14 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torc
     if not isinstance(estimates, torch.Tensor):  # pyright: ignore[reportUnnecessaryIsInstance]
         estimates = torch.tensor(estimates)
 
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # pyright: ignore[reportAttributeAccessIssue]
+    mean = estimator.posterior_sampler.mean(estimates, -1)  # type: ignore[attr-defined]
+    var = estimator.posterior_sampler.var(estimates, -1)  # type: ignore[attr-defined]
 
     return mean, var
 
 
 # %%
-_, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
+fig, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
     mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))
