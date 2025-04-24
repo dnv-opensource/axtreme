@@ -133,31 +133,65 @@ def _brute_force_calc(
 
 # %%
 if __name__ == "__main__":
+    # %%
     # Set parameters for simulation
     year_return_value = 10
     n_sea_states_in_year = 2922
     period_length = year_return_value * n_sea_states_in_year
 
-    # Get brute force QOI for this problem and period
-    extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
+    # %%
+    # Get brute force QOI for a large number of estimates
+    extrem_response_values, extrem_response_mean, extrem_response_var = collect_or_calculate_results(
         period_length,
-        num_estimates=20,
+        num_estimates=10_000,
     )
 
+    # %%
     # Plot brute force QOI
     _ = plt.hist(extrem_response_values, bins=100, density=True)
     _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
     _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
     _ = plt.ylabel("Density")  # type: ignore[assignment]
-    plt.axvspan(
-        (extrem_response_mean - extrem_response_variance).item(),
-        (extrem_response_mean + extrem_response_variance).item(),
-        alpha=0.5,
-        color="red",
-        label="variance",
-    )
     _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
+    _ = plt.axvline(extrem_response_values.median().item(), color="purple", label="median")  # type: ignore[assignment]
+    _ = plt.axvline(torch.quantile(extrem_response_values, np.exp(-1)).item(), color="orange", label="exp(-1) quantile")  # type: ignore[assignment]
     _ = plt.legend()  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003
 
+    # %%
+    # Analyse uncertainty in brut force estimate using both median and exp(-1) qunatile
+    results_median = []
+    results_quantile = []
+    brute_force_samples = [1_000, 2_000, 4_000, 8_000]  # , 16_000]
+    for n_samples in brute_force_samples:
+        medians_from_samples_size = []
+        quantiles_from_samples_size = []
+        # How many times to calc the median
+        for _idx in range(200):
+            # sample with replacement
+            random_indices = torch.randint(0, len(extrem_response_values), (n_samples,))
+            sampled_tensor = extrem_response_values[random_indices]
+            medians_from_samples_size.append(sampled_tensor.median())
+            quantiles_from_samples_size.append(torch.quantile(sampled_tensor, np.exp(-1)))
+
+        results_median.append(torch.tensor(medians_from_samples_size))
+        results_quantile.append(torch.tensor(quantiles_from_samples_size))
+
+    # %% Plot the results using the median
+    fig, axes = plt.subplots(len(brute_force_samples), 1, figsize=(6, len(brute_force_samples * 4)), sharex=True)
+    for medians, sample_size, ax in zip(results_median, brute_force_samples, axes, strict=True):
+        ax.hist(medians, density=True, bins=len(medians) // 15)
+        ax.set_title(
+            f"QOI calculated with {sample_size} erd samples\nmean (of medians)"
+            f" {medians.mean():.3f}. std {medians.std():.3f}"
+        )
+
+    # %% Plot the results using the quantile
+    fig, axes = plt.subplots(len(brute_force_samples), 1, figsize=(6, len(brute_force_samples * 4)), sharex=True)
+    for quantile, sample_size, ax in zip(results_quantile, brute_force_samples, axes, strict=True):
+        ax.hist(quantile, density=True, bins=len(quantile) // 15)
+        ax.set_title(
+            f"QOI calculated with {sample_size} erd samples\nmean (of exp(-1) quantile)"
+            f" {quantile.mean():.3f}. std {quantile.std():.3f}"
+        )
 # %%
