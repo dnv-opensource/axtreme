@@ -5,9 +5,9 @@
 As users of the axtreme package we always need to:
 1) Define the search space our problem lies within.
 2) Define distribution we want to use to represent the output of the simulator.
-3) Combine these with the simulator to create an Ax experiment.
+3) Combine these with the simulator to create an Ax experiement.
 
-Convenience items also defined here:
+Convience items also defined here:
 - importance datasets generated.
 
 Guidance for creating/choosing the above is provided in `tutorials` (@melih)
@@ -18,15 +18,14 @@ upper case? or is it enough that we all that stuff in problem is constant?
 """
 
 # %%
-
 import brute_force  # type: ignore[import]
-import simulator  # type: ignore[import]
 from ax import (
     Experiment,
     SearchSpace,
 )
 from ax.core import ParameterType, RangeParameter
 from scipy.stats import gumbel_r
+from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 
 from axtreme.experiment import make_experiment
 from axtreme.simulator import utils as sim_utils
@@ -49,7 +48,8 @@ DIST = gumbel_r
 
 # %%
 # Load simulator
-sim: Simulator = sim_utils.simulator_from_func(simulator.max_crest_height_simulator_function)
+sim: Simulator = sim_utils.simulator_from_func(max_crest_height_simulator_function)
+
 
 # %%
 # Convert usecase specific naming conventions to ax conventions
@@ -68,13 +68,16 @@ num_estimates = 20  # The number of brute force estimates of the QoI. A new peri
 
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
+
+
 def make_exp() -> Experiment:
-    """Convience function returns a fresh Experiement of this problem."""
+    """Convience function return a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=N_ENV_SAMPLES_PER_PERIOD)
 
 
+exp = make_exp()
 # %%
 # Get brute force QOI for this problem and period
 extrem_response_values, extrem_response_mean, extrem_response_variance = brute_force.collect_or_calculate_results(
