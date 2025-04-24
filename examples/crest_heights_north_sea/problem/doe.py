@@ -225,10 +225,10 @@ fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
 _ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")
-_ = ax.set_ylabel("x2")
-_ = ax.set_zlabel("score")  # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_title("Score surface plot")
+_ = ax.set_xlabel("x1")  # type: ignore[assignment]
+_ = ax.set_ylabel("x2")  # type: ignore[assignment]
+_ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+_ = ax.set_title("Score surface plot")  # type: ignore[assignment]
 print("max_score ", scores.max())
 
 
@@ -374,10 +374,10 @@ def plot_raw_ut_estimates(
 # %%
 ax = plot_raw_ut_estimates(exp_sobol, name="Sobol")
 ax = plot_raw_ut_estimates(exp_look_ahead, ax=ax, color="green", name="look ahead")
-_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
-_ = ax.set_xlabel("Number of DOE iterations")
-_ = ax.set_ylabel("Response")
-_ = ax.legend()
+_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
+_ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
+_ = ax.set_ylabel("Response")  # type: ignore[assignment]
+_ = ax.legend()  # type: ignore[assignment]
 
 
 # %%
