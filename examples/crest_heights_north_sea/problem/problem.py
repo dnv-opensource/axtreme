@@ -19,14 +19,18 @@ upper case? or is it enough that we all that stuff in problem is constant?
 
 # %%
 import brute_force  # type: ignore[import]
+import numpy as np
 from ax import (
     Experiment,
     SearchSpace,
 )
 from ax.core import ParameterType, RangeParameter
+from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
+from torch.utils.data import Dataset
 
+from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import make_experiment
 from axtreme.simulator import utils as sim_utils
 from axtreme.simulator.base import Simulator
@@ -50,6 +54,9 @@ DIST = gumbel_r
 # Load simulator
 sim: Simulator = sim_utils.simulator_from_func(max_crest_height_simulator_function)
 
+# %%
+# Load environment data
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution.npy"))
 
 # %%
 # Convert usecase specific naming conventions to ax conventions
@@ -62,19 +69,16 @@ period_length = year_return_value * n_sea_states_in_year
 
 # %%
 # Set axtreme specific parameters
-N_ENV_SAMPLES_PER_PERIOD = 1000  # The number of simulations to run for each point in the experiment.
 num_estimates = 20  # The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
 
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
-
-
 def make_exp() -> Experiment:
     """Convience function return a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
-    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=N_ENV_SAMPLES_PER_PERIOD)
+    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)
 
 
 exp = make_exp()
