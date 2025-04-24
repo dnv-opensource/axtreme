@@ -44,7 +44,8 @@ from axtreme import sampling
 from axtreme.acquisition import QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
 from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
-from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface, plot_surface_over_2d_search_space
+from axtreme.metrics import QoIMetric
+from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment, plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.qoi.qoi_estimator import QoIEstimator
@@ -459,29 +460,19 @@ def run_trials(
     experiment: Experiment,
     warm_up_generator: Callable[[Experiment], GeneratorRun],
     doe_generator: Callable[[Experiment], GeneratorRun],
-    qoi_estimator: MarginalCDFExtrapolation,
     warm_up_runs: int = 3,
     doe_runs: int = 15,
-    qoi_iter: int = 1,
-) -> NDArray[np.float64]:
-    """Helper function for running many trials for an experiment and returning the QOI results.
+) -> None:
+    """Helper function for running  trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
         experiment: Experiment to perform DOE on.
         warm_up_generator: Generator to create the initial training data on the experiment (e.g., Sobol).
         doe_generator: The generator being used to perform the DoE.
-        qoi_estimator: The function to estimate the QOI after new data points are added to the experiment.
         warm_up_runs: Number of warm-up runs to perform before starting the DoE.
         doe_runs: Number of DoE runs to perform.
-        qoi_iter: How often to calculate the QOI. If set to 1, the QOI will be calculated after every run.
 
-    Returns:
-        np.ndarray: Array of shape (n_qoi_iter, qoi_estimator_output) where:
-            - n_qoi_iter: The number of times the qoi_estimator was called (on a new amount of data).
-            - qoi_estimator_output: The results given on that dataset.
     """
-    figs = []
-    qoi_results = []
     for i in range(doe_runs + 1):
         if i == 0:
             for _ in range(warm_up_runs):
@@ -495,30 +486,9 @@ def run_trials(
             trial = experiment.new_trial(generator_run=generator_run)
             _ = trial.run()
             _ = trial.mark_completed()
-
-        model_bridge = Models.BOTORCH_MODULAR(
-            experiment=experiment,
-            data=experiment.fetch_data(),
-        )
-        if i % qoi_iter == 0:
-            input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-                transforms=list(model_bridge.transforms.values()), outcome_names=model_bridge.outcomes
-            )
-
-            qoi_estimator.input_transform = input_transform
-            qoi_estimator.outcome_transform = outcome_transform
-
-            qoi_samples = qoi_estimator(model=model_bridge.model.surrogate.model)
-            qoi_results.append(qoi_samples.detach().numpy())
-        if i in (0, doe_runs):
-            figs.append(
-                plot_gp_fits_2d_surface(model_bridge, search_space, {"loc": _true_loc_func, "scale": _true_scale_func})
-            )
         print(f"iter {i} done")
 
-    for fig in figs:
-        fig.show()
-    return np.vstack(qoi_results)
+    return
 
 
 # %% [markdown]
@@ -526,7 +496,6 @@ def run_trials(
 
 # %%
 n_iter = 40
-qoi_iter = 1
 warm_up_runs = 3
 
 # %% [markdown]
@@ -534,7 +503,17 @@ warm_up_runs = 3
 # Surrogate trained without and a acquisition function as a comparative baseline.
 
 # %%
+# Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
+qoi_metric = QoIMetric(
+    name="QoIMetric", qoi_estimator=qoi_estimator, minimum_data_points=warm_up_runs, attach_transforms=True
+)
+
+# %%
 exp_sobol = make_exp()
+
+# Add the QoI metric to the experiment
+_ = exp_sobol.add_tracking_metric(qoi_metric)
+
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
 
@@ -556,15 +535,24 @@ def create_sobol_generator(sobol: ModelBridge) -> Callable[[Experiment], Generat
 
 sobol_generator_run = create_sobol_generator(sobol)
 
-qoi_results_sobol = run_trials(
+run_trials(
     experiment=exp_sobol,
     warm_up_generator=sobol_generator_run,
     doe_generator=sobol_generator_run,
-    qoi_estimator=qoi_estimator,
     warm_up_runs=warm_up_runs,
     doe_runs=n_iter,
-    qoi_iter=qoi_iter,
 )
+
+# %%
+# Plot the surface of after warmup and final trial.
+surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, warm_up_runs, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_warm_up.show()
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
 
 # %% [markdown]
 # ### Custom acquisition function:
@@ -656,24 +644,12 @@ acqf_class = QoILookAhead
 
 
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
-    # Fist building model to get the transforms
-    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
-    model_bridge_only_model = Models.BOTORCH_MODULAR(
-        experiment=experiment,
-        data=experiment.fetch_data(),
-    )
-    input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
-        transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
-    )
-    # Adding the transforms to the QoI estimator
-    qoi_estimator.input_transform = input_transform
-    qoi_estimator.outcome_transform = outcome_transform
-
     # Building the model with the QoILookAhead acquisition function
     model_bridge_cust_ac = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(),
         botorch_acqf_class=acqf_class,
+        fit_tracking_metrics=False,
         acquisition_options={
             "qoi_estimator": qoi_estimator,
             "sampler": sampling.MeanSampler(),
@@ -703,19 +679,38 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
 # Run the DOE
 
 # %%
+# Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
+qoi_metric = QoIMetric(
+    name="QoIMetric", qoi_estimator=qoi_estimator, minimum_data_points=warm_up_runs, attach_transforms=True
+)
+
+# %%
 exp_look_ahead = make_exp()
+
+# Add the QoI metric to the experiment
+_ = exp_look_ahead.add_tracking_metric(qoi_metric)
+
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
-qoi_results_look_ahead = run_trials(
+run_trials(
     experiment=exp_look_ahead,
     warm_up_generator=create_sobol_generator(sobol),
     doe_generator=look_ahead_generator_run,
-    qoi_estimator=qoi_estimator,
     warm_up_runs=warm_up_runs,
     doe_runs=n_iter,
-    qoi_iter=qoi_iter,
 )
+
+# %%
+# Plot the surface of after warmup and final trial.
+surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, warm_up_runs, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_warm_up.show()
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
 
 # %% [markdown]
 # ### Plot the results
@@ -723,8 +718,7 @@ qoi_results_look_ahead = run_trials(
 
 # %%
 def plot_raw_ut_estimates(
-    mean: torch.Tensor,
-    var: torch.Tensor,
+    experiment: Experiment,
     ax: None | Axes = None,
     points_between_ests: int = 1,
     name: str | None = None,
@@ -733,8 +727,7 @@ def plot_raw_ut_estimates(
     """NOTE very quick and dirty, assumes you know how to interpret the raw UT results (e.g rather than being given).
 
     Args:
-        mean: shape (n,) mean qoi estimates for each run.
-        var: shape (n,) variance qoi estimates for each run.
+        experiment: the experiment to plot the results from, QOI metric must be present.
         ax: ax to add the plots to. If not provided, one will be created.
         points_between_ests: This should be used if multiple DoE iterations are used between qoi estimates
             (e.g if the estimate is expensive). It adjusts the scale of the x axis.
@@ -744,29 +737,33 @@ def plot_raw_ut_estimates(
     Returns:
         Axes: the ax with the plot.
     """
+    metrics = experiment.fetch_data()
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+
+    qoi_means = qoi_metrics["mean"]
+    qoi_sems = qoi_metrics["sem"]
+    var = qoi_sems**2
     if ax is None:
         _, ax = plt.subplots()
 
-    x = range(1, (len(mean) + 1) * points_between_ests, points_between_ests)
+    x = range(1, (len(qoi_means) + 1) * points_between_ests, points_between_ests)
     _ = ax.fill_between(
         x,
-        mean - 1.96 * var**0.5,
-        mean + 1.96 * var**0.5,
+        qoi_means - 1.96 * var**0.5,
+        qoi_means + 1.96 * var**0.5,
         label=f"90% Confidence Bound {name}",
         alpha=0.3,
         **kwargs,
     )
 
-    _ = ax.plot(x, mean, **kwargs)
+    _ = ax.plot(x, qoi_means, **kwargs)
 
     return ax
 
 
 # %%
-baseline_mean, baseline_var = get_mean_var(qoi_estimator, qoi_results_sobol)
-ax = plot_raw_ut_estimates(baseline_mean, baseline_var, name="Sobol")
-lookahead_mean, lookahead_var = get_mean_var(qoi_estimator, qoi_results_look_ahead)
-ax = plot_raw_ut_estimates(lookahead_mean, lookahead_var, ax=ax, color="green", name="look ahead")
+ax = plot_raw_ut_estimates(exp_sobol, name="Sobol")
+ax = plot_raw_ut_estimates(exp_look_ahead, ax=ax, color="green", name="look ahead")
 _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")

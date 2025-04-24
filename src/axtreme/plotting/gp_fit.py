@@ -313,12 +313,19 @@ def plot_1d_model(model: SingleTaskGP, X: torch.Tensor | None = None, ax: None |
 def plot_gp_fits_2d_surface_from_experiment(
     experiment: Experiment,
     trial_index: int,
+    metrics: dict[
+        str,
+        Callable[[Numpy2dArray], Numpy1dArray],
+    ]
+    | None = None,
 ) -> Figure:
-    """Plot the GP fit for the given trial index over the 2D search space from experiment.
+    """Plot the GP fit for the given trial index and metrics over the 2D search space from experiment.
 
     Args:
         experiment: The experiment used to make predictions.
         trial_index: The index of the trial to plot.
+        metrics: A dictionary of metrics to plot. The keys are the names of the metrics in the model bridge model
+            and the values are callables that return the metric value for a given input.
     """
     non_tracking_metrics = experiment.optimization_config.metrics  # type: ignore  # noqa: PGH003
     # Its possible the experiment has more trials than the current one.
@@ -337,6 +344,7 @@ def plot_gp_fits_2d_surface_from_experiment(
     figs = plot_gp_fits_2d_surface(
         model_bridge=botorch_model_bridge,
         search_space=search_space,
+        metrics=metrics,
     )
 
     return figs

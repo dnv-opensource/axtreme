@@ -79,10 +79,6 @@ def run_trials(
         warm_up_runs: Number of warm-up runs to perform before starting the DoE.
         doe_runs: Number of DoE runs to perform.
 
-    Returns:
-        np.ndarray: Array of shape (n_qoi_iter, qoi_estimator_output) where:
-            - n_qoi_iter: The number of times the qoi_estimator was called (on a new amount of data).
-            - qoi_estimator_output: The results given on that dataset.
     """
     for i in range(doe_runs + 1):
         if i == 0:
@@ -131,7 +127,6 @@ qoi_estimator = MarginalCDFExtrapolation(
 
 # %%
 n_iter = 15  # 40
-qoi_iter = 1
 warm_up_runs = 3
 
 # %% [markdown]
