@@ -8,6 +8,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import torch
 import tqdm
 from numpy.typing import NDArray
@@ -27,12 +29,13 @@ class ResultsObject:
     # statistics are optional
     statistics: dict[str, float]
     samples: list[float]
+    env_data: list[float]
 
     @classmethod
-    def from_samples(cls, samples: torch.Tensor) -> "ResultsObject":
+    def from_samples(cls, samples: torch.Tensor, env_data: torch.Tensor) -> "ResultsObject":
         """Create the object directly from samples."""
         statistics = {"median": float(samples.median()), "mean": float(samples.mean())}
-        return ResultsObject(statistics=statistics, samples=samples.tolist())
+        return ResultsObject(statistics=statistics, samples=samples.tolist(), env_data=env_data.tolist())
 
 
 def collect_or_calculate_results(
@@ -53,29 +56,33 @@ def collect_or_calculate_results(
     results_path = _results_dir / f"{int(period_length)}_period_length.json"
 
     samples = torch.tensor([])
+    max_location = torch.tensor([])
 
     if results_path.exists():
         with results_path.open() as fp:
             results = json.load(fp)
             samples = torch.tensor(results["samples"])
+            max_location = torch.tensor(results["env_data"])
 
     # make any additional samples required
     if len(samples) < num_estimates:
-        new_samples = brute_force(
+        new_samples, new_max_location = brute_force(
             period_length,
             num_estimates - len(samples),
         )
         samples = torch.concat([samples, new_samples])
+        max_location = torch.concat([max_location, new_max_location])
+
         # save results
         with results_path.open("w") as fp:
-            json.dump(asdict(ResultsObject.from_samples(samples)), fp)
+            json.dump(asdict(ResultsObject.from_samples(samples, max_location)), fp)
     elif len(samples) > num_estimates:
         samples = samples[:num_estimates]
 
     return samples, samples.mean(), samples.var()
 
 
-def brute_force(period_length: int, num_estimates: int = 2_000) -> torch.Tensor:
+def brute_force(period_length: int, num_estimates: int = 2_000) -> tuple[Tensor, Tensor]:
     """Produces brute force samples of the Extreme Response Distribution.
 
     Args:
@@ -100,7 +107,7 @@ def brute_force(period_length: int, num_estimates: int = 2_000) -> torch.Tensor:
 def _brute_force_calc(
     dataloader: DataLoader[tuple[Tensor, ...]],
     num_estimates: int = 2_000,
-) -> Tensor:
+) -> tuple[Tensor, Tensor]:
     """Calculate the QOI by brute force by splitting the data into batches.
 
     Args:
@@ -115,6 +122,7 @@ def _brute_force_calc(
         The QoI values calculated for each period. Shape (num_estimates,)
     """
     maxs = torch.zeros(num_estimates)
+    maxs_location = []
     for i in tqdm.tqdm(range(num_estimates)):
         current_max = float("-inf")
 
@@ -123,11 +131,78 @@ def _brute_force_calc(
             samples = batch[0].to("cpu").numpy()
 
             simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(samples)  # type: ignore  # noqa: PGH003
-            current_max = max(current_max, simulator_samples.max())
+
+            simulator_samples_max = simulator_samples.max()
+            if simulator_samples_max > current_max:
+                current_max = simulator_samples_max
+
+                # Get env data corresponding to max(c_max)
+                max_index = np.argmax(simulator_samples)
+                maxs_location.append(samples[max_index, :])
 
         maxs[i] = current_max
 
-    return maxs
+    return torch.FloatTensor(maxs), torch.FloatTensor(maxs_location)
+
+
+class FileNotFoundCustomError(Exception):
+    """Exception raised when the brute force file is not found."""
+
+
+def create_extrem_value_location_scatter_plot(brut_force_file_name: str) -> None:
+    """Make scatter plot of the extrem value location.
+
+    The plot shows where in the (Hs, Tp) the maxima of c_max occured
+    when using the brut force approach.
+
+    Args:
+        brut_force_file_name: file name where the brutforce results are stored.
+    """
+    brut_force_file_path = _results_dir / brut_force_file_name
+    if brut_force_file_path.exists():
+        with brut_force_file_path.open() as fp:
+            results = json.load(fp)
+            max_location = torch.tensor(results["env_data"])
+    else:
+        raise FileNotFoundCustomError(f"File {brut_force_file_path} not found.")
+
+    _ = plt.scatter(max_location[:, 0], max_location[:, 1], s=1, alpha=0.5)
+    _ = plt.title("Extrem value location")  # type: ignore[assignment]
+    _ = plt.xlabel("Hs")  # type: ignore[assignment]
+    _ = plt.ylabel("Tp")  # type: ignore[assignment]
+    plt.grid(True)  # noqa: FBT003
+
+    plt.savefig(str(brut_force_file_path).replace(".json", "_scatter.png"))
+
+
+def create_extrem_value_location_kde_plot(brut_force_file_name: str) -> None:
+    """Make KDE (kernel density estimate) plot of the extrem value location.
+
+    The plot shows where in the (Hs, Tp) the maxima of c_max occured
+    when using the brut force approach.
+
+    Args:
+        brut_force_file_name: file name where the brutforce results are stored.
+    """
+    brut_force_file_path = _results_dir / brut_force_file_name
+    if brut_force_file_path.exists():
+        with brut_force_file_path.open() as fp:
+            results = json.load(fp)
+            max_location = pd.DataFrame(results["env_data"], columns=["Hs", "Tp"])
+    else:
+        raise FileNotFoundCustomError(f"File {brut_force_file_path} not found.")
+
+    _ = sns.kdeplot(
+        data=max_location,
+        x="Hs",
+        y="Tp",
+        fill=True,
+    )
+    _ = plt.title("Extrem value location")  # type: ignore[assignment]
+    _ = plt.xlabel("Hs")  # type: ignore[assignment]
+    _ = plt.ylabel("Tp")  # type: ignore[assignment]
+
+    plt.savefig(str(brut_force_file_path).replace(".json", "_kde.png"))
 
 
 # %%
@@ -193,4 +268,12 @@ if __name__ == "__main__":
             f"QOI calculated with {sample_size} erd samples\nmean (of exp(-1) quantile)"
             f" {quantile.mean():.3f}. std {quantile.std():.3f}"
         )
+    # %% Plot scatter plot of brut force solution for extrem value location
+    create_extrem_value_location_scatter_plot(f"{int(period_length)}_period_length.json")
+
+    # %% Plot kde plot of brut force solution for extrem value location
+    # Note: Is very slow especially for large datasets
+    create_extrem_value_location_kde_plot(f"{int(period_length)}_period_length.json")
+
+
 # %%
