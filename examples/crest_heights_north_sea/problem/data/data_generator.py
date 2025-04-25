@@ -25,7 +25,7 @@ def generate_data(n_years_in_period: int, n_sea_states_in_year: int) -> tuple[ND
     lognorm_prms = (1.557, 0.403, 0.408, 0.005, 0.137, 0.454)
 
     n_ss = n_sea_states_in_year * n_years_in_period
-    return sample_seastates(n_ss, weib_prms, lognorm_prms, seed=1234, hslim=7.5)
+    return sample_seastates(n_ss, weib_prms, lognorm_prms, seed=1234, hslim=0)
 
 
 # %%

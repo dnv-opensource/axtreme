@@ -41,8 +41,8 @@ from axtreme.simulator.base import Simulator
 # For now this is based on the min and max of the env data/long_term_distribution_10000_years.npy
 SEARCH_SPACE = SearchSpace(
     parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=20),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=0, upper=37),
+        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=17),
+        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=0, upper=32),
     ]
 )
 
