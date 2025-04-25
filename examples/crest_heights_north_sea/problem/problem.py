@@ -38,7 +38,7 @@ from axtreme.simulator.base import Simulator
 # %%
 # Pick the search space over which to create a surrogate
 # TODO(@henrikstoklandberg): Decide on the search space.
-# For now this is based on the min and max of the env data/long_term_distribution_10000_years.npy
+# For now this is based on the min and max of the env data/long_term_distribution.npy
 SEARCH_SPACE = SearchSpace(
     parameters=[
         RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=17),
