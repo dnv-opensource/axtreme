@@ -63,9 +63,8 @@ def collect_or_calculate_results(
     if len(samples) < num_estimates:
         new_samples = brute_force(
             period_length,
-            num_estimates,
+            num_estimates - len(samples),
         )
-
         samples = torch.concat([samples, new_samples])
         # save results
         with results_path.open("w") as fp:
@@ -143,7 +142,7 @@ if __name__ == "__main__":
     # Get brute force QOI for a large number of estimates
     extrem_response_values, extrem_response_mean, extrem_response_var = collect_or_calculate_results(
         period_length,
-        num_estimates=10_000,
+        num_estimates=30_000,
     )
 
     # %%
@@ -162,7 +161,7 @@ if __name__ == "__main__":
     # Analyse uncertainty in brut force estimate using both median and exp(-1) qunatile
     results_median = []
     results_quantile = []
-    brute_force_samples = [1_000, 2_000, 4_000, 8_000]  # , 16_000]
+    brute_force_samples = [1_000, 2_000, 4_000, 8_000, 16_000]
     for n_samples in brute_force_samples:
         medians_from_samples_size = []
         quantiles_from_samples_size = []
