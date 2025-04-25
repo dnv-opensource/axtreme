@@ -91,6 +91,7 @@ dev = [
     "mypy>=1.15",
     "sourcery>=1.31",
     "pre-commit>=4.0",
+    "seaborn>=0.13.2",
     "Sphinx>=8.1",
     "sphinx-argparse-cli>=1.19",
     "sphinx-autodoc-typehints>=3.0",
@@ -124,7 +125,7 @@ files = [
     "tutorials",
 ]
 check_untyped_defs = true
-disable_error_code = [
+disable_error_.code = [
     "misc",
     "import-untyped",
 ]
