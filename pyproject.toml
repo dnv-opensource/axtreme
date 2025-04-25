@@ -125,7 +125,7 @@ files = [
     "tutorials",
 ]
 check_untyped_defs = true
-disable_error_.code = [
+disable_error_code = [
     "misc",
     "import-untyped",
 ]
