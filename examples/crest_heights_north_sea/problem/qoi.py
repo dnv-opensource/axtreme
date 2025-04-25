@@ -2,8 +2,6 @@
 
 # %%
 import matplotlib.pyplot as plt
-import numpy as np
-import simulator  # type: ignore[import]
 import torch
 from ax import (
     Experiment,
@@ -11,13 +9,11 @@ from ax import (
 )
 from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
-from problem import brut_force_qoi, period_length  # type: ignore[import-not-found]
-from scipy.stats import gumbel_r
+from problem import DIST, brut_force_qoi, dataset, period_length, sim  # type: ignore[import-not-found]
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
 
 from axtreme.data import FixedRandomSampler
-from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.qoi.qoi_estimator import QoIEstimator
@@ -25,15 +21,8 @@ from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.utils import population_estimators, transforms
 
 # %%
-# Set up Qoi estimator
-n_env_samples = 1_000
-
-## Load environment data
-data = np.load("data/long_term_distribution.npy")
-dataset = MinimalDataset(data)
-
 ## A random dataloader give different env samples for each instance
-sampler = FixedRandomSampler(dataset, num_samples=n_env_samples, seed=10, replacement=True)
+sampler = FixedRandomSampler(dataset, num_samples=1000, seed=10, replacement=True)
 dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 
 posterior_sampler = UTSampler()
@@ -48,14 +37,9 @@ qoi_estimator = MarginalCDFExtrapolation(
 
 # %%
 # Set up experiment
-## Define distribution
-DIST = gumbel_r
-
-## Define simulator
-sim = simulator.MaxCrestHeightSimulator()
 
 ## Pick the search space over which to create a surrogate
-# For now this is based on the min and max of the env data/long_term_distribution_100_years.npy
+# TODO (@am-kaiser): this is for now limited to not get issues with nans in simulator (25-04-25)
 SEARCH_SPACE = SearchSpace(
     parameters=[
         RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
@@ -67,11 +51,11 @@ SEARCH_SPACE = SearchSpace(
 # %%
 def make_exp() -> Experiment:
     """Convenience function returns a fresh Experiment of this problem."""
-    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=n_env_samples)
+    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=1000)
 
 
 # %%
-n_training_points = [30, 50]  # , 128 , 512]
+n_training_points = [30, 50, 128, 512]
 results = []
 
 for points in n_training_points:
@@ -97,7 +81,7 @@ for points in n_training_points:
 
 # %%
 def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """TODO: clean this up or delete.
+    """Get mean and variance for an estimator.
 
     Args:
         estimator: the QoI function that produced the estimate
