@@ -72,7 +72,7 @@ def sample_from_f_tp(hs, prms, seed):
 
 def sample_from_f_hs(prms, size, seed):
     c, loc, scale = prms
-    return scst.weibull_min.rvs(c, loc=loc, scale=scale, size=size)
+    return scst.weibull_min.rvs(c, loc=loc, scale=scale, size=size, random_state=seed)
 
 
 def sample_seastates(n_ss, weib_prms, lognorm_prms, seed=None, hslim=0):
