@@ -41,8 +41,8 @@ from axtreme.simulator.base import Simulator
 # For now this is based on the min and max of the env data/long_term_distribution.npy
 SEARCH_SPACE = SearchSpace(
     parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
+        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=17),
+        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=0, upper=32),
     ]
 )
 
@@ -71,11 +71,13 @@ period_length = year_return_value * n_sea_states_in_year
 # Set axtreme specific parameters
 num_estimates = 20  # The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
+year_return_value = 10
+
 
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
-    """Convience function return a fresh Experiement of this problem."""
+    """Convenience function returns a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)

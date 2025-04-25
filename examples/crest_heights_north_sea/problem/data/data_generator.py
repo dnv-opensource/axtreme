@@ -30,13 +30,13 @@ def generate_data(n_years_in_period: int, n_sea_states_in_year: int) -> tuple[ND
 
 # %%
 if __name__ == "__main__":
-    N_y = 100
+    N_y = 1000
     Hs, Tp = generate_data(n_years_in_period=N_y, n_sea_states_in_year=2922)
 
     plt.figure()  # type: ignore  # noqa: PGH003
     plt.plot(Hs, Tp, ".")  # type: ignore  # noqa: PGH003
 
     # Save the data as a .npy file
-    np.save(f"long_term_distribution_{N_y}_years.npy", np.column_stack((Hs, Tp)))
+    np.save(f"long_term_distribution.npy", np.column_stack((Hs, Tp)))
 
 # %%
