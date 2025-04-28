@@ -180,16 +180,15 @@ class QoIMetric(Metric):
 
             botorch_model_bridge = Models.BOTORCH_MODULAR(experiment=exp, data=data, fit_tracking_metrics=False)
 
+            qoi_estimator = copy.deepcopy(self.qoi_estimator)
             # Likely removed as part of issue #19
             if self.attach_transforms:
-                self.qoi_estimator = qoi.utils.attach_transforms_to_qoi_estimator(
-                    botorch_model_bridge, self.qoi_estimator
-                )
+                qoi_estimator = qoi.utils.attach_transforms_to_qoi_estimator(botorch_model_bridge, qoi_estimator)
 
             model = botorch_model_bridge.model.surrogate.model
-            estimates = self.qoi_estimator(model)
-            qoi_mean = float(self.qoi_estimator.mean(estimates))
-            qoi_sem = float(self.qoi_estimator.var(estimates) ** 0.5)
+            estimates = qoi_estimator(model)
+            qoi_mean = float(qoi_estimator.mean(estimates))
+            qoi_sem = float(qoi_estimator.var(estimates) ** 0.5)
 
         # The data that must be contained in the results can be found here: Data.REQUIRED_COLUMNS
         # Required keys are {"arm_name","metric_name", "mean", "sem"}

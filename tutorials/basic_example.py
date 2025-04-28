@@ -33,7 +33,6 @@ from ax.core import GeneratorRun, ObservationFeatures, ParameterType, RangeParam
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
-from matplotlib.axes import Axes
 from numpy.typing import NDArray
 from plotly.subplots import make_subplots
 from scipy.stats import gumbel_r
@@ -45,6 +44,7 @@ from axtreme.acquisition import QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
 from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
 from axtreme.metrics import QoIMetric
+from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment, plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
 from axtreme.qoi import MarginalCDFExtrapolation
@@ -504,7 +504,7 @@ warm_up_runs = 3
 
 # %%
 # Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
-qoi_metric = QoIMetric(
+QOI_METRIC = QoIMetric(
     name="QoIMetric", qoi_estimator=qoi_estimator, minimum_data_points=warm_up_runs, attach_transforms=True
 )
 
@@ -512,7 +512,7 @@ qoi_metric = QoIMetric(
 exp_sobol = make_exp()
 
 # Add the QoI metric to the experiment
-_ = exp_sobol.add_tracking_metric(qoi_metric)
+_ = exp_sobol.add_tracking_metric(QOI_METRIC)
 
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
@@ -644,6 +644,20 @@ acqf_class = QoILookAhead
 
 
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
+    # Fist building model to get the transforms
+    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
+    model_bridge_only_model = Models.BOTORCH_MODULAR(
+        experiment=experiment,
+        data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
+        fit_tracking_metrics=False,  # Needed for QoIMetric to work properly
+    )
+    input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
+        transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
+    )
+    # Adding the transforms to the QoI estimator
+    qoi_estimator.input_transform = input_transform
+    qoi_estimator.outcome_transform = outcome_transform
+
     # Building the model with the QoILookAhead acquisition function
     model_bridge_cust_ac = Models.BOTORCH_MODULAR(
         experiment=experiment,
@@ -678,17 +692,12 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
 # %% [markdown]
 # Run the DOE
 
-# %%
-# Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
-qoi_metric = QoIMetric(
-    name="QoIMetric", qoi_estimator=qoi_estimator, minimum_data_points=warm_up_runs, attach_transforms=True
-)
 
 # %%
 exp_look_ahead = make_exp()
 
 # Add the QoI metric to the experiment
-_ = exp_look_ahead.add_tracking_metric(qoi_metric)
+_ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
@@ -717,53 +726,8 @@ surface_final_trial.show()
 
 
 # %%
-def plot_raw_ut_estimates(
-    experiment: Experiment,
-    ax: None | Axes = None,
-    points_between_ests: int = 1,
-    name: str | None = None,
-    **kwargs: Any,  # noqa: ANN401
-) -> Axes:
-    """NOTE very quick and dirty, assumes you know how to interpret the raw UT results (e.g rather than being given).
-
-    Args:
-        experiment: the experiment to plot the results from, QOI metric must be present.
-        ax: ax to add the plots to. If not provided, one will be created.
-        points_between_ests: This should be used if multiple DoE iterations are used between qoi estimates
-            (e.g if the estimate is expensive). It adjusts the scale of the x axis.
-        name: optional name that should be added to the legend information for this plot
-        kwargs: kwargs that should be passed to matplotlib. Must be applicable to `ax.plot` and `ax.fill_between`
-
-    Returns:
-        Axes: the ax with the plot.
-    """
-    metrics = experiment.fetch_data()
-    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
-
-    qoi_means = qoi_metrics["mean"]
-    qoi_sems = qoi_metrics["sem"]
-    var = qoi_sems**2
-    if ax is None:
-        _, ax = plt.subplots()
-
-    x = range(1, (len(qoi_means) + 1) * points_between_ests, points_between_ests)
-    _ = ax.fill_between(
-        x,
-        qoi_means - 1.96 * var**0.5,
-        qoi_means + 1.96 * var**0.5,
-        label=f"90% Confidence Bound {name}",
-        alpha=0.3,
-        **kwargs,
-    )
-
-    _ = ax.plot(x, qoi_means, **kwargs)
-
-    return ax
-
-
-# %%
-ax = plot_raw_ut_estimates(exp_sobol, name="Sobol")
-ax = plot_raw_ut_estimates(exp_look_ahead, ax=ax, color="green", name="look ahead")
+ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
+ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
 _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
