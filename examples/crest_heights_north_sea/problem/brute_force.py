@@ -217,8 +217,12 @@ if __name__ == "__main__":
     # Get brute force QOI for a large number of estimates
     extrem_response_values, extrem_response_mean, extrem_response_var = collect_or_calculate_results(
         period_length,
-        num_estimates=30_000,
+        num_estimates=100_000,
     )
+
+    # %%
+    print(f"Brute force median: {extrem_response_values.median()}")
+    print(f"Brute force exp(-1) quantile: {torch.quantile(extrem_response_values, np.exp(-1))}")
 
     # %%
     # Plot brute force QOI
