@@ -78,7 +78,6 @@ class OptimalQoILookAhead(QoILookAhead):
         x_prb = self.input_transform.untransform(x)
 
         # do this to make sure not fitting params.
-        # TODO(sw 2025-04-24): this is a general risk with using transforms, how big a problem is it?
         _ = self.outcome_transform.eval()
         # TODO(sw 2025-04-24): would be nicer if we can fix the evaluation function to work with multiple dim.
         y_models = []
@@ -87,7 +86,8 @@ class OptimalQoILookAhead(QoILookAhead):
             sim_result = self.evaluation_function.evaluate(point)
 
             # TODO(sw 2025-04-24): This ignore covariance between results. Currently we use an independent GP for each
-            # target but this will need to be updated if correlation is considered
+            # target but this will need to be updated if correlation is considered.
+            # What type check can we do here so things don't fail silently
             y_prb = torch.tensor(sim_result.means)
             y_var_prb = torch.tensor(sim_result.cov).diag()
 
@@ -97,6 +97,27 @@ class OptimalQoILookAhead(QoILookAhead):
             y_var_models.append(y_var_model)
 
         return x, torch.concat(y_models, dim=0), torch.concat(y_var_models, dim=0)
+
+    def _aggregate_lookahead_results(self, look_ahead_results: torch.Tensor) -> torch.Tensor:
+        """Aggregates batch of lookahead result to ensure they are of shape (t_batch,).
+
+        This is tightly coupled with 'fantasy_observation`. As `fantasy_observation` produces results results without a
+        batch dimension. This mean the output is (n, m or d), where `n=t_batch`. After the lookahead is calculated this
+        is of shape (t_batch,) so no futher processing is need. This method is purely to override the parent class and
+        allow the input to pass straight through.
+
+        Args:
+            look_ahead_results (t_batch): The results to be aggregated.
+
+        Returns:
+            (t_batch,) of lookahead results.
+
+        """
+        if look_ahead_results.ndim != 1:
+            raise NotImplementedError(
+                f"_aggregate_lookahead_results currently only supports 1D input, received {look_ahead_results.ndim}D."
+            )
+        return look_ahead_results
 
 
 # NOTE: all the setting are copied from QoILookAhead.
