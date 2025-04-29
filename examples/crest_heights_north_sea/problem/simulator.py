@@ -1,5 +1,6 @@
 """Define the simulator."""
 
+# %%
 from typing import cast
 
 import numpy as np
@@ -82,3 +83,6 @@ class MaxCrestHeightSimulator(Simulator):
 
         result = np.stack(samples, axis=1)
         return cast("np.ndarray[tuple[int, int, int], np.dtype[np.float64]]", result)
+
+
+# %%
