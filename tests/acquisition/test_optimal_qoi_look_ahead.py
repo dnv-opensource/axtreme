@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+
 import numpy as np
 import torch
 from botorch.models.transforms.input import Normalize

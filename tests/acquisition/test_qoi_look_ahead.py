@@ -190,21 +190,21 @@ class TestQoILookAhead:
             """Custom sampler that has a non-standard mean function."""
 
             def mean(self, transformed_points: torch.Tensor, dim: int = 0) -> torch.Tensor:
-                return transformed_points[[0]]
+                return transformed_points[0]
 
         acquisition = QoILookAhead(
-            model=None,  # Require to instantiate, but not used.
-            qoi_estimator=None,  # Require to instantiate, but not used. # type: ignore[arg-type]
-            sampler=DummySampler(),
+            model=None,  # type: ignore[arg-type] # Require to instantiate, but not used.
+            qoi_estimator=None,  # type: ignore[arg-type] # Require to instantiate, but not used.
+            sampler=DummySampler(),  # type: ignore[arg-type]
         )
 
-        x = torch.tensor([1, 2, 3])
+        x = torch.tensor([[1], [2], [3]])
         # checks the non-standard mean was used rather than default mean
         assert acquisition._aggregate_lookahead_results(x) == torch.tensor([1])
 
 
 # This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
-# This is not imporant for this test.
+# This is not important for this test.
 @pytest.mark.filterwarnings(
     "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
 )
