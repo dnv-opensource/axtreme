@@ -86,6 +86,3 @@ class MaxCrestHeightSimulator(Simulator):
 
 
 # %%
-if __name__ == "__main__":
-    x = np.array([[19.36822463, 0.35718489]])
-    print(max_crest_height_simulator_function(x))
