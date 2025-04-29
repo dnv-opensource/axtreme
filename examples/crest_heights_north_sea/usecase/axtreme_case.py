@@ -12,11 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as scst
 
-# This allows us to run as interactive and as a module.
-if __name__ == "__main__":
-    from wave_distributions import ForristallCrest
-else:
-    from .wave_distributions import ForristallCrest
+from wave_distributions import ForristallCrest
 
 
 def omega_to_k_rpc205(om, h):

@@ -18,7 +18,15 @@ upper case? or is it enough that we all that stuff in problem is constant?
 """
 
 # %%
-import brute_force  # type: ignore[import]
+import sys
+from pathlib import Path
+
+# Add project root directory to path when run directly/interactively
+if __name__ == "__main__":
+    # Get the absolute path to the problem/crest_heights_north_sea directory itself
+    problem_root = Path(__file__).resolve().parent
+    if problem_root not in sys.path:
+        sys.path.insert(0, str(problem_root))
 import numpy as np
 from ax import (
     Experiment,
@@ -27,8 +35,9 @@ from ax import (
 from ax.core import ParameterType, RangeParameter
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
-from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
 from torch.utils.data import Dataset
+from usecase.brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
+from usecase.simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
 
 from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import make_experiment
@@ -54,8 +63,10 @@ sim = MaxCrestHeightSimulator()
 
 # %%
 # Load environment data
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution.npy"))
-
+problem_dir = Path(__file__).resolve().parent
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
+    np.load(problem_dir / "usecase" / "data" / "long_term_distribution.npy")
+)
 # %%
 # Convert usecase specific naming conventions to ax conventions
 year_return_value = 10
@@ -84,7 +95,7 @@ def make_exp() -> Experiment:
 exp = make_exp()
 # %%
 # Get brute force QOI for this problem and period
-extrem_response_values, extrem_response_mean, extrem_response_variance = brute_force.collect_or_calculate_results(
+extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
     period_length,
     num_estimates=num_estimates,
 )

@@ -230,7 +230,7 @@ if __name__ == "__main__":
         alpha=0.5,
         color="red",
         label="variance",
-    )
+    )  # type: ignore  # noqa: PGH003
     _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
     _ = plt.legend()  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003

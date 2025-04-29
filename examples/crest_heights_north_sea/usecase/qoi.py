@@ -1,6 +1,15 @@
 """Evaluate the convergence of the QOI for different training datasets."""
 
 # %%
+import sys
+from pathlib import Path
+
+# Add project root directory to path when run directly/interactively
+if __name__ == "__main__":
+    # Get the absolute path to the crest_heights_north_sea directory itself
+    project_root = Path(__file__).resolve().parents[1]
+    if project_root not in sys.path:
+        sys.path.insert(0, str(project_root))
 import matplotlib.pyplot as plt
 import torch
 from ax import (
@@ -9,7 +18,13 @@ from ax import (
 )
 from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
-from problem import DIST, brut_force_qoi, dataset, period_length, sim  # type: ignore[import-not-found]
+from problem import (  # type: ignore[import-not-found]
+    DIST,
+    brut_force_qoi,
+    dataset,
+    period_length,
+    sim,
+)
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
 
@@ -22,7 +37,7 @@ from axtreme.utils import population_estimators, transforms
 
 # %%
 ## A random dataloader give different env samples for each instance
-sampler = FixedRandomSampler(dataset, num_samples=1000, seed=10, replacement=True)
+sampler = FixedRandomSampler(dataset, num_samples=1000, seed=10, replacement=True)  # type: ignore[arg-type]
 dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 
 posterior_sampler = UTSampler()
