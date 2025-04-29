@@ -156,7 +156,7 @@ examples/**/*.log
 examples/**/*.db
 examples/**/*.nc
 # Don't track individuals results
-examples/**/results
+examples/demo2d/**/results
 
 # Cmake generated files
 CMakeUserPresets.json
