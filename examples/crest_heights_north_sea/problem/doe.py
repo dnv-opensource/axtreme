@@ -41,9 +41,9 @@ device = "cpu"
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 
 # %%
-# TODO(@henrikstoklandberg): Update the search space to match the problem once we decide on the search space.
+# TODO(@henrikstoklandberg 2025-04-28): Update the search space to match the problem once we decide on the search space.
 # For now a square search space is used, as we get Nan values from the simulator if we use the current search space in
-# problem.py as of 2025-05-28.
+# problem.py as of 2025-04-28.
 search_space = SearchSpace(
     parameters=[
         RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
@@ -132,7 +132,7 @@ dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 posterior_sampler = UTSampler()
 # posterior_sampler = NormalIndependentSampler(torch.Size([n_posterior_samples])
 
-qoi_estimator = MarginalCDFExtrapolation(
+QOI_ESTIMATOR = MarginalCDFExtrapolation(
     # random dataloader give different env samples for each instance
     env_iterable=dataloader,
     period_len=period_length,
@@ -157,7 +157,7 @@ warm_up_runs = 3
 # %%
 # Create a constant QoI tracking metric used for the following experiments.
 QOI_METRIC = QoIMetric(
-    name="QoIMetric", qoi_estimator=qoi_estimator, minimum_data_points=warm_up_runs, attach_transforms=True
+    name="QoIMetric", qoi_estimator=QOI_ESTIMATOR, minimum_data_points=warm_up_runs, attach_transforms=True
 )
 
 # %%
@@ -207,14 +207,13 @@ fig_last_trial.show()
 # ### Lookahead acquisition function
 # The below is a test of the optimation of the acquisition function. It is not a full DOE, but rather a test to see what
 # the acquisition function surface looks like for a single run and if the optimization settings are reasonable.
-# TODO(@henrikstoklandberg): After experimenting with the acquisition function, this could or should be moved to a
-# a different file.
+# TODO(@henrikstoklandberg 2025-04-28): After experimenting with the acquisition function, this could or should be moved
+# to a different file.
 
 # %%
 # Define the model to use.
 exp = make_exp()
 add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
-
 # Use ax to create a gp from the experiment
 botorch_model_bridge = Models.BOTORCH_MODULAR(
     experiment=exp,
@@ -225,13 +224,13 @@ botorch_model_bridge = Models.BOTORCH_MODULAR(
 input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
     transforms=list(botorch_model_bridge.transforms.values()), outcome_names=botorch_model_bridge.outcomes
 )
-qoi_estimator.input_transform = input_transform
-qoi_estimator.outcome_transform = outcome_transform
+QOI_ESTIMATOR.input_transform = input_transform
+QOI_ESTIMATOR.outcome_transform = outcome_transform
 
 model = botorch_model_bridge.model.surrogate.model
 
 # %% How long does a single run take
-acqusition = QoILookAhead(model, qoi_estimator)
+acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
 
 # %% Perform the grid search and plot
@@ -242,13 +241,13 @@ grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
 grid = torch.stack([grid_hs, grid_tp], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
-acqusition = QoILookAhead(model, qoi_estimator)
+acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
 
 # %%
-# TODO(@henrikstoklandberg): This is plot looks a bit suprising, should be investigated before the we do the final DOE
-# steps.
+# TODO(@henrikstoklandberg 2025-04-28): This is plot looks a bit suprising, should be investigated before the
+# we do the final DOE steps.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
@@ -287,6 +286,12 @@ acqf_class = QoILookAhead
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:  # noqa: D103
     # Fist building model to get the transforms
     # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
+
+    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
+    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
+    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
+    # transform.py. Was not able to figure out how to fix this in the time I had.
+    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
     model_bridge_only_model = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
@@ -296,8 +301,8 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:  # noqa: D
         transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
     )
     # Adding the transforms to the QoI estimator
-    qoi_estimator.input_transform = input_transform
-    qoi_estimator.outcome_transform = outcome_transform
+    QOI_ESTIMATOR.input_transform = input_transform
+    QOI_ESTIMATOR.outcome_transform = outcome_transform
 
     # Building the model with the QoILookAhead acquisition function
     model_bridge_cust_ac = Models.BOTORCH_MODULAR(
@@ -306,7 +311,7 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:  # noqa: D
         botorch_acqf_class=acqf_class,
         fit_tracking_metrics=False,  # Needed for QoIMetric to work properly
         acquisition_options={
-            "qoi_estimator": qoi_estimator,
+            "qoi_estimator": QOI_ESTIMATOR,
             "sampler": sampling.MeanSampler(),
         },
     )

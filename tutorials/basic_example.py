@@ -646,6 +646,11 @@ acqf_class = QoILookAhead
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
     # Fist building model to get the transforms
     # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
+    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
+    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
+    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
+    # transform.py. Was not able to figure out how to fix this in the time I had.
+    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
     model_bridge_only_model = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
