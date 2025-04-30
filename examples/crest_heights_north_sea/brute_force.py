@@ -93,7 +93,7 @@ def brute_force(period_length: int, num_estimates: int = 2_000) -> tuple[Tensor,
     Returns:
         The QoI values calculated for each period. Shape (num_estimates,)
     """
-    data: NDArray[np.float64] = np.load(Path(__file__).parent / "data" / "long_term_distribution.npy")
+    data: NDArray[np.float64] = np.load(Path(__file__).parent / "usecase" / "data" / "long_term_distribution.npy")
     dataset = TensorDataset(torch.Tensor(data))
 
     dataloader = DataLoader(
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         alpha=0.5,
         color="red",
         label="variance",
-    )
+    )  # type: ignore  # noqa: PGH003
     _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
     _ = plt.legend()  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003

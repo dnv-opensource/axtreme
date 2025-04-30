@@ -1,4 +1,6 @@
 # %%  # noqa: D100
+
+
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
@@ -13,7 +15,6 @@ from ax.core import GeneratorRun, ParameterType, RangeParameter
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
-from env_data import collect_data  # type: ignore[import-not-found]
 from numpy.typing import NDArray
 from problem import (  # type: ignore[import-not-found]
     DIST,
@@ -23,6 +24,7 @@ from problem import (  # type: ignore[import-not-found]
 )
 from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 from torch.utils.data import DataLoader
+from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead

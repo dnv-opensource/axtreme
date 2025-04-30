@@ -37,6 +37,6 @@ if __name__ == "__main__":
     plt.plot(Hs, Tp, ".")  # type: ignore  # noqa: PGH003
 
     # Save the data as a .npy file
-    np.save(f"long_term_distribution.npy", np.column_stack((Hs, Tp)))
+    np.save(f"data/long_term_distribution.npy", np.column_stack((Hs, Tp)))
 
 # %%

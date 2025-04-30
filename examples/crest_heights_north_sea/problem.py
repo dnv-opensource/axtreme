@@ -18,13 +18,16 @@ upper case? or is it enough that we all that stuff in problem is constant?
 """
 
 # %%
-import brute_force  # type: ignore[import]
+
+from pathlib import Path
+
 import numpy as np
 from ax import (
     Experiment,
     SearchSpace,
 )
 from ax.core import ParameterType, RangeParameter
+from brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
@@ -54,8 +57,10 @@ sim = MaxCrestHeightSimulator()
 
 # %%
 # Load environment data
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(np.load("data/long_term_distribution.npy"))
-
+problem_dir = Path(__file__).resolve().parent
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
+    np.load(problem_dir / "usecase" / "data" / "long_term_distribution.npy")
+)
 # %%
 # Convert usecase specific naming conventions to ax conventions
 year_return_value = 10
@@ -84,7 +89,7 @@ def make_exp() -> Experiment:
 exp = make_exp()
 # %%
 # Get brute force QOI for this problem and period
-extrem_response_values, extrem_response_mean, extrem_response_variance = brute_force.collect_or_calculate_results(
+extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
     period_length,
     num_estimates=num_estimates,
 )
