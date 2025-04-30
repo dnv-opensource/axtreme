@@ -18,26 +18,20 @@ upper case? or is it enough that we all that stuff in problem is constant?
 """
 
 # %%
-import sys
+
 from pathlib import Path
 
-# Add project root directory to path when run directly/interactively
-if __name__ == "__main__":
-    # Get the absolute path to the problem/crest_heights_north_sea directory itself
-    problem_root = Path(__file__).resolve().parent
-    if problem_root not in sys.path:
-        sys.path.insert(0, str(problem_root))
 import numpy as np
 from ax import (
     Experiment,
     SearchSpace,
 )
 from ax.core import ParameterType, RangeParameter
+from brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
+from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
 from torch.utils.data import Dataset
-from usecase.brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
-from usecase.simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
 
 from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import make_experiment

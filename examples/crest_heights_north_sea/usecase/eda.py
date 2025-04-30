@@ -1,4 +1,4 @@
-"""Visualise the data and simulator that define this problem."""
+"""Visualise the data that define this problem."""
 
 # %%
 

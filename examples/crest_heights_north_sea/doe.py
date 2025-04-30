@@ -1,13 +1,6 @@
 # %%  # noqa: D100
-import sys
-from pathlib import Path
 
-# Add project root directory to path when run directly/interactively
-if __name__ == "__main__":
-    # Get the absolute path to the crest_heights_north_sea directory itself
-    project_root = Path(__file__).resolve().parents[1]
-    if project_root not in sys.path:
-        sys.path.insert(0, str(project_root))
+
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
@@ -29,9 +22,11 @@ from problem import (  # type: ignore[import-not-found]
     period_length,
     sim,
 )
+from simulator import (
+    max_crest_height_simulator_function,  # type: ignore[import-not-found]
+)
 from torch.utils.data import DataLoader
 from usecase.env_data import collect_data  # type: ignore[import-not-found]
-from usecase.simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead

@@ -1,15 +1,7 @@
 """Evaluate the convergence of the QOI for different training datasets."""
 
 # %%
-import sys
-from pathlib import Path
 
-# Add project root directory to path when run directly/interactively
-if __name__ == "__main__":
-    # Get the absolute path to the crest_heights_north_sea directory itself
-    project_root = Path(__file__).resolve().parents[1]
-    if project_root not in sys.path:
-        sys.path.insert(0, str(project_root))
 import matplotlib.pyplot as plt
 import torch
 from ax import (
