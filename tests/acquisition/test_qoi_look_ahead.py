@@ -3,6 +3,7 @@
 # sourcery skip: no-conditionals-in-tests
 
 from collections.abc import Callable
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import pytest
@@ -19,11 +20,13 @@ from axtreme.acquisition.qoi_look_ahead import (
 )
 from axtreme.plotting.gp_fit import plot_1d_model
 from axtreme.qoi.qoi_estimator import QoIEstimator
+from axtreme.sampling import NormalIndependentSampler
 from axtreme.utils.gradient import is_smooth_1d
 from tests.acquisition.helpers import check_posterior, check_same_model_data
 from tests.helpers import (
     single_task_fixed_noise_m_1,
     single_task_fixed_noise_m_1_outcome_transform,
+    single_task_fixed_noise_m_2,
     single_task_homo_noise_m_1,
 )
 
@@ -76,57 +79,132 @@ def test_obersvational_noise_getting_is_smooth(
     _ = is_smooth_1d(new_points.flatten(), yvar_new_function.flatten())
 
 
-@pytest.mark.parametrize(
-    "b,n,d,m, expected_output",
-    [  # Test without batching
-        (None, 5, 2, 1, torch.tensor([0, 1, 2, 3, 4])),
-        # target dim 2
-        (None, 5, 2, 2, torch.tensor([0, 2, 4, 6, 8])),
-        # add batch dim
-        (2, 5, 2, 2, torch.tensor([[0, 2, 4, 6, 8], [10, 12, 14, 16, 18]])),
-    ],
-)
-def test_batch_lookahead_correct_reshape(b: None | int, n: int, d: int, m: int, expected_output: torch.Tensor):
-    """Check that the reshape process used to iterate through lookahead keeps values in the right place.
+class TestQoILookAhead:
+    """Unit tests associated with the QoILookAhead class."""
 
-    Args:
-        - b: the batch dimenstion.
-        - n: the number of points
-        - d: dimension of x points
-        - m: number of tergets
-        - expected_output: expected output of the function.
-    """
-    ### set up the objects
-    # Set up the object
-    # TODO @ClaasRostock: Not sure if should be using mock/patch libs here. seemed like overkill.
-    acqf = QoILookAhead(model=None, qoi_estimator=None)  # type: ignore[arg-type]
+    @pytest.mark.parametrize(
+        "b,n,d,m, expected_output",
+        [  # Test without batching
+            (None, 5, 2, 1, torch.tensor([0, 1, 2, 3, 4])),
+            # target dim 2
+            (None, 5, 2, 2, torch.tensor([0, 2, 4, 6, 8])),
+            # add batch dim
+            (2, 5, 2, 2, torch.tensor([[0, 2, 4, 6, 8], [10, 12, 14, 16, 18]])),
+        ],
+    )
+    def test_batch_lookahead_correct_reshape(
+        self, b: None | int, n: int, d: int, m: int, expected_output: torch.Tensor
+    ):
+        """Check that the reshape process used to iterate through lookahead keeps values in the right place.
 
-    # mock the lookahead function. Simply return the first dimension in y
-    def lookahead(x_point: torch.Tensor, y_point: torch.Tensor, yvar_point: torch.Tensor | None) -> torch.Tensor:
-        return y_point[0]
+        Args:
+            - b: the batch dimensions.
+            - n: the number of points.
+            - d: dimension of x points.
+            - m: number of targets.
+            - expected_output: expected output of the function.
+        """
+        ### set up the objects
+        # Set up the object
+        # TODO @ClaasRostock: Not sure if should be using mock/patch libs here. seemed like overkill.
+        acqf = QoILookAhead(model=None, qoi_estimator=None)  # type: ignore[arg-type]
 
-    acqf.lookahead = lookahead  # type: ignore[method-assign]
+        # mock the lookahead function. Simply return the first dimension in y
+        def lookahead(x_point: torch.Tensor, y_point: torch.Tensor, yvar_point: torch.Tensor | None) -> torch.Tensor:
+            return y_point[0]
 
-    # Create the inputs
-    if b is None:
-        # (*b,n,d)
-        x_points = torch.ones(n, d)
-        # (*b,n,m)
-        y_points = torch.arange(n * m).reshape(n, m)
-        yvar_points = torch.ones_like(y_points) * 0.1
-    else:
-        x_points = torch.ones(b, n, d)
-        # (*b,n,m)
-        y_points = torch.arange(b * n * m).reshape(b, n, m)
-        yvar_points = torch.ones_like(y_points) * 0.1
+        acqf.lookahead = lookahead  # type: ignore[method-assign]
 
-    actual_result = acqf._batch_lookahead(x_points, y_points, yvar_points)
+        # Create the inputs
+        if b is None:
+            # (*b,n,d)
+            x_points = torch.ones(n, d)
+            # (*b,n,m)
+            y_points = torch.arange(n * m).reshape(n, m)
+            yvar_points = torch.ones_like(y_points) * 0.1
+        else:
+            x_points = torch.ones(b, n, d)
+            # (*b,n,m)
+            y_points = torch.arange(b * n * m).reshape(b, n, m)
+            yvar_points = torch.ones_like(y_points) * 0.1
 
-    torch.testing.assert_close(actual_result, expected_output)
+        actual_result = acqf._batch_lookahead(x_points, y_points, yvar_points)
+
+        torch.testing.assert_close(actual_result, expected_output)
+
+    def test_fantasy_observations(self):
+        """This is an important function, but it largely just orchestrates other helpers. The main point is ensuring the
+        overall shape is correct. This is mainly a simple integration test, except `_get_fantasy_observation_noise` is
+        mocked as the shape is the most important parts (the content is still somewhat liable to change)
+
+        The most common case this function is used for.:
+        - no gradient
+        - m = 2
+        - posterior_sampler produces 3 samples
+
+        TODO(sw 2025-4-28): further variation should be tested. This should cover:
+            - gradient
+            - Single and multi output samplers
+            - Multi and single output models
+            - fixed and homoskedastic noise models
+        """
+        # Return shape is (t_batch_,m)
+        # (n = 3, m = 1)
+        # current approach is obs from the same x point gets the same var. We should check this happens
+        x = torch.tensor([[0.11], [0.22], [0.33]])
+        n = x.shape[0]
+        # (n = 3, m = 2)
+        yvar = torch.tensor([[0.1, 0.11], [0.2, 0.22], [0.3, 0.33]])
+
+        n_samples = 4
+        sampler = NormalIndependentSampler(sample_shape=torch.Size([n_samples]), seed=0)
+        model = single_task_fixed_noise_m_2()
+        m = 2
+
+        acquisition = QoILookAhead(
+            model=model,
+            # qoi_estimator is not used in this test, but is required to instantiate the class
+            qoi_estimator=None,  # type: ignore[arg-type]
+            sampler=sampler,
+        )
+
+        with patch("axtreme.acquisition.qoi_look_ahead._get_fantasy_observation_noise", return_value=yvar):
+            x_batch, y_batch, yvar_batch = acquisition.fantasy_observations(x)
+
+        # x expected shape: (n_posterior_samples,n,d) - duplicated across posterior sample dimension
+        expected_x_batch = torch.stack([x for _ in range(n_samples)], dim=0)
+        torch.testing.assert_close(x_batch, expected_x_batch)
+
+        # y expected shape: (n_posterior_samples,n,m) - all values should be unique
+        assert y_batch.shape == (n_samples, n, m)
+
+        # fantasy_observation uses the same yvar for every sample at the same x point
+        # yvar expected shape: (n_posterior_samples,n,m) - duplicated across posterior sample dim
+        expected_yvar_batch = torch.stack([yvar for _ in range(n_samples)], dim=0)
+        torch.testing.assert_close(yvar_batch, expected_yvar_batch)
+
+    def test_aggregate_lookahead_results(self):
+        """Check the sampler mean is used if provided (e.g for cases such a UTsampler)"""
+
+        class DummySampler:
+            """Custom sampler that has a non-standard mean function."""
+
+            def mean(self, transformed_points: torch.Tensor, dim: int = 0) -> torch.Tensor:
+                return transformed_points[0]
+
+        acquisition = QoILookAhead(
+            model=None,  # type: ignore[arg-type] # Require to instantiate, but not used.
+            qoi_estimator=None,  # type: ignore[arg-type] # Require to instantiate, but not used.
+            sampler=DummySampler(),  # type: ignore[arg-type]
+        )
+
+        x = torch.tensor([[1], [2], [3]])
+        # checks the non-standard mean was used rather than default mean
+        assert acquisition._aggregate_lookahead_results(x) == torch.tensor([1])
 
 
 # This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
-# This is not imporant for this test.
+# This is not important for this test.
 @pytest.mark.filterwarnings(
     "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
 )
@@ -253,7 +331,7 @@ def test_forward_grad():
 
 @pytest.mark.integration
 # This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
-# This is not imporant for this test.
+# This is not important for this test.
 @pytest.mark.filterwarnings(
     "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
 )
