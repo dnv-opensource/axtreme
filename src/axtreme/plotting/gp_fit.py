@@ -9,6 +9,7 @@ import plotly
 import plotly.graph_objects
 import plotly.subplots
 import torch
+from ax import Experiment, Models
 from ax.core import ObservationFeatures, RangeParameter, SearchSpace
 from ax.modelbridge.torch import TorchModelBridge
 from botorch.models import SingleTaskGP
@@ -307,3 +308,43 @@ def plot_1d_model(model: SingleTaskGP, X: torch.Tensor | None = None, ax: None |
 
     _ = ax.set_title("Gp prediction")
     return ax
+
+
+def plot_gp_fits_2d_surface_from_experiment(
+    experiment: Experiment,
+    trial_index: int,
+    metrics: dict[
+        str,
+        Callable[[Numpy2dArray], Numpy1dArray],
+    ]
+    | None = None,
+) -> Figure:
+    """Plot the GP fit for the given trial index and metrics over the 2D search space from experiment.
+
+    Args:
+        experiment: The experiment used to make predictions.
+        trial_index: The index of the trial to plot.
+        metrics: A dictionary of metrics to plot. The keys are the names of the metrics in the model bridge model
+            and the values are callables that return the metric value for a given input.
+    """
+    non_tracking_metrics = experiment.optimization_config.metrics  # type: ignore  # noqa: PGH003
+    # Its possible the experiment has more trials than the current one.
+    # The calculation at this point should only be with the data seen prior and including the current trial.
+    data = experiment.fetch_trials_data(
+        trial_indices=range(trial_index),
+        # Tracking metric need to be excluded to avoid recursion
+        metrics=list(non_tracking_metrics.values()),
+    )
+
+    botorch_model_bridge = Models.BOTORCH_MODULAR(experiment=experiment, data=data, fit_tracking_metrics=False)
+
+    # Get the search space from the experiment
+    search_space = experiment.search_space
+
+    figs = plot_gp_fits_2d_surface(
+        model_bridge=botorch_model_bridge,
+        search_space=search_space,
+        metrics=metrics,
+    )
+
+    return figs
