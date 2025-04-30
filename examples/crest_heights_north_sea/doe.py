@@ -22,9 +22,7 @@ from problem import (  # type: ignore[import-not-found]
     period_length,
     sim,
 )
-from simulator import (
-    max_crest_height_simulator_function,  # type: ignore[import-not-found]
-)
+from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 from torch.utils.data import DataLoader
 from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
