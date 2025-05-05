@@ -1,7 +1,6 @@
 """QoILookAhead acquisition function that looks ahead at possible models and optimize according to a quantity of interest."""  # noqa: E501
 
 import warnings
-from contextlib import ExitStack
 from typing import Any
 
 import torch
@@ -76,6 +75,7 @@ class QoILookAhead(AcquisitionFunction):
                     docs for details.
         """
         super().__init__(model)
+        # TODO(sw 2024-04-23): Should we deep copy this?
         self.qoi = qoi_estimator
 
         if sampler is None:
@@ -103,10 +103,10 @@ class QoILookAhead(AcquisitionFunction):
         Todo:
             - This should be updated to use the `FantasizeMixin`. This is the botorch interface indicating
               `model.fantasize(X)` is supported, which does a large chunk of the functionality below. The challenge is
-              `model.fantasize(X)` adds an additonal dimension at the start of all posteriors calculated e.g.
+              `model.fantasize(X)` adds an additional dimension at the start of all posteriors calculated e.g.
               `(num_fantasies, batch_shape, n, m)`. Unclear if our QoI methods can handle/respect the `num_fantasies`
               dimension, of if the different fantasy models can easily be extracted. Revisit at a future date.
-            - Consider making the jobs batchable or multiprocessed.
+            - Consider making the jobs batch-able or multiprocessed.
         """
         # shape is: (t_batch, d)
         x = X.squeeze(1)
@@ -119,47 +119,94 @@ class QoILookAhead(AcquisitionFunction):
             )
             raise NotImplementedError(msg)
 
-        # .model.posterior(X) turns gradient back on unless torch.no_grad is used.
-        with ExitStack() as stack:
-            # sourcery skip: remove-redundant-if
-            if not x_grad:
-                stack.enter_context(torch.no_grad())
+        # shape is (n_posterior_samples, t_batch, d OR m)
+        x_batched, y_batched, yvar_batched = self.fantasy_observations(x)
 
-            reject_if_batched_model(
-                self.model
-            )  # the posterior predictions used in forward don't support batched-models
+        # shape is: (n_posterior_samples, t_batch)
+        lookahead_results = self._batch_lookahead(x_batched, y_batched, yvar_batched)
+
+        # shape is: (t_batch,)
+        lookahead_var = self._aggregate_lookahead_results(lookahead_results)
+
+        # The output from an acquisition function is maximized, so we negate the QoI variances.
+        lookahead_var = -lookahead_var
+
+        if x_grad and not lookahead_var.requires_grad:
+            msg = (
+                "Losing gradient in QoiLookAhead.forward()\n. Optimisation setting currently require gradient."
+                " This is likely due to gradient not propagated through the qoi_estimator."
+            )
+            raise RuntimeWarning(msg)
+
+        return lookahead_var
+
+    def fantasy_observations(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Generate fantasy (y, yvar) observations of running an experiment at x (in model space).
+
+        These are referred to as fantasy observation because they are not real observations/responses of the system,
+        but ones we make up. It is possible to generate batches of fantasy observations for each input point (e.g if you
+        want to investigate the effects of different results) - this is represented in the `*b` dimension of the output.
+
+        This
+
+        NOTE: x, y, yvar are all expected to be in the "model" space
+
+        Args:
+            x (n,d): x points to process (in the "model" space)
+
+        Returns:
+            x (`*b`,n,d): x points to process (in the "model" space)
+            y (`*b`,n,m): the simulator response (in the "model" space)
+            yvar (`*b`,n,m): yvar (observation noise) returned by the simulator (in the "model" space)
+        """
+        # model.posterior(x) always adds grad. Turn this off if the input doesn't require tracking.
+        if x.requires_grad:
             posterior = self.model.posterior(x)
-            # shape is:  (n_posterior_samples, t_batch, m)
-            y = self.sampler(posterior)
+        else:
+            with torch.no_grad():
+                posterior = self.model.posterior(x)
 
-            # shape is: (t_batch, m)
-            yvar = _get_fantasy_observation_noise(self.model, x)
+        # Currently this process requires the sample to return exactly the shape (n_posterior_samples, t_batch, m)
+        # batched model return additional dimensions which are not currently supported.
+        reject_if_batched_model(self.model)
+        # shape returned is: (n_posterior_samples, n, m)
+        y = self.sampler(posterior)
 
-            # extend the shapes so they all match (n_postior_samples, t_batch, m)
-            x = x.expand(y.shape[0], -1, -1)
-            yvar = yvar.expand(y.shape[0], -1, -1)
+        # shape is: (t_batch, m)
+        yvar = _get_fantasy_observation_noise(self.model, x)
 
-            # shape is: (n_posterior_samples, t_batch)
-            lookahead_var = self._batch_lookahead(x, y, yvar)
+        # extend the shapes so they all match (n_posterior_samples, n, m or d)
+        x_batched = x.expand(y.shape[0], -1, -1)
+        yvar_batched = yvar.expand(y.shape[0], -1, -1)
 
-            # the results of the different y samples need to be aggregated.
-            # Use a bespoke aggregator if provided by the sampler, otherwise use the mean
-            if hasattr(self.sampler, "mean"):  # noqa: SIM108
-                lookahead_var = self.sampler.mean(dim=0)  # type: ignore  # noqa: PGH003
-            else:
-                lookahead_var = lookahead_var.mean(dim=0)
+        return x_batched, y, yvar_batched
 
-            # The output from an acquisition function is maximized, so we negate the QoI variances.
-            lookahead_var = -lookahead_var
+    def _aggregate_lookahead_results(self, look_ahead_results: torch.Tensor) -> torch.Tensor:
+        """Aggregates batch of lookahead result to ensure they are of shape (t_batch,).
 
-            if x_grad and not lookahead_var.requires_grad:
-                msg = (
-                    "Losing gradient in QoiLookAhead.forward()\n. Optimisation setting currently require gradient."
-                    " This is likely due to gradient not propagated through the qoi_estimator."
-                )
-                raise RuntimeWarning(msg)
+        `fantasy_observation` can produce output of of the shape (`*b`, t_batch, m) or (t_batch, m). After the
+        lookahead is calculated of each t_batch, and remaining batch dimensions need to be reduced to the final shape is
+          (t_batch,.
 
-            return lookahead_var
+        Args:
+            look_ahead_results (`*b`,t_batch): The results to be aggregated.
+
+        Returns:
+            (t_batch,) of lookahead results.
+
+        NOTE: This function is tightly coupled with `fantasy_observation`.
+        """
+        if look_ahead_results.ndim != 2:  # noqa: PLR2004
+            raise NotImplementedError(
+                f"_aggregate_lookahead_results currently only supports 2D input, received {look_ahead_results.ndim}D."
+            )
+        # `fantasy_observation` produces a batch dimension for the different y samples produced by the sampler at each
+        # x point in t_batch. This need to be aggregated. Use the sample specific aggregator if provided.
+        #  produce the results of the different y samples need to be aggregated.
+        # Use a bespoke aggregator if provided by the sampler, otherwise use the mean
+        if hasattr(self.sampler, "mean"):
+            return self.sampler.mean(look_ahead_results, dim=0)  # type: ignore  # noqa: PGH003
+        return look_ahead_results.mean(dim=0)
 
     def _batch_lookahead(
         self,
@@ -170,7 +217,7 @@ class QoILookAhead(AcquisitionFunction):
         """Process a batch of lookahead points.
 
         Args:
-            x (`*b`,n,d): x points to proceess
+            x (`*b`,n,d): x points to process
             y (`*b`,n,m): y points to process
             yvar (`*b`,n,m): yvar points to process
 
@@ -207,7 +254,9 @@ class QoILookAhead(AcquisitionFunction):
         Returns:
             (,) Variance of the QoI with the lookahead GP
         """
-        # if homoskedastic noise is used yvar needs to be None due to conditional_upate
+        # if homoskedastic noise is used yvar needs to be None due to conditional_update
+        # TODO(sw 2025-04-27): Is it a bit weird that we silently ignore the yvar_passed if the model is homoskedastic?
+        # is it better this throws an error and we handle passing the correct yvar in one of the calling functions?
         if isinstance(self.model.likelihood, GaussianLikelihood):
             yvar_point = None
 
@@ -314,6 +363,7 @@ def conditional_update(model: Model, X: torch.Tensor, Y: torch.Tensor, observati
     # Botorch required the model be have been run (so caches have been populated) before conditioning can be done.
     # This is the method Botrch used to do this. We run the model on a single input if required
     if model.prediction_strategy is None:
+        # TODO(sw 2025-04-23): Does this need to be wrapped in torch.no_grad()?
         _ = model.posterior(X=X)
 
     new_model = model.condition_on_observations(
@@ -440,7 +490,7 @@ def reject_if_batched_model(model: SingleTaskGP) -> None:
         Raise not yet implements in model is batched. Otherwise None.
 
     Details:
-        botorch models can have batched training data, and or batched.
+        botorch models can have batched training data, and/or batched predictions.
 
         - gp batch prediction (non-batched model):
 
@@ -449,7 +499,7 @@ def reject_if_batched_model(model: SingleTaskGP) -> None:
           - predicting_x = (b,n',d)
           - result will be: (b, n',m).
 
-            - There are b seperate joint distribution (each with n points, a t targets)
+            - There are b seperate joint distribution (each with n points, a m targets)
 
         - batched gps model:
 
@@ -467,7 +517,7 @@ def reject_if_batched_model(model: SingleTaskGP) -> None:
     """
     if len(model.batch_shape) != 0:
         msg = (
-            "batch models are not currently supported. Model has training data (*b,n,d), on (n,d) is supported."
+            "batch models are not currently supported. Model has training data (*b,n,d), only (n,d) is supported."
             "See https://botorch.org/docs/batching for more details on batching"
         )
         raise NotImplementedError(msg)
@@ -567,7 +617,7 @@ def _argparse_qoi_look_ahead(
     # Definition of _argparse_base explains the shape returned
     args = _argparse_base(acqf, **kwargs)
 
-    # Only update with these defaults if the variable were not passin in kwargs
+    # Only update with these defaults if the variable were not passing in kwargs
     optimizer_options = kwargs["optimizer_options"]
     options = optimizer_options.get("options", {})
 

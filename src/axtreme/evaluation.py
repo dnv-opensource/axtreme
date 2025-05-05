@@ -118,7 +118,19 @@ class EvaluationFunction:
 
         x = np.array([np.fromiter(parameters.values(), dtype=float)])
 
-        y = self.run_simulator(x)
+        return self.evaluate(x)
+
+    def evaluate(self, x: np.ndarray[tuple[int], np.dtype[np.float64]]) -> SimulationPointResults:
+        """Evaluates the simulation at a point.
+
+        Args:
+            x (n_input_dims,): The point at which to run the simulator with shape
+
+        Returns:
+            SimulationPointResult
+        """
+        # Output shape is (n_points = 1, n_simulations_per_point, n_output_dims)
+        y = self.run_simulator(x.reshape(1, -1))  # reshape to match function signature
 
         # This only works for a single output dimension for now
         assert y.shape[0] == 1, f"simulation_result.shape[0] must be 1, got: {y.shape[0]}"
@@ -151,9 +163,7 @@ class EvaluationFunction:
 
         return y
 
-    def post_process_simulation_output(
-        self, y: np.ndarray[tuple[int, int, int], np.dtype[np.float64]]
-    ) -> SimulationPointResults:
+    def post_process_simulation_output(self, y: np.ndarray[tuple[int], np.dtype[np.float64]]) -> SimulationPointResults:
         """Post process the simulation output be fitting a the distribution to the results.
 
         Args:
