@@ -1,6 +1,4 @@
 # %%  # noqa: D100
-
-
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
@@ -15,6 +13,9 @@ from ax.core import GeneratorRun, ParameterType, RangeParameter
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
+from brute_force_loc_and_scale_estimates import (  # type: ignore[import-not-found]
+    get_brute_force_loc_and_scale_functions,
+)
 from numpy.typing import NDArray
 from problem import (  # type: ignore[import-not-found]
     DIST,
@@ -197,12 +198,26 @@ run_trials(
     doe_runs=n_iter,
 )
 
+
+# %% [markdown]
+# ###  Load brute force loc and scale function estimates from saved data file
 # %%
-# Plot the surface of some trials
-fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(exp_sobol, warm_up_runs)
+# Get brute force loc and scale functions from saved data
+true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions()
+
+
+# %%
+# Plot the surface against brute force loc and scale function estimates for some trials
+fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, warm_up_runs, metrics=true_loc_scale_function_estimates
+)
 fig_trial_warm_up.show()
-fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter)
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter, metrics=true_loc_scale_function_estimates)
 fig_last_trial.show()
+
+# %%
+# Save the plot for documentation
+fig_last_trial.write_html("usecase/data/plots/sobol_gp_vs_true_functions.html")
 
 
 # %% [markdown]
@@ -358,11 +373,19 @@ run_trials(
 )
 
 # %%
-# Plot the surface of some trials
-fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(exp_look_ahead, warm_up_runs)
+# Plot the surface against brute force loc and scale function estimates for some trials
+fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, warm_up_runs, metrics=true_loc_scale_function_estimates
+)
 fig_trial_warm_up.show()
-fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_look_ahead, n_iter)
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, n_iter, metrics=true_loc_scale_function_estimates
+)
 fig_last_trial.show()
+
+# %%
+# Save the plot for documentation
+fig_last_trial.write_html("usecase/data/plots/doe_gp_vs_true_functions.html")
 
 
 # %% [markdown]
