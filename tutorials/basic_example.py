@@ -40,8 +40,9 @@ from torch.distributions import Normal
 from torch.utils.data import DataLoader
 
 from axtreme import sampling
-from axtreme.acquisition import QoILookAhead
+from axtreme.acquisition import OptimalQoILookAhead, QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
+from axtreme.evaluation import EvaluationFunction
 from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
 from axtreme.metrics import QoIMetric
 from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
@@ -363,7 +364,7 @@ dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 posterior_sampler = UTSampler()
 # posterior_sampler = NormalIndependentSampler(torch.Size([n_posterior_samples])
 
-qoi_estimator = MarginalCDFExtrapolation(
+QOI_ESTIMATOR = MarginalCDFExtrapolation(
     # random dataloader give different env samples for each instance
     env_iterable=dataloader,
     period_len=N_ENV_SAMPLES_PER_PERIOD,
@@ -392,12 +393,12 @@ for points in n_training_points:
     input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
         transforms=list(botorch_model_bridge.transforms.values()), outcome_names=botorch_model_bridge.outcomes
     )
-    qoi_estimator.input_transform = input_transform
-    qoi_estimator.outcome_transform = outcome_transform
+    QOI_ESTIMATOR.input_transform = input_transform
+    QOI_ESTIMATOR.outcome_transform = outcome_transform
 
     model = botorch_model_bridge.model.surrogate.model
     # reseed the dataloader each time so the dame dataset is used.
-    results.append(qoi_estimator(model))
+    results.append(QOI_ESTIMATOR(model))
 
 
 # %%
@@ -426,7 +427,7 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor | NDArray[Any]
 _, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
-    mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))  # type: ignore[assignment]
+    mean, var = get_mean_var(QOI_ESTIMATOR, torch.tensor(estimate))  # type: ignore[assignment]
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
@@ -505,7 +506,7 @@ warm_up_runs = 3
 # %%
 # Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
 QOI_METRIC = QoIMetric(
-    name="QoIMetric", qoi_estimator=qoi_estimator, minimum_data_points=warm_up_runs, attach_transforms=True
+    name="QoIMetric", qoi_estimator=QOI_ESTIMATOR, minimum_data_points=warm_up_runs, attach_transforms=True
 )
 
 # %%
@@ -586,13 +587,13 @@ botorch_model_bridge = Models.BOTORCH_MODULAR(
 input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
     transforms=list(botorch_model_bridge.transforms.values()), outcome_names=botorch_model_bridge.outcomes
 )
-qoi_estimator.input_transform = input_transform
-qoi_estimator.outcome_transform = outcome_transform
+QOI_ESTIMATOR.input_transform = input_transform
+QOI_ESTIMATOR.outcome_transform = outcome_transform
 
 model = botorch_model_bridge.model.surrogate.model
 
 # %% How long does a single run take
-acqusition = QoILookAhead(model, qoi_estimator)
+acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
@@ -603,7 +604,7 @@ grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
 grid = torch.stack([grid_x1, grid_x2], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
-acqusition = QoILookAhead(model, qoi_estimator)
+acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
 
@@ -660,8 +661,8 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
         transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
     )
     # Adding the transforms to the QoI estimator
-    qoi_estimator.input_transform = input_transform
-    qoi_estimator.outcome_transform = outcome_transform
+    QOI_ESTIMATOR.input_transform = input_transform
+    QOI_ESTIMATOR.outcome_transform = outcome_transform
 
     # Building the model with the QoILookAhead acquisition function
     model_bridge_cust_ac = Models.BOTORCH_MODULAR(
@@ -670,7 +671,7 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
         botorch_acqf_class=acqf_class,
         fit_tracking_metrics=False,
         acquisition_options={
-            "qoi_estimator": qoi_estimator,
+            "qoi_estimator": QOI_ESTIMATOR,
             "sampler": sampling.MeanSampler(),
         },
     )
@@ -727,12 +728,108 @@ surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
 surface_final_trial.show()
 
 # %% [markdown]
+# # Optimal lookahead acquisition function utilizing the actual simulator to calculate response values
+
+
+# TODO (@henrikstoklandberg 2025-05-05): Make one lookahead generator that can be used for both the
+# OptimalQoILookAhead and QoILookAhead. The only difference is the class used in the generator.
+def optimal_look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
+    # Fist building model to get the transforms
+    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
+
+    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
+    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
+    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
+    # transform.py. Was not able to figure out how to fix this in the time I had.
+    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
+    model_bridge_only_model = Models.BOTORCH_MODULAR(
+        experiment=experiment,
+        data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
+        fit_tracking_metrics=False,  # Needed for QoIMetric to work properly
+    )
+    input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
+        transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
+    )
+    # Adding the transforms to the QoI estimator
+    QOI_ESTIMATOR.input_transform = input_transform
+    QOI_ESTIMATOR.outcome_transform = outcome_transform
+
+    # initializing the evaluation function with the simulator and the distribution
+    # used for getting the simulator response of the optimal look ahead acquisition function
+    evaluation_function = EvaluationFunction(simulator=sim, output_dist=dist, parameter_order=["x1", "x2"])
+
+    model_bridge_cust_ac = Models.BOTORCH_MODULAR(
+        experiment=experiment,
+        data=experiment.fetch_data(),
+        botorch_acqf_class=OptimalQoILookAhead,
+        fit_tracking_metrics=False,
+        acquisition_options={
+            "qoi_estimator": QOI_ESTIMATOR,
+            "evaluation_function": evaluation_function,
+            "input_transform": input_transform,
+            "outcome_transform": outcome_transform,
+        },
+    )
+
+    # Optimizing the acquisition function to get the next point
+    return model_bridge_cust_ac.gen(
+        1,
+        # Note these arg are supplied by default for this method.
+        model_gen_options={
+            "optimizer_kwargs": {
+                "num_restarts": 20,
+                "raw_samples": 50,
+                "options": {
+                    "with_grad": False,
+                    "method": "Nelder-Mead",
+                    "maxfev": 5,
+                },
+                "retry_on_optimization_warning": False,
+            }
+        },
+    )
+
+
+# %% [markdown]
+# Run the optimal DOE
+
+# %%
+exp_optimal_look_ahead = make_exp()
+
+# Add the QoI metric to the experiment
+_ = exp_optimal_look_ahead.add_tracking_metric(QOI_METRIC)
+
+# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+sobol = Models.SOBOL(search_space=exp_optimal_look_ahead.search_space, seed=5)
+
+run_trials(
+    experiment=exp_optimal_look_ahead,
+    warm_up_generator=create_sobol_generator(sobol),
+    doe_generator=optimal_look_ahead_generator_run,
+    warm_up_runs=warm_up_runs,
+    doe_runs=n_iter,
+)
+
+# %%
+# Plot the surface of after warmup and final trial.
+surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_optimal_look_ahead, warm_up_runs, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_warm_up.show()
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_optimal_look_ahead, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
+
+
+# %% [markdown]
 # ### Plot the results
 
 
 # %%
 ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
+ax = plot_qoi_estimates_from_experiment(exp_optimal_look_ahead, ax=ax, color="red", name="optimal look ahead")
 _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
