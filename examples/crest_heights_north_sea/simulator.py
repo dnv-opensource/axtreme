@@ -116,6 +116,9 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
             An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
             points.
         """
+        # Initialize results array with correct shape
+        result = np.zeros((x.shape[0], n_simulations_per_point, 1))
+
         # Create unique seed for each unique x point
         seeds = [MaxCrestHeightSimulatorSeeded._hash_function(*tuple(x_i)) for x_i in x]
 
@@ -129,18 +132,17 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
 
         num_waves_in_period = 3600 * sample_period / tm02
 
-        samples = []
-        for _, (hs_i, tm01_i, km01_i, num_waves_i, seed_i) in enumerate(
+        for i, (hs_i, tm01_i, km01_i, num_waves_i, seed_i) in enumerate(
             zip(hs, tm01, km01, num_waves_in_period, seeds, strict=True)
         ):
             # Create ForristallCrest with the specific parameters for this point
             forristall_crest = ForristallCrest(hs_i, tm01_i, km01_i, water_depth)
 
             # Sample maximum crests in sample period with the seeded random state
-            sample = forristall_crest.rvs_max(num_waves_i, size=n_simulations_per_point, seed=seed_i)
-            samples.append(sample)
+            samples = forristall_crest.rvs_max(num_waves_i, size=n_simulations_per_point, seed=seed_i)
 
-        result = np.stack(samples, axis=0)
+            result[i, :, 0] = samples
+
         return cast("np.ndarray[tuple[int, int, int], np.dtype[np.float64]]", result)
 
     @staticmethod
