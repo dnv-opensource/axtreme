@@ -72,7 +72,7 @@ period_length = year_return_value * n_sea_states_in_year
 
 # %%
 # Set axtreme specific parameters
-num_estimates = 20  # The number of brute force estimates of the QoI. A new period is drawn for each estimate.
+num_estimates = 100_000  # The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
 year_return_value = 10
 

@@ -17,7 +17,7 @@ from simulator import max_crest_height_simulator_function  # type: ignore[import
 from torch import Tensor
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
-_results_dir: Path = Path(__file__).parent / "results" / "brute_force"
+_results_dir: Path = Path(__file__).parent / "usecase" / "results" / "brute_force"
 if not _results_dir.exists():
     _results_dir.mkdir(parents=True, exist_ok=True)
 
