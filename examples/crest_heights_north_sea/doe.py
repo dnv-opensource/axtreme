@@ -27,8 +27,9 @@ from torch.utils.data import DataLoader
 from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
 from axtreme import sampling
-from axtreme.acquisition import QoILookAhead
+from axtreme.acquisition import OptimalQoILookAhead, QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
+from axtreme.evaluation import EvaluationFunction
 from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
 from axtreme.metrics import QoIMetric
 from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
@@ -364,6 +365,95 @@ fig_trial_warm_up.show()
 fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_look_ahead, n_iter)
 fig_last_trial.show()
 
+# %% [markdown]
+# # Optimal lookahead acquisition function utilizing the actual simulator to calculate response values
+
+
+# TODO (@henrikstoklandberg 2025-05-05): Make one lookahead generator that can be used for both the
+# OptimalQoILookAhead and QoILookAhead. The only difference is the class used in the generator.
+def optimal_look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:  # noqa: D103
+    # Fist building model to get the transforms
+    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
+
+    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
+    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
+    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
+    # transform.py. Was not able to figure out how to fix this in the time I had.
+    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
+    model_bridge_only_model = Models.BOTORCH_MODULAR(
+        experiment=experiment,
+        data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
+        fit_tracking_metrics=False,  # Needed for QoIMetric to work properly
+    )
+    input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
+        transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
+    )
+    # Adding the transforms to the QoI estimator
+    QOI_ESTIMATOR.input_transform = input_transform
+    QOI_ESTIMATOR.outcome_transform = outcome_transform
+
+    # initializing the evaluation function with the simulator and the distribution
+    # used for getting the simulator response of the optimal look ahead acquisition function
+    evaluation_function = EvaluationFunction(simulator=sim, output_dist=DIST, parameter_order=["Hs", "Tp"])
+
+    model_bridge_cust_ac = Models.BOTORCH_MODULAR(
+        experiment=experiment,
+        data=experiment.fetch_data(),
+        botorch_acqf_class=OptimalQoILookAhead,
+        fit_tracking_metrics=False,
+        acquisition_options={
+            "qoi_estimator": QOI_ESTIMATOR,
+            "evaluation_function": evaluation_function,
+            "input_transform": input_transform,
+            "outcome_transform": outcome_transform,
+        },
+    )
+
+    # Optimizing the acquisition function to get the next point
+    return model_bridge_cust_ac.gen(
+        1,
+        # Note these arg are supplied by default for this method.
+        model_gen_options={
+            "optimizer_kwargs": {
+                "num_restarts": 20,
+                "raw_samples": 50,
+                "options": {
+                    "with_grad": False,
+                    "method": "Nelder-Mead",
+                    "maxfev": 5,
+                },
+                "retry_on_optimization_warning": False,
+            }
+        },
+    )
+
+
+# %% [markdown]
+# Run the optimal DOE
+
+# %%
+exp_optimal_look_ahead = make_exp()
+
+# Add the QoI metric to the experiment
+_ = exp_optimal_look_ahead.add_tracking_metric(QOI_METRIC)
+
+# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+sobol = Models.SOBOL(search_space=exp_optimal_look_ahead.search_space, seed=5)
+
+run_trials(
+    experiment=exp_optimal_look_ahead,
+    warm_up_generator=create_sobol_generator(sobol),
+    doe_generator=optimal_look_ahead_generator_run,
+    warm_up_runs=warm_up_runs,
+    doe_runs=n_iter,
+)
+
+# %%
+# Plot the surface of some trials
+fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(exp_optimal_look_ahead, warm_up_runs)
+fig_trial_warm_up.show()
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_optimal_look_ahead, n_iter)
+fig_last_trial.show()
 
 # %% [markdown]
 # ### Plot the results
@@ -372,6 +462,7 @@ fig_last_trial.show()
 # %%
 ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
+ax = plot_qoi_estimates_from_experiment(exp_optimal_look_ahead, ax=ax, color="red", name="optimal look ahead")
 _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
 _ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
 _ = ax.set_ylabel("Response")  # type: ignore[assignment]
