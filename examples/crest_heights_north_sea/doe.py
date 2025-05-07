@@ -138,7 +138,7 @@ QOI_ESTIMATOR = MarginalCDFExtrapolation(
     # random dataloader give different env samples for each instance
     env_iterable=dataloader,
     period_len=period_length,
-    quantile=torch.tensor(0.5),
+    quantile=torch.tensor(0.5),  # 0.9),
     quantile_accuracy=torch.tensor(0.01),
     # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
     posterior_sampler=posterior_sampler,
@@ -215,7 +215,9 @@ fig_last_trial.show()
 # %%
 # Define the model to use.
 exp = make_exp()
-add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
+# add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
+# add_sobol_points_to_experiment(exp, n_iter=10, seed=8)
+add_sobol_points_to_experiment(exp, n_iter=128, seed=8)
 # Use ax to create a gp from the experiment
 botorch_model_bridge = Models.BOTORCH_MODULAR(
     experiment=exp,
@@ -246,6 +248,53 @@ x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
+
+# %%
+# Debugging the acquisition function
+print("scores.variances", scores.var())
+print("scores.mean", scores.mean())
+print("scores.min", scores.min())
+print("scores.max", scores.max())
+
+print(torch.min(scores))
+print(torch.max(scores))
+print(torch.unique(scores).numel())  # How many unique values are there?
+
+plt.figure(figsize=(10, 8))
+plt.imshow(scores.numpy(), cmap="viridis")
+plt.xticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Hs.numpy()[::5], 2))
+plt.yticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Tp.numpy()[::5], 2))
+plt.xlabel("Hs")
+plt.ylabel("Tp")
+plt.colorbar()
+plt.title("Score Heatmap")
+plt.show()
+
+# %%
+QOI_ESTIMATOR(model)
+qoi_at_point_1 = QOI_ESTIMATOR(model)
+qoi_at_point_2 = QOI_ESTIMATOR(model)
+print(f"QoI difference: {qoi_at_point_1 - qoi_at_point_2}")
+
+
+# %%
+# Check acquisition scores for two close points
+point_1 = torch.tensor([[[8.0, 8.0]]])
+point_2 = torch.tensor([[[8.05, 8.0]]])
+point_3 = torch.tensor([[[8.0, 8.05]]])
+point_4 = torch.tensor([[[8.05, 8.05]]])
+
+acquisition = QoILookAhead(model, QOI_ESTIMATOR)
+score_1 = acquisition(point_1)
+score_2 = acquisition(point_2)
+score_3 = acquisition(point_3)
+score_4 = acquisition(point_4)
+
+print(f"Score for point 1: {score_1.item()}")
+print(f"Score for point 2: {score_2.item()}")
+print(f"Score for point 3: {score_3.item()}")
+print(f"Score for point 4: {score_4.item()}")
+
 
 # %%
 # TODO(@henrikstoklandberg 2025-04-28): This is plot looks a bit suprising, should be investigated before the
