@@ -138,7 +138,7 @@ QOI_ESTIMATOR = MarginalCDFExtrapolation(
     # random dataloader give different env samples for each instance
     env_iterable=dataloader,
     period_len=period_length,
-    quantile=torch.tensor(0.5),
+    quantile=torch.tensor(0.5),  # 0.9),
     quantile_accuracy=torch.tensor(0.01),
     # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
     posterior_sampler=posterior_sampler,
@@ -231,14 +231,15 @@ QOI_ESTIMATOR.outcome_transform = outcome_transform
 
 model = botorch_model_bridge.model.surrogate.model
 
+
 # %% How long does a single run take
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
-scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
+scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
 point_per_dim = 21
-Hs = torch.linspace(7.5, 20, point_per_dim)
-Tp = torch.linspace(7.5, 20, point_per_dim)
+Hs = torch.linspace(0, 1, point_per_dim)
+Tp = torch.linspace(0, 1, point_per_dim)
 grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
 grid = torch.stack([grid_hs, grid_tp], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
@@ -246,6 +247,7 @@ x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
+
 
 # %%
 # TODO(@henrikstoklandberg 2025-04-28): This is plot looks a bit suprising, should be investigated before the
