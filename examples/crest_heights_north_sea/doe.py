@@ -215,9 +215,7 @@ fig_last_trial.show()
 # %%
 # Define the model to use.
 exp = make_exp()
-# add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
-# add_sobol_points_to_experiment(exp, n_iter=10, seed=8)
-add_sobol_points_to_experiment(exp, n_iter=2, seed=8)
+add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
 # Use ax to create a gp from the experiment
 botorch_model_bridge = Models.BOTORCH_MODULAR(
     experiment=exp,
@@ -233,212 +231,22 @@ QOI_ESTIMATOR.outcome_transform = outcome_transform
 
 model = botorch_model_bridge.model.surrogate.model
 
-# %%
-# DEBUG
-# Second model
-exp2 = make_exp()
-# add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
-add_sobol_points_to_experiment(exp2, n_iter=3, seed=8)
-# add_sobol_points_to_experiment(exp, n_iter=128, seed=8)
-# Use ax to create a gp from the experiment
-botorch_model_bridge2 = Models.BOTORCH_MODULAR(
-    experiment=exp2,
-    data=exp2.fetch_data(),
-)
 
-# We need to collect the transforms used to the model gives result in the problem/outcome space.
-input_transform2, outcome_transform2 = transforms.ax_to_botorch_transform_input_output(
-    transforms=list(botorch_model_bridge2.transforms.values()), outcome_names=botorch_model_bridge2.outcomes
-)
-QOI_ESTIMATOR.input_transform = input_transform2
-QOI_ESTIMATOR.outcome_transform = outcome_transform2
-
-model2 = botorch_model_bridge2.model.surrogate.model
-
-# 3 model
-exp3 = make_exp()
-# add_sobol_points_to_experiment(exp, n_iter=64, seed=8)
-add_sobol_points_to_experiment(exp3, n_iter=4, seed=8)
-# add_sobol_points_to_experiment(exp, n_iter=128, seed=8)
-# Use ax to create a gp from the experiment
-botorch_model_bridge3 = Models.BOTORCH_MODULAR(
-    experiment=exp3,
-    data=exp3.fetch_data(),
-)
-
-# We need to collect the transforms used to the model gives result in the problem/outcome space.
-input_transform3, outcome_transform3 = transforms.ax_to_botorch_transform_input_output(
-    transforms=list(botorch_model_bridge3.transforms.values()), outcome_names=botorch_model_bridge3.outcomes
-)
-QOI_ESTIMATOR.input_transform = input_transform3
-QOI_ESTIMATOR.outcome_transform = outcome_transform3
-
-model3 = botorch_model_bridge3.model.surrogate.model
-
-# %%
+# %% How long does a single run take
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
-scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
+scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
-acqusition2 = QoILookAhead(model2, QOI_ESTIMATOR)
-scores2 = acqusition2(torch.tensor([[[15.0, 15.0]]]))
-
-acqusition3 = QoILookAhead(model3, QOI_ESTIMATOR)
-scores3 = acqusition3(torch.tensor([[[15.0, 15.0]]]))
-
-print("scores", scores)
-print("scores2", scores2)
-print("scores3", scores3)
-
-# %%
-# DEBUG plotting
+# %% Perform the grid search and plot
 point_per_dim = 21
-# Hs = torch.linspace(7.5, 20, point_per_dim)
-# Tp = torch.linspace(7.5, 20, point_per_dim)
 Hs = torch.linspace(0, 1, point_per_dim)
 Tp = torch.linspace(0, 1, point_per_dim)
 grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
 grid = torch.stack([grid_hs, grid_tp], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
-scores = acqusition(x_candidates)
-scores = scores.reshape(grid.shape[:-1])
-
-scores2 = acqusition2(x_candidates)
-scores2 = scores2.reshape(grid.shape[:-1])
-
-scores3 = acqusition3(x_candidates)
-scores3 = scores3.reshape(grid.shape[:-1])
-
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection="3d")
-_ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
-_ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")  # type: ignore[assignment]
-_ = ax.set_ylabel("x2")  # type: ignore[assignment]
-_ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_title("Score surface plot")  # type: ignore[assignment]
-print("max_score ", scores.max())
-
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection="3d")
-_ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
-_ = ax.plot_surface(grid_hs, grid_tp, scores2, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")  # type: ignore[assignment]
-_ = ax.set_ylabel("x2")  # type: ignore[assignment]
-_ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_title("Score surface plot")  # type: ignore[assignment]
-print("max_score ", scores2.max())
-
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection="3d")
-_ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
-_ = ax.plot_surface(grid_hs, grid_tp, scores3, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")  # type: ignore[assignment]
-_ = ax.set_ylabel("x2")  # type: ignore[assignment]
-_ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_title("Score surface plot")  # type: ignore[assignment]
-print("max_score ", scores3.max())
-
-# %%
-plt.figure(figsize=(10, 8))
-plt.imshow(scores.numpy(), cmap="viridis")
-plt.xticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Hs.numpy()[::5], 2))
-plt.yticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Tp.numpy()[::5], 2))
-plt.xlabel("Hs")
-plt.ylabel("Tp")
-plt.colorbar()
-plt.title("Score Heatmap")
-plt.show()
-
-plt.figure(figsize=(10, 8))
-plt.imshow(scores2.numpy(), cmap="viridis")
-plt.xticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Hs.numpy()[::5], 2))
-plt.yticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Tp.numpy()[::5], 2))
-plt.xlabel("Hs")
-plt.ylabel("Tp")
-plt.colorbar()
-plt.title("Score Heatmap")
-plt.show()
-plt.figure(figsize=(10, 8))
-plt.imshow(scores3.numpy(), cmap="viridis")
-plt.xticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Hs.numpy()[::5], 2))
-plt.yticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Tp.numpy()[::5], 2))
-plt.xlabel("Hs")
-plt.ylabel("Tp")
-plt.colorbar()
-plt.title("Score Heatmap")
-plt.show()
-
-# %%
-fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(exp, 2)
-fig_trial_warm_up.show()
-fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp2, 3)
-fig_last_trial.show()
-fig_3 = plot_gp_fits_2d_surface_from_experiment(exp3, 4)
-fig_3.show()
-
-
-# %% How long does a single run take
-acqusition = QoILookAhead(model, QOI_ESTIMATOR)
-scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
-
-# %% Perform the grid search and plot
-point_per_dim = 21
-Hs = torch.linspace(7.5, 20, point_per_dim)
-Tp = torch.linspace(7.5, 20, point_per_dim)
-grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
-grid = torch.stack([grid_hs, grid_tp], dim=-1)
-# make turn into a shape that can be processsed by the acquisition function
-x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
-
-# %%
-# Debugging the acquisition function
-print("scores.variances", scores.var())
-print("scores.mean", scores.mean())
-print("scores.min", scores.min())
-print("scores.max", scores.max())
-
-print(torch.min(scores))
-print(torch.max(scores))
-print(torch.unique(scores).numel())  # How many unique values are there?
-
-plt.figure(figsize=(10, 8))
-plt.imshow(scores.numpy(), cmap="viridis")
-plt.xticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Hs.numpy()[::5], 2))
-plt.yticks(ticks=np.arange(0, point_per_dim, step=5), labels=np.round(Tp.numpy()[::5], 2))
-plt.xlabel("Hs")
-plt.ylabel("Tp")
-plt.colorbar()
-plt.title("Score Heatmap")
-plt.show()
-
-# %%
-QOI_ESTIMATOR(model)
-qoi_at_point_1 = QOI_ESTIMATOR(model)
-qoi_at_point_2 = QOI_ESTIMATOR(model)
-print(f"QoI difference: {qoi_at_point_1 - qoi_at_point_2}")
-
-
-# %%
-# Check acquisition scores for two close points
-point_1 = torch.tensor([[[8.0, 8.0]]])
-point_2 = torch.tensor([[[8.05, 8.0]]])
-point_3 = torch.tensor([[[8.0, 8.05]]])
-point_4 = torch.tensor([[[8.05, 8.05]]])
-
-acquisition = QoILookAhead(model, QOI_ESTIMATOR)
-score_1 = acquisition(point_1)
-score_2 = acquisition(point_2)
-score_3 = acquisition(point_3)
-score_4 = acquisition(point_4)
-
-print(f"Score for point 1: {score_1.item()}")
-print(f"Score for point 2: {score_2.item()}")
-print(f"Score for point 3: {score_3.item()}")
-print(f"Score for point 4: {score_4.item()}")
 
 
 # %%
