@@ -203,7 +203,7 @@ run_trials(
 # ###  Load brute force loc and scale function estimates from saved data file
 # %%
 # Get brute force loc and scale functions from saved data
-true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions()
+true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(search_space)
 
 
 # %%
@@ -217,7 +217,7 @@ fig_last_trial.show()
 
 # %%
 # Save the plot for documentation
-fig_last_trial.write_html("usecase/data/plots/sobol_gp_vs_true_functions.html")
+fig_last_trial.write_html("results/doe/plots/sobol_gp_vs_true_functions.html")
 
 
 # %% [markdown]
@@ -385,7 +385,7 @@ fig_last_trial.show()
 
 # %%
 # Save the plot for documentation
-fig_last_trial.write_html("usecase/data/plots/doe_gp_vs_true_functions.html")
+fig_last_trial.write_html("results/doe/plots/doe_gp_vs_true_functions.html")
 
 
 # %% [markdown]
