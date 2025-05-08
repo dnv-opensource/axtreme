@@ -20,21 +20,21 @@ from axtreme.simulator.base import Simulator
 
 def max_crest_height_simulator_function(
     x: np.ndarray[tuple[int, int], np.dtype[np.float64]],
-    water_depth: float = 110,
-    sample_period: float = 3,
 ) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
     """Generate the maximum crest height for an input environment x.
 
     Parameters:
         x: (n,2) array of points to simulate, corresponds to hs (significant wave height) and tp (peak wave period)
-        water_depth: in meters
-        sample_period: in hours
 
     Returns:
         *(n,1) array of the simulator results for that point
     """
     hs = x[:, 0]
     tp = x[:, 1]
+
+    # water_depth and sample_period are fixed for the given problem
+    water_depth = 110  # in meters
+    sample_period = 3  # in hours
 
     gamma = gamma_rpc205(hs, tp)
     tm01 = Tm01_from_Tp_gamma(tp, gamma)  # mean wave period
@@ -62,23 +62,19 @@ class MaxCrestHeightSimulator(Simulator):
         self,
         x: np.ndarray[tuple[int, int], np.dtype[np.float64]],
         n_simulations_per_point: int = 1,
-        water_depth: float = 110,
-        sample_period: float = 3,
     ) -> np.ndarray[tuple[int, int, int], np.dtype[np.float64]]:
         """Evaluate the model at given points.
 
         Args:
             x: An array of shape (n_points, n_input_dims) of points at which to evaluate the model.
             n_simulations_per_point: The number of simulations to run at each point. Expected to have a default value
-            water_depth: in meters
-            sample_period: in hours
         Returns:
             An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
             points.
         """
         samples = []
         for _ in np.arange(start=0, stop=n_simulations_per_point, step=1):
-            sample = max_crest_height_simulator_function(x, water_depth, sample_period)
+            sample = max_crest_height_simulator_function(x)
             samples.append(sample)
 
         result = np.stack(samples, axis=1)
