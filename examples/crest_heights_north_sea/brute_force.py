@@ -171,7 +171,7 @@ def create_extrem_value_location_scatter_plot(brut_force_file_name: str) -> None
     _ = plt.xlabel("Hs")  # type: ignore[assignment]
     _ = plt.ylabel("Tp")  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003
-
+    plt.show()
     plt.savefig(str(brut_force_file_path).replace(".json", "_scatter.png"))
 
 
@@ -201,70 +201,53 @@ def create_extrem_value_location_kde_plot(brut_force_file_name: str) -> None:
     _ = plt.title("Extrem value location")  # type: ignore[assignment]
     _ = plt.xlabel("Hs")  # type: ignore[assignment]
     _ = plt.ylabel("Tp")  # type: ignore[assignment]
-
+    plt.show()
     plt.savefig(str(brut_force_file_path).replace(".json", "_kde.png"))
 
 
 # %%
 if __name__ == "__main__":
-    # %%
     # Set parameters for simulation
     year_return_value = 10
     n_sea_states_in_year = 2922
     period_length = year_return_value * n_sea_states_in_year
+    num_estimates = 100_000
 
-    # %%
     # Get brute force QOI for a large number of estimates
     extrem_response_values, extrem_response_mean, extrem_response_var = collect_or_calculate_results(
         period_length,
-        num_estimates=100_000,
+        num_estimates=num_estimates,
     )
 
-    # %%
-    print(f"Brute force median: {extrem_response_values.median()}")
-    print(f"Brute force exp(-1) quantile: {torch.quantile(extrem_response_values, np.exp(-1))}")
+    brut_force_qoi = torch.quantile(extrem_response_values, np.exp(-1))
+    print(f"Brute force exp(-1) quantile: {brut_force_qoi}")
 
-    # %%
     # Plot brute force QOI
     _ = plt.hist(extrem_response_values, bins=100, density=True)
     _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
     _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
     _ = plt.ylabel("Density")  # type: ignore[assignment]
-    _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
-    _ = plt.axvline(extrem_response_values.median().item(), color="purple", label="median")  # type: ignore[assignment]
     _ = plt.axvline(torch.quantile(extrem_response_values, np.exp(-1)).item(), color="orange", label="exp(-1) quantile")  # type: ignore[assignment]
     _ = plt.legend()  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003
+    plt.show()
+    plt.savefig(f"usecase/results/brute_force/return_value_distribution_{num_estimates}_num_estimates.png")
 
-    # %%
-    # Analyse uncertainty in brut force estimate using both median and exp(-1) qunatile
-    results_median = []
+    # Analyse uncertainty in brut force estimate using both median and exp(-1) quantile
     results_quantile = []
     brute_force_samples = [1_000, 2_000, 4_000, 8_000, 16_000]
     for n_samples in brute_force_samples:
-        medians_from_samples_size = []
         quantiles_from_samples_size = []
         # How many times to calc the median
         for _idx in range(200):
             # sample with replacement
             random_indices = torch.randint(0, len(extrem_response_values), (n_samples,))
             sampled_tensor = extrem_response_values[random_indices]
-            medians_from_samples_size.append(sampled_tensor.median())
             quantiles_from_samples_size.append(torch.quantile(sampled_tensor, np.exp(-1)))
 
-        results_median.append(torch.tensor(medians_from_samples_size))
         results_quantile.append(torch.tensor(quantiles_from_samples_size))
 
-    # %% Plot the results using the median
-    fig, axes = plt.subplots(len(brute_force_samples), 1, figsize=(6, len(brute_force_samples * 4)), sharex=True)
-    for medians, sample_size, ax in zip(results_median, brute_force_samples, axes, strict=True):
-        ax.hist(medians, density=True, bins=len(medians) // 15)
-        ax.set_title(
-            f"QOI calculated with {sample_size} erd samples\nmean (of medians)"
-            f" {medians.mean():.3f}. std {medians.std():.3f}"
-        )
-
-    # %% Plot the results using the quantile
+    # Plot the results using the quantile
     fig, axes = plt.subplots(len(brute_force_samples), 1, figsize=(6, len(brute_force_samples * 4)), sharex=True)
     for quantile, sample_size, ax in zip(results_quantile, brute_force_samples, axes, strict=True):
         ax.hist(quantile, density=True, bins=len(quantile) // 15)
@@ -272,10 +255,14 @@ if __name__ == "__main__":
             f"QOI calculated with {sample_size} erd samples\nmean (of exp(-1) quantile)"
             f" {quantile.mean():.3f}. std {quantile.std():.3f}"
         )
-    # %% Plot scatter plot of brut force solution for extrem value location
+        ax.axvline(brut_force_qoi, c="orange", label="Brute force results")
+    plt.show()
+    plt.savefig(f"usecase/results/brute_force/return_value_sub_sampling_{num_estimates}_num_estimates.png")
+
+    #  Plot scatter plot of brut force solution for extrem value location
     create_extrem_value_location_scatter_plot(f"{int(period_length)}_period_length.json")
 
-    # %% Plot kde plot of brut force solution for extrem value location
+    # Plot kde plot of brut force solution for extrem value location
     # Note: Is very slow especially for large datasets
     create_extrem_value_location_kde_plot(f"{int(period_length)}_period_length.json")
 
