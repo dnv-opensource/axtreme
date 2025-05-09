@@ -40,7 +40,7 @@ from axtreme.utils import population_estimators, transforms
 
 
 # %%
-def run_qoi_estimation(dataloader: DataLoader) -> tuple[list[Tensor], QoIEstimator]:
+def run_qoi_estimation(dataloader: DataLoader[tuple[Tensor, ...]]) -> tuple[list[Tensor], QoIEstimator]:
     """Performs QoI estimation for a given dataloader."""
     qoi_estimator = MarginalCDFExtrapolation(
         env_iterable=dataloader,
@@ -118,7 +118,7 @@ def generate_importance_samples(
     hs_bounds: tuple[float, float],
     tp_bounds: tuple[float, float],
     threshold: float = 1e-10,
-    num_importance_samples: int = int(1e5),
+    num_importance_samples: int = 10_000,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Generate importance samples using the environment distribution PDF."""
     kde_pipeline = set_up_env_data_distribution_from_samples(env_data)
@@ -142,12 +142,12 @@ def plot_importance_vs_env_data(dataset: Dataset[NDArray[np.float64]], importanc
 
     # Add surface for env_data
     surf1 = histogram_surface3d(dataset.data, n_bins=20).data[0]  # type: ignore[attr-defined]
-    _ = surf1.update(coloraxis="coloraxis1")
+    _ = surf1.update(coloraxis="coloraxis1")  # type: ignore[reportAttributeAccessIssue]
     _ = fig.add_trace(surf1, row=1, col=1)
 
     # Add surface for importance_samples
     surf2 = histogram_surface3d(importance_samples.numpy(), n_bins=20).data[0]
-    _ = surf2.update(coloraxis="coloraxis2")
+    _ = surf2.update(coloraxis="coloraxis2")  # type: ignore[reportAttributeAccessIssue]
     _ = fig.add_trace(surf2, row=1, col=2)
 
     _ = fig.update_layout(
@@ -213,10 +213,10 @@ def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor) -> tuple[torc
 
 def plot_qoi_distribution(  # noqa: PLR0913
     n_training_points: list[int],
-    combined_qoi_estimator_importance_sample: list,
-    combined_results_importance_sample: list,
-    combined_qoi_estimator_whole_dataset: list,
-    combined_results_whole_dataset: list,
+    combined_qoi_estimator_importance_sample: list[QoIEstimator],
+    combined_results_importance_sample: list[list[Tensor]],
+    combined_qoi_estimator_whole_dataset: list[QoIEstimator],
+    combined_results_whole_dataset: list[list[Tensor]],
     brut_force_qoi: float,
     num_samples: int,
     num_iterations: int,
@@ -263,8 +263,8 @@ def plot_qoi_distribution(  # noqa: PLR0913
 
 def plot_qoi_histogram(
     n_training_points: list[int],
-    combined_results_importance_sample: list,
-    combined_results_whole_dataset: list,
+    combined_results_importance_sample: list[list[Tensor]],
+    combined_results_whole_dataset: list[list[Tensor]],
     brut_force_qoi: float,
     num_iterations: int,
 ) -> None:
@@ -290,8 +290,8 @@ def plot_qoi_histogram(
 
 
 def estimate_qoi(
-    dataset: Dataset[NDArray[np.float64]],
-    importance_dataset: Dataset[NDArray[np.float64]],
+    dataset: Dataset[tuple[Tensor, ...]],
+    importance_dataset: Dataset[tuple[Tensor, ...]],
     num_samples: int,
     batch_size: int,
 ) -> tuple[list[Tensor], QoIEstimator, list[Tensor], QoIEstimator]:
@@ -330,8 +330,8 @@ def estimate_qoi(
 
 
 def run_parallel_qoi_estimation(
-    importance_dataset: Dataset[NDArray[np.float64]],
-    dataset: Dataset[NDArray[np.float64]],
+    importance_dataset: Dataset[tuple[Tensor, ...]],
+    dataset: Dataset[tuple[Tensor, ...]],
     num_samples: int,
     batch_size: int,
     num_iterations: int,
@@ -436,7 +436,9 @@ if __name__ == "__main__":
             combined_qoi_estimator_whole_dataset,
             combined_results_importance_sample,
             combined_qoi_estimator_importance_sample,
-        ) = run_parallel_qoi_estimation(importance_dataset, dataset, num_samples, batch_size, num_iterations)
+        ) = run_parallel_qoi_estimation(
+            importance_dataset, dataset, num_samples, batch_size, num_iterations
+        )  # ignore: type[arg-type]
 
         np.save(
             f"usecase/results/qoi/combined_importance_qoi_results_{num_samples}_num_samples.npy",
