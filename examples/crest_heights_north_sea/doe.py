@@ -74,6 +74,7 @@ env_data: NDArray[np.float64] = raw_data.to_numpy()
 
 # %%
 # Bruteforce estimate placeholder
+# TODO(@henrikstoklandberg 2025-05-09): Add more sophisticated brute force estimate of the QoI when ready
 n_erd_samples = 1000
 erd_samples = []
 for _ in range(n_erd_samples):
@@ -95,7 +96,7 @@ def run_trials(
     warm_up_runs: int = 3,
     doe_runs: int = 15,
 ) -> None:
-    """Helper function for running  trials for an experiment and returning the QOI results using QoI metric.
+    """Helper function for running trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
         experiment: Experiment to perform DOE on.
@@ -204,6 +205,113 @@ fig_trial_warm_up.show()
 fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter)
 fig_last_trial.show()
 
+# %% [markdown]
+# different seeding
+# %%
+exp_sobol2 = make_exp()
+
+# Add the QoI metric to the experiment
+_ = exp_sobol2.add_tracking_metric(QOI_METRIC)
+
+# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+sobol2 = Models.SOBOL(search_space=exp_sobol2.search_space, seed=42)
+
+sobol_generator_run = create_sobol_generator(sobol2)
+
+run_trials(
+    experiment=exp_sobol2,
+    warm_up_generator=sobol_generator_run,
+    doe_generator=sobol_generator_run,
+    warm_up_runs=warm_up_runs,
+    doe_runs=n_iter,
+)
+
+# %%
+exp_sobol3 = make_exp()
+
+# Add the QoI metric to the experiment
+_ = exp_sobol3.add_tracking_metric(QOI_METRIC)
+
+# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+sobol3 = Models.SOBOL(search_space=exp_sobol3.search_space, seed=1)
+
+sobol_generator_run = create_sobol_generator(sobol3)
+
+run_trials(
+    experiment=exp_sobol3,
+    warm_up_generator=sobol_generator_run,
+    doe_generator=sobol_generator_run,
+    warm_up_runs=warm_up_runs,
+    doe_runs=n_iter,
+)
+
+# %%
+# Plot different sobol runs
+ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
+ax = plot_qoi_estimates_from_experiment(exp_sobol2, ax=ax, color="green", name="sobol2")
+ax = plot_qoi_estimates_from_experiment(exp_sobol3, ax=ax, color="red", name="sobol3")
+_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
+_ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
+_ = ax.set_ylabel("Response")  # type: ignore[assignment]
+_ = ax.legend()  # type: ignore[assignment]
+
+# %% [markdown]
+# ### Multiple Sobol experiments with different seeds
+
+# %%
+# Create list to store all experiments for later comparison
+sobol_experiments = []
+sobol_seeds = [5, 42, 1, 10, 20, 30, 40, 50, 60, 70]  # 10 different seeds
+
+# Create and run 10 different Sobol experiments
+for i, seed in enumerate(sobol_seeds):
+    # Create new experiment
+    exp_sobol = make_exp()
+
+    # Add the QoI metric to the experiment
+    _ = exp_sobol.add_tracking_metric(QOI_METRIC)
+
+    # Create Sobol generator with different seed
+    sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=seed)
+    sobol_generator_run = create_sobol_generator(sobol)
+
+    print(f"Running Sobol experiment {i + 1}/10 with seed {seed}")
+
+    # Run trials
+    run_trials(
+        experiment=exp_sobol,
+        warm_up_generator=sobol_generator_run,
+        doe_generator=sobol_generator_run,
+        warm_up_runs=warm_up_runs,
+        doe_runs=n_iter,
+    )
+
+    # Store experiment for later use
+    sobol_experiments.append(exp_sobol)
+
+
+# %% [markdown]
+# ### Plot results from all Sobol experiments
+
+# %%
+_ = plt.figure(figsize=(12, 8))
+ax = None
+# Plot each experiment with a different color
+colors = plt.cm.get_cmap("viridis")(np.linspace(0, 1, len(sobol_experiments)))
+
+for i, exp in enumerate(sobol_experiments):
+    ax = plot_qoi_estimates_from_experiment(exp, ax=ax, color=colors[i], name=f"Sobol (seed={sobol_seeds[i]})")
+
+# Add reference line for brute force estimate
+_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value", linestyle="--", linewidth=2)
+_ = ax.set_xlabel("Number of DOE iterations")
+_ = ax.set_ylabel("Response")
+_ = ax.set_title("Comparison of Sobol Sequences with Different Seeds")
+_ = ax.legend()
+
+plt.tight_layout()
+plt.show()
+
 
 # %% [markdown]
 # ### Lookahead acquisition function
@@ -233,12 +341,15 @@ model = botorch_model_bridge.model.surrogate.model
 
 # %% How long does a single run take
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
-scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
+# scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
+scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
 point_per_dim = 21
-Hs = torch.linspace(7.5, 20, point_per_dim)
-Tp = torch.linspace(7.5, 20, point_per_dim)
+# Hs = torch.linspace(7.5, 20, point_per_dim)
+# Tp = torch.linspace(7.5, 20, point_per_dim)
+Hs = torch.linspace(0, 1, point_per_dim)
+Tp = torch.linspace(0, 1, point_per_dim)
 grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
 grid = torch.stack([grid_hs, grid_tp], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
@@ -254,8 +365,8 @@ fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
 _ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")  # type: ignore[assignment]
-_ = ax.set_ylabel("x2")  # type: ignore[assignment]
+_ = ax.set_xlabel("Hs")  # type: ignore[assignment]
+_ = ax.set_ylabel("Tp")  # type: ignore[assignment]
 _ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
 _ = ax.set_title("Score surface plot")  # type: ignore[assignment]
 print("max_score ", scores.max())
@@ -264,7 +375,7 @@ print("max_score ", scores.max())
 # %% perform a round of optimisation using the under the hood optimiser
 candidate, result = optimize_acqf(
     acqusition,
-    bounds=torch.tensor([[7.5, 7.5], [20.0, 20.0]]),
+    bounds=torch.tensor([[0.0, 0.0], [1.0, 1.0]]),
     q=1,
     num_restarts=20,
     raw_samples=50,
@@ -379,3 +490,130 @@ _ = ax.legend()  # type: ignore[assignment]
 
 
 # %%
+# %% [markdown]
+# ### Multiple Look-ahead experiments with different seeds
+
+# %%
+# Create list to store all look-ahead experiments
+look_ahead_experiments = []
+
+# Run 10 different look-ahead experiments using the same seeds as sobol
+print("\nRunning Look-ahead experiments with different seeds:")
+for i, seed in enumerate(sobol_seeds):
+    # Create new experiment
+    exp_look_ahead = make_exp()
+
+    # Add the QoI metric to the experiment
+    _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
+
+    # Create Sobol generator with the same seed for warm-up
+    sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=seed)
+
+    print(f"Running Look-ahead experiment {i + 1}/10 with seed {seed}")
+
+    # Run trials
+    run_trials(
+        experiment=exp_look_ahead,
+        warm_up_generator=create_sobol_generator(sobol),
+        doe_generator=look_ahead_generator_run,
+        warm_up_runs=warm_up_runs,
+        doe_runs=n_iter,
+    )
+
+    # Store experiment for later use
+    look_ahead_experiments.append(exp_look_ahead)
+
+# %% [markdown]
+# ### Individual comparison plots for each seed
+
+# %%
+# Create a separate figure for each seed comparison
+plt.figure(figsize=(18, 12))
+
+# Create a 3x4 grid of subplots (to fit 10 plots)
+fig, axes = plt.subplots(3, 4, figsize=(20, 15))
+axes = axes.flatten()
+
+# For each seed, create a comparison plot
+for i, seed in enumerate(sobol_seeds):
+    if i < len(axes):
+        ax = axes[i]
+
+        # Plot Sobol experiment
+        ax = plot_qoi_estimates_from_experiment(sobol_experiments[i], name=f"Sobol (seed={seed})", ax=ax)
+
+        # Plot Look-ahead experiment
+        ax = plot_qoi_estimates_from_experiment(
+            look_ahead_experiments[i], ax=ax, color="green", name=f"Look-ahead (seed={seed})"
+        )
+
+        # Add reference line
+        ax.axhline(brute_force_qoi_estimate, c="black", label="Brute force estimate" if i == 0 else "", linestyle="--")
+
+        # Add labels
+        ax.set_xlabel("Number of DOE iterations")
+        ax.set_ylabel("QoI Estimate")
+        ax.set_title(f"Seed {seed}: Sobol vs Look-ahead")
+
+        # Add legend but only if it's the first plot (to avoid redundancy)
+        if i == 0:
+            ax.legend(loc="upper right")
+
+# Remove empty subplots
+for j in range(i + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.savefig("sobol_vs_lookahead_comparison.png", dpi=300)
+plt.show()
+
+# %% [markdown]
+# ### Summary plot comparing all experiments
+
+# %%
+# Create a summary plot showing average performance
+plt.figure(figsize=(12, 8))
+
+# Extract QoI values from each experiment
+sobol_qoi_values = []
+lookahead_qoi_values = []
+
+for exp_sobol, exp_look_ahead in zip(sobol_experiments, look_ahead_experiments, strict=False):
+    # Extract QoI values for each trial in each experiment
+    sobol_data = exp_sobol.fetch_data().df
+    lookahead_data = exp_look_ahead.fetch_data().df
+
+    # Get QoI metric values
+    sobol_qoi = sobol_data[sobol_data["metric_name"] == "QoIMetric"]["mean"].values
+    lookahead_qoi = lookahead_data[lookahead_data["metric_name"] == "QoIMetric"]["mean"].values
+
+    sobol_qoi_values.append(sobol_qoi)
+    lookahead_qoi_values.append(lookahead_qoi)
+
+# Convert to numpy arrays for easier computation
+sobol_array = np.array([x for x in sobol_qoi_values if len(x) == n_iter + 1])
+lookahead_array = np.array([x for x in lookahead_qoi_values if len(x) == n_iter + 1])
+
+# Calculate mean and std dev
+sobol_mean = np.mean(sobol_array, axis=0)
+sobol_std = np.std(sobol_array, axis=0)
+lookahead_mean = np.mean(lookahead_array, axis=0)
+lookahead_std = np.std(lookahead_array, axis=0)
+
+# Plot
+x = np.arange(len(sobol_mean))
+plt.plot(x, sobol_mean, "b-", label="Sobol (average)")
+plt.fill_between(x, sobol_mean - sobol_std, sobol_mean + sobol_std, alpha=0.2, color="blue")
+plt.plot(x, lookahead_mean, "g-", label="Look-ahead (average)")
+plt.fill_between(x, lookahead_mean - lookahead_std, lookahead_mean + lookahead_std, alpha=0.2, color="green")
+
+# Add reference line
+plt.axhline(brute_force_qoi_estimate, c="black", label="Brute force estimate", linestyle="--")
+
+plt.xlabel("Number of DOE iterations")
+plt.ylabel("QoI Estimate")
+plt.title("Average Performance: Sobol vs Look-ahead (with std. deviation)")
+plt.legend()
+plt.tight_layout()
+plt.savefig("sobol_vs_lookahead_summary.png", dpi=300)
+plt.show()
