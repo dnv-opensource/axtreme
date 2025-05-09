@@ -74,6 +74,7 @@ env_data: NDArray[np.float64] = raw_data.to_numpy()
 
 # %%
 # Bruteforce estimate placeholder
+# TODO(@henrikstoklandberg 2025-05-09): Add more sophisticated brute force estimate of the QoI when ready
 n_erd_samples = 1000
 erd_samples = []
 for _ in range(n_erd_samples):
@@ -95,7 +96,7 @@ def run_trials(
     warm_up_runs: int = 3,
     doe_runs: int = 15,
 ) -> None:
-    """Helper function for running  trials for an experiment and returning the QOI results using QoI metric.
+    """Helper function for running trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
         experiment: Experiment to perform DOE on.
@@ -233,12 +234,12 @@ model = botorch_model_bridge.model.surrogate.model
 
 # %% How long does a single run take
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
-scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
+scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
 point_per_dim = 21
-Hs = torch.linspace(7.5, 20, point_per_dim)
-Tp = torch.linspace(7.5, 20, point_per_dim)
+Hs = torch.linspace(0, 1, point_per_dim)
+Tp = torch.linspace(0, 1, point_per_dim)
 grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
 grid = torch.stack([grid_hs, grid_tp], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
@@ -254,8 +255,8 @@ fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
 _ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")  # type: ignore[assignment]
-_ = ax.set_ylabel("x2")  # type: ignore[assignment]
+_ = ax.set_xlabel("Hs")  # type: ignore[assignment]
+_ = ax.set_ylabel("Tp")  # type: ignore[assignment]
 _ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
 _ = ax.set_title("Score surface plot")  # type: ignore[assignment]
 print("max_score ", scores.max())
@@ -264,7 +265,7 @@ print("max_score ", scores.max())
 # %% perform a round of optimisation using the under the hood optimiser
 candidate, result = optimize_acqf(
     acqusition,
-    bounds=torch.tensor([[7.5, 7.5], [20.0, 20.0]]),
+    bounds=torch.tensor([[0.0, 0.0], [1.0, 1.0]]),
     q=1,
     num_restarts=20,
     raw_samples=50,
@@ -376,6 +377,3 @@ _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  
 _ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
 _ = ax.set_ylabel("Response")  # type: ignore[assignment]
 _ = ax.legend()  # type: ignore[assignment]
-
-
-# %%
