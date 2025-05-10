@@ -1,0 +1,26 @@
+QoIEstimator
+============
+
+.. currentmodule:: axtreme.qoi.qoi_estimator
+
+.. autoclass:: QoIEstimator
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~QoIEstimator.__init__
+      ~QoIEstimator.mean
+      ~QoIEstimator.var
+   
+   
+
+
+   
+   
+   
