@@ -16,6 +16,7 @@ from usecase.axtreme_case import (  # type: ignore[import-not-found]
 from usecase.wave_distributions import ForristallCrest  # type: ignore[import-not-found]
 
 from axtreme.simulator.base import Simulator
+from axtreme.simulator.utils import simulator_from_func
 
 
 def max_crest_height_simulator_function(
@@ -51,43 +52,9 @@ def max_crest_height_simulator_function(
     return c_max_in_period.reshape(-1, 1)
 
 
-# TODO(@am-kaiser): add seeded version of the class (AK 25-04-14)
-class MaxCrestHeightSimulator(Simulator):
-    """A class version of ``max_crest_height_gumbel_simulator_function`` conforming to the ``Simulator`` protocol.
-
-    For each unique point in the x domain n_simulations_per_point samples are generated.
-    """
-
-    def __call__(
-        self,
-        x: np.ndarray[tuple[int, int], np.dtype[np.float64]],
-        n_simulations_per_point: int = 1,
-        water_depth: float = 110,
-        sample_period: float = 3,
-    ) -> np.ndarray[tuple[int, int, int], np.dtype[np.float64]]:
-        """Evaluate the model at given points.
-
-        Args:
-            x: An array of shape (n_points, n_input_dims) of points at which to evaluate the model.
-            n_simulations_per_point: The number of simulations to run at each point. Expected to have a default value
-            water_depth: in meters
-            sample_period: in hours
-        Returns:
-            An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
-            points.
-        """
-        samples = []
-        for _ in np.arange(start=0, stop=n_simulations_per_point, step=1):
-            sample = max_crest_height_simulator_function(x, water_depth, sample_period)
-            samples.append(sample)
-
-        result = np.stack(samples, axis=1)
-        return cast("np.ndarray[tuple[int, int, int], np.dtype[np.float64]]", result)
-
-
 # %%
 class MaxCrestHeightSimulatorSeeded(Simulator):
-    """A seeded version of MaxCrestHeightSimulator conforming to the ``Simulator`` protocol.
+    """A seeded version of the max_crest_height_simulator_function conforming to the ``Simulator`` protocol.
 
     The each unique point in the x domain has a fixed seed used when generating samples, which ensures
     reproducibility. Points still appear "semi" random, as points close together use completely different
@@ -154,7 +121,7 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
 # Test code (can be commented out or removed in production)
 if __name__ == "__main__":
     # Quick and dirty tests:
-    sim = MaxCrestHeightSimulator()
+    sim = simulator_from_func(max_crest_height_simulator_function)
     sim_seeded = MaxCrestHeightSimulatorSeeded()
 
     x = np.array([[2.0, 8.0], [3.0, 9.0]])
