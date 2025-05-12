@@ -70,7 +70,7 @@ def generate_and_save_static_dataset(
             tp = tp_grid[i, j]
             x = np.full((n_samples, 2), [hs, tp])
             results = max_crest_height_simulator_function(x)
-            loc, scale = gumbel_r.fit(results)[:2]
+            loc, scale = gumbel_r.fit(results)
             loc_values[i, j] = loc
             scale_values[i, j] = scale
 
@@ -252,3 +252,5 @@ if __name__ == "__main__":
     print("functions", functions)
 
     _ = visualize_brute_force_loc_scale_data()
+
+# %%
