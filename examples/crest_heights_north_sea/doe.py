@@ -61,7 +61,7 @@ def make_exp() -> Experiment:
     """Convenience function returns a fresh Experiement of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
     # Functions are working on the same problem and are comparable
-    return make_experiment(sim, search_space, DIST, n_simulations_per_point=10_000)
+    return make_experiment(sim, search_space, DIST, n_simulations_per_point=10)  # 1_000)
 
 
 dist = DIST
@@ -248,12 +248,13 @@ model = botorch_model_bridge.model.surrogate.model
 
 # %% How long does a single run take
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
-scores = acqusition(torch.tensor([[[15.0, 15.0]]]))
+scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
 point_per_dim = 21
-Hs = torch.linspace(7.5, 20, point_per_dim)
-Tp = torch.linspace(7.5, 20, point_per_dim)
+# Acquisition function operates in the model space, so we feed the model space to the acquisition function.
+Hs = torch.linspace(0, 1, point_per_dim)
+Tp = torch.linspace(0, 1, point_per_dim)
 grid_hs, grid_tp = torch.meshgrid(Hs, Tp, indexing="xy")
 grid = torch.stack([grid_hs, grid_tp], dim=-1)
 # make turn into a shape that can be processsed by the acquisition function
@@ -263,14 +264,12 @@ scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
 
 # %%
-# TODO(@henrikstoklandberg 2025-04-28): This is plot looks a bit suprising, should be investigated before the
-# we do the final DOE steps.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
 _ = ax.plot_surface(grid_hs, grid_tp, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.set_xlabel("x1")  # type: ignore[assignment]
-_ = ax.set_ylabel("x2")  # type: ignore[assignment]
+_ = ax.set_xlabel("Hs")  # type: ignore[assignment]
+_ = ax.set_ylabel("Tp")  # type: ignore[assignment]
 _ = ax.set_zlabel("score")  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
 _ = ax.set_title("Score surface plot")  # type: ignore[assignment]
 print("max_score ", scores.max())
@@ -279,7 +278,7 @@ print("max_score ", scores.max())
 # %% perform a round of optimisation using the under the hood optimiser
 candidate, result = optimize_acqf(
     acqusition,
-    bounds=torch.tensor([[7.5, 7.5], [20.0, 20.0]]),
+    bounds=torch.tensor([[0.0, 0.0], [1.0, 1.0]]),
     q=1,
     num_restarts=20,
     raw_samples=50,

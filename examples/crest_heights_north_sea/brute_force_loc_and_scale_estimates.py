@@ -14,18 +14,18 @@ from scipy.stats import gumbel_r
 from simulator import max_crest_height_simulator_function  # type: ignore[import]
 from tqdm import tqdm
 
-SAVE_DIR = Path("usecase/data")
-PLOT_DIR = Path("results/doe")
+SAVE_DIR = Path("results/doe")
 DEFAULT_FILENAME = "brute_force_loc_scale_data.npz"
 
 
+# TODO(@henrikstoklandberg 2025-05-12): Add seed to
+# #simulator function when implemnted seeded simulator
 def generate_and_save_static_dataset(
     search_space: SearchSpace,
     save_dir: Path = SAVE_DIR,
     filename: str = DEFAULT_FILENAME,
     grid_size: int = 1000,
     n_samples: int = 1000,
-    seed: int = 42,
 ) -> Path:
     """Generate and save static dataset of location and scale values on a grid.
 
@@ -39,9 +39,15 @@ def generate_and_save_static_dataset(
 
     Returns:
         Path to the saved dataset file.
-    """
-    rng = np.random.default_rng(seed)
 
+    Saved Dataset Structure:
+        The saved .npz dataset contains the following arrays:
+        - hs_values: 1D array of Hs (significant wave height) values
+        - tp_values: 1D array of Tp (peak wave period) values
+        - loc_values: 2D grid of fitted Gumbel location parameters
+        - scale_values: 2D grid of fitted Gumbel scale parameters
+        - param_names: Names of the parameters as strings
+    """
     hs_param = search_space.parameters["Hs"]
     tp_param = search_space.parameters["Tp"]
 
@@ -62,7 +68,7 @@ def generate_and_save_static_dataset(
         for j in range(grid_size):
             hs = hs_grid[i, j]
             tp = tp_grid[i, j]
-            x = rng.normal(loc=[hs, tp], scale=0, size=(n_samples, 2))
+            x = np.full((n_samples, 2), [hs, tp])
             results = max_crest_height_simulator_function(x)
             loc, scale = gumbel_r.fit(results)[:2]
             loc_values[i, j] = loc
@@ -99,6 +105,14 @@ def create_functions_from_static_dataset(
 
     Returns:
         Dictionary with location and scale interpolation functions.
+
+    Expected Dataset Format:
+        The .npz file should contain:
+        - hs_values: 1D array of Hs grid points
+        - tp_values: 1D array of Tp grid points
+        - loc_values: 2D array of location parameters at each grid point
+        - scale_values: 2D array of scale parameters at each grid point
+        - param_names: 1D array of parameter names as strings
     """
     if dataset_path is None:
         dataset_path = load_dir / filename
@@ -139,6 +153,9 @@ def get_brute_force_loc_and_scale_functions(
 
     Returns:
         Dictionary with location and scale interpolation functions.
+
+    Dataset Structure:
+        See documentation for generate_and_save_static_dataset() for details on dataset format.
     """
     dataset_path = save_dir / filename
 

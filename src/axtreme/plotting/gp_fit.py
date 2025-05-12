@@ -175,6 +175,8 @@ def plot_gp_fits_2d_surface(  # noqa: C901
     # Get metric names from the model
     metrics_names = list(model_bridge.metric_names)
 
+    observations_names_list = list(observations_names)
+
     def pred_helper_closure(
         metric_name: str,
     ) -> Callable[[Numpy2dArray], Numpy1dArray]:
@@ -223,8 +225,8 @@ def plot_gp_fits_2d_surface(  # noqa: C901
         )
         _ = fig.update_scenes(
             {
-                "xaxis": {"title": "x1"},
-                "yaxis": {"title": "x2"},
+                "xaxis": {"title": observations_names_list[0]},
+                "yaxis": {"title": observations_names_list[1]},
                 "zaxis": {"title": "response"},
             }
         )
@@ -242,7 +244,13 @@ def plot_gp_fits_2d_surface(  # noqa: C901
         for data in fig.data:
             _ = fig_subplots.add_trace(data, row=1, col=idx + 1)
 
-    _ = fig_subplots.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "response"}})
+    _ = fig_subplots.update_scenes(
+        {
+            "xaxis": {"title": observations_names_list[0]},
+            "yaxis": {"title": observations_names_list[1]},
+            "zaxis": {"title": "response"},
+        }
+    )
 
     # Remove the colorbar and legend from the subplots
     for trace in fig_subplots.data:
