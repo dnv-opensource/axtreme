@@ -138,7 +138,7 @@ QOI_ESTIMATOR = MarginalCDFExtrapolation(
     # random dataloader give different env samples for each instance
     env_iterable=dataloader,
     period_len=period_length,
-    quantile=torch.tensor(0.5),  # 0.9),
+    quantile=torch.tensor(0.5),
     quantile_accuracy=torch.tensor(0.01),
     # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
     posterior_sampler=posterior_sampler,
@@ -250,8 +250,6 @@ scores = scores.reshape(grid.shape[:-1])
 
 
 # %%
-# TODO(@henrikstoklandberg 2025-04-28): This is plot looks a bit suprising, should be investigated before the
-# we do the final DOE steps.
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
 _ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]  # pyright: ignore[reportUnnecessaryTypeIgnore]
@@ -266,7 +264,7 @@ print("max_score ", scores.max())
 # %% perform a round of optimisation using the under the hood optimiser
 candidate, result = optimize_acqf(
     acqusition,
-    bounds=torch.tensor([[7.5, 7.5], [20.0, 20.0]]),
+    bounds=torch.tensor([[0.0, 0.0], [1.0, 1.0]]),
     q=1,
     num_restarts=20,
     raw_samples=50,
