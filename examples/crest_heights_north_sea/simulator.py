@@ -4,9 +4,6 @@
 from typing import cast
 
 import numpy as np
-
-# TODO (@am-kaiser): Had to remove the if main part to make problem.py work
-# but we need to find a solution for the jupyter notebook example (AK 25-04-14)
 from usecase.axtreme_case import (  # type: ignore[import-not-found]
     Tm01_from_Tp_gamma,
     Tm02_from_Tp_gamma,
