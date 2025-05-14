@@ -18,8 +18,6 @@ from axtreme.simulator.utils import simulator_from_func
 
 def max_crest_height_simulator_function(
     x: np.ndarray[tuple[int, int], np.dtype[np.float64]],
-    water_depth: float = 110,
-    sample_period: float = 3,
 ) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
     """Generate the maximum crest height for an input environment x.
 
@@ -33,6 +31,10 @@ def max_crest_height_simulator_function(
     """
     hs = x[:, 0]
     tp = x[:, 1]
+
+    # water_depth and sample_period are fixed for the given problem
+    water_depth = 110  # in meters
+    sample_period = 3  # in hours
 
     gamma = gamma_rpc205(hs, tp)
     tm01 = Tm01_from_Tp_gamma(tp, gamma)  # mean wave period
@@ -88,6 +90,10 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
 
         hs = x[:, 0]
         tp = x[:, 1]
+
+        # water_depth and sample_period are fixed for the given problem
+        water_depth = 110  # in meters
+        sample_period = 3  # in hours
 
         gamma = gamma_rpc205(hs, tp)
         tm01 = Tm01_from_Tp_gamma(tp, gamma)  # mean wave period
