@@ -15,6 +15,10 @@ from usecase.wave_distributions import ForristallCrest  # type: ignore[import-no
 from axtreme.simulator.base import Simulator
 from axtreme.simulator.utils import simulator_from_func
 
+# water_depth and sample_period are fixed for the given problem
+WATER_DEPTH = 110  # in meters
+SAMPLE_PERIOD = 3  # in hours
+
 
 def max_crest_height_simulator_function(
     x: np.ndarray[tuple[int, int], np.dtype[np.float64]],
@@ -32,18 +36,14 @@ def max_crest_height_simulator_function(
     hs = x[:, 0]
     tp = x[:, 1]
 
-    # water_depth and sample_period are fixed for the given problem
-    water_depth = 110  # in meters
-    sample_period = 3  # in hours
-
     gamma = gamma_rpc205(hs, tp)
     tm01 = Tm01_from_Tp_gamma(tp, gamma)  # mean wave period
     tm02 = Tm02_from_Tp_gamma(tp, gamma)  # zero-crossing wave period
-    km01 = omega_to_k_rpc205(2 * np.pi / tm01, water_depth)  # mean wave number corresponding to tm01
+    km01 = omega_to_k_rpc205(2 * np.pi / tm01, WATER_DEPTH)  # mean wave number corresponding to tm01
 
-    num_waves_in_period = 3600 * sample_period / tm02
+    num_waves_in_period = 3600 * SAMPLE_PERIOD / tm02
 
-    forristall_crest = ForristallCrest(hs, tm01, km01, water_depth)
+    forristall_crest = ForristallCrest(hs, tm01, km01, WATER_DEPTH)
 
     # sample maximum crests in sample period
     c_max_in_period = forristall_crest.rvs_max(num_waves_in_period).ravel()
@@ -68,8 +68,6 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
         self,
         x: np.ndarray[tuple[int, int], np.dtype[np.float64]],
         n_simulations_per_point: int = 1,
-        water_depth: float = 110,
-        sample_period: float = 3,
     ) -> np.ndarray[tuple[int, int, int], np.dtype[np.float64]]:
         """Evaluate the model at given points with reproducible results.
 
@@ -91,22 +89,18 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
         hs = x[:, 0]
         tp = x[:, 1]
 
-        # water_depth and sample_period are fixed for the given problem
-        water_depth = 110  # in meters
-        sample_period = 3  # in hours
-
         gamma = gamma_rpc205(hs, tp)
         tm01 = Tm01_from_Tp_gamma(tp, gamma)  # mean wave period
         tm02 = Tm02_from_Tp_gamma(tp, gamma)  # zero-crossing wave period
-        km01 = omega_to_k_rpc205(2 * np.pi / tm01, water_depth)  # mean wave number corresponding to tm01
+        km01 = omega_to_k_rpc205(2 * np.pi / tm01, WATER_DEPTH)  # mean wave number corresponding to tm01
 
-        num_waves_in_period = 3600 * sample_period / tm02
+        num_waves_in_period = 3600 * SAMPLE_PERIOD / tm02
 
         for i, (hs_i, tm01_i, km01_i, num_waves_i, seed_i) in enumerate(
             zip(hs, tm01, km01, num_waves_in_period, seeds, strict=True)
         ):
             # Create ForristallCrest with the specific parameters for this point
-            forristall_crest = ForristallCrest(hs_i, tm01_i, km01_i, water_depth)
+            forristall_crest = ForristallCrest(hs_i, tm01_i, km01_i, WATER_DEPTH)
 
             # Sample maximum crests in sample period with the seeded random state
             samples = forristall_crest.rvs_max(num_waves_i, size=n_simulations_per_point, seed=seed_i)
