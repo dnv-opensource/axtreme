@@ -55,13 +55,20 @@ def max_crest_height_simulator_function(
 class MaxCrestHeightSimulatorSeeded(Simulator):
     """A seeded version of the max_crest_height_simulator_function conforming to the ``Simulator`` protocol.
 
-    The each unique point in the x domain has a fixed seed used when generating samples, which ensures
-    reproducibility. Points still appear "semi" random, as points close together use completely different
-    seeds.
+    Each unique point(before the 13th descimal) in the x domain has a fixed seed used when generating samples, which
+    ensures reproducibility. Points still appear "semi" random, as points close together use completely different
+    seeds. However running the simulator multiple times with the same input will produce the same results, but the
+    results apear to be random like running the simulator without seeding.
+
+    For a more detailed explanation of the seeding process, see the following issue #46:
+    https://github.com/orgs/dnv-opensource/projects/4/views/1?pane=issue&itemId=108180911&issue=dnv-opensource%7Caxtreme%7C46
+    Here plots are added to show the effect of this seeding process vs simply using a fixed seed.
 
     Details:
-        - Points which differ only after the 10th decimal place get the same random seed.
+        - Points which differ only after the 13th decimal place get the same random seed.
         - Co-ordinates at the same unique point will produce the exact same results.
+        - Points with even tiny differences produce completely different random sequences.
+        - The overall effect is random-appearing but reproducible results for testing.
     """
 
     def __call__(
@@ -115,7 +122,7 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
         return abs(hash(tuple(args)) % (2**32 - 1))
 
 
-# Test code (can be commented out or removed in production)
+# %%
 if __name__ == "__main__":
     # Quick and dirty tests:
     sim = simulator_from_func(max_crest_height_simulator_function)
@@ -138,8 +145,41 @@ if __name__ == "__main__":
     x1 = np.array([[2.0 + 1e-5, 8.0], [3.0, 9.0]])
     result3 = sim_seeded(x1, n_simulations_per_point=5)
     # Should have different values due to different seeds
+    print("result1", result1[0, 0, 0])
+    print("result3", result3[0, 0, 0])
     assert not np.allclose(result1, result3, atol=1e-3), "Different inputs should give different outputs"
 
     print("Tests passed!")
 
-# %%
+    # %%
+    # Plot the surface over a small area. If sample is not random the values should change slowly.
+    # If simulator is seeded with unique seeds for each point in the x domain, the values should appear random,
+    # but running the simulator multiple times should produce the same "random results".
+    x1 = np.linspace(10.5, 10.5 + 1e-8, 10)
+    x2 = np.linspace(10.5, 10.5 + 1e-8, 10)
+    # Create a grid of (x, y) points
+    x1_mesh, x2_mesh = np.meshgrid(x1, x2)
+    x = np.column_stack([x1_mesh.flatten(), x2_mesh.flatten()])
+
+    import matplotlib.pyplot as plt
+
+    # Plot the surface using the simulator with no seed
+    samples = sim(x).flatten()
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    _ = ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)), cmap="viridis")
+
+    samples_seeded1 = sim_seeded(x).flatten()
+    samples_seeded2 = sim_seeded(x).flatten()
+    assert (samples_seeded1 == samples_seeded2).all(), "Same input should give same output"
+
+    # Plot the 2 different seeded results
+    # The plots apear random, like in the simulator without seeding, but the results are the same
+    # for the same input in the second run
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    _ = ax.scatter(x1_mesh, x2_mesh, samples_seeded1.reshape(len(x1), len(x2)), cmap="viridis")
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+    _ = ax.scatter(x1_mesh, x2_mesh, samples_seeded2.reshape(len(x1), len(x2)), cmap="viridis")
