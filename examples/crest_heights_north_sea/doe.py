@@ -246,6 +246,7 @@ QOI_ESTIMATOR.outcome_transform = outcome_transform
 
 model = botorch_model_bridge.model.surrogate.model
 
+
 # %% How long does a single run take
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
@@ -262,6 +263,7 @@ x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(x_candidates)
 scores = scores.reshape(grid.shape[:-1])
+
 
 # %%
 fig = plt.figure(figsize=(10, 7))
