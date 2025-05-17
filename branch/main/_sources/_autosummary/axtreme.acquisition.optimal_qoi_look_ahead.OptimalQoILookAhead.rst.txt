@@ -1,0 +1,81 @@
+OptimalQoILookAhead
+===================
+
+.. currentmodule:: axtreme.acquisition.optimal_qoi_look_ahead
+
+.. autoclass:: OptimalQoILookAhead
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~OptimalQoILookAhead.__init__
+      ~OptimalQoILookAhead.add_module
+      ~OptimalQoILookAhead.apply
+      ~OptimalQoILookAhead.bfloat16
+      ~OptimalQoILookAhead.buffers
+      ~OptimalQoILookAhead.children
+      ~OptimalQoILookAhead.compile
+      ~OptimalQoILookAhead.cpu
+      ~OptimalQoILookAhead.cuda
+      ~OptimalQoILookAhead.double
+      ~OptimalQoILookAhead.eval
+      ~OptimalQoILookAhead.extra_repr
+      ~OptimalQoILookAhead.fantasy_observations
+      ~OptimalQoILookAhead.float
+      ~OptimalQoILookAhead.forward
+      ~OptimalQoILookAhead.get_buffer
+      ~OptimalQoILookAhead.get_extra_state
+      ~OptimalQoILookAhead.get_parameter
+      ~OptimalQoILookAhead.get_submodule
+      ~OptimalQoILookAhead.half
+      ~OptimalQoILookAhead.ipu
+      ~OptimalQoILookAhead.load_state_dict
+      ~OptimalQoILookAhead.lookahead
+      ~OptimalQoILookAhead.modules
+      ~OptimalQoILookAhead.named_buffers
+      ~OptimalQoILookAhead.named_children
+      ~OptimalQoILookAhead.named_modules
+      ~OptimalQoILookAhead.named_parameters
+      ~OptimalQoILookAhead.parameters
+      ~OptimalQoILookAhead.register_backward_hook
+      ~OptimalQoILookAhead.register_buffer
+      ~OptimalQoILookAhead.register_forward_hook
+      ~OptimalQoILookAhead.register_forward_pre_hook
+      ~OptimalQoILookAhead.register_full_backward_hook
+      ~OptimalQoILookAhead.register_full_backward_pre_hook
+      ~OptimalQoILookAhead.register_load_state_dict_post_hook
+      ~OptimalQoILookAhead.register_module
+      ~OptimalQoILookAhead.register_parameter
+      ~OptimalQoILookAhead.register_state_dict_pre_hook
+      ~OptimalQoILookAhead.requires_grad_
+      ~OptimalQoILookAhead.set_X_pending
+      ~OptimalQoILookAhead.set_extra_state
+      ~OptimalQoILookAhead.share_memory
+      ~OptimalQoILookAhead.state_dict
+      ~OptimalQoILookAhead.to
+      ~OptimalQoILookAhead.to_empty
+      ~OptimalQoILookAhead.train
+      ~OptimalQoILookAhead.type
+      ~OptimalQoILookAhead.xpu
+      ~OptimalQoILookAhead.zero_grad
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~OptimalQoILookAhead.T_destination
+      ~OptimalQoILookAhead.call_super_init
+      ~OptimalQoILookAhead.dump_patches
+      ~OptimalQoILookAhead.training
+   
+   
