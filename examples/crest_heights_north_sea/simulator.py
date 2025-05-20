@@ -57,8 +57,7 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
 
     Each unique point(before the 13th descimal) in the x domain has a fixed seed used when generating samples, which
     ensures reproducibility. Points still appear "semi" random, as points close together use completely different
-    seeds. However running the simulator multiple times with the same input will produce the same results, but the
-    results apear to be random like running the simulator without seeding.
+    seeds.
 
     For a more detailed explanation of the seeding process, see the following issue #46:
     https://github.com/orgs/dnv-opensource/projects/4/views/1?pane=issue&itemId=108180911&issue=dnv-opensource%7Caxtreme%7C46
