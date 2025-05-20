@@ -80,8 +80,6 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
         Args:
             x: An array of shape (n_points, n_input_dims) of points at which to evaluate the model.
             n_simulations_per_point: The number of simulations to run at each point.
-            water_depth: in meters
-            sample_period: in hours
         Returns:
             An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
             points.
