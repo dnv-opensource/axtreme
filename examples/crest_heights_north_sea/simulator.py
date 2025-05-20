@@ -116,6 +116,7 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
     @staticmethod
     def _hash_function(*args: float) -> int:
         """Hash float arguments to a number between 0 and 2**32 - 1."""
+        # Hash can be non-deterministic between python sessions, but not for floats and ints
         return abs(hash(tuple(args)) % (2**32 - 1))
 
 
