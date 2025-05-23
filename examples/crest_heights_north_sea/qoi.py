@@ -6,17 +6,9 @@ import matplotlib.pyplot as plt
 import torch
 from ax import (
     Experiment,
-    SearchSpace,
 )
-from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
-from problem import (  # type: ignore[import-not-found]
-    DIST,
-    brut_force_qoi,
-    dataset,
-    period_length,
-    sim,
-)
+from problem import DIST, SEARCH_SPACE, brute_force_qoi, dataset, period_length, sim  # type: ignore[import-not-found]
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
 
@@ -37,25 +29,14 @@ posterior_sampler = UTSampler()
 qoi_estimator = MarginalCDFExtrapolation(
     env_iterable=dataloader,
     period_len=period_length,
-    quantile=torch.tensor(0.5),
+    quantile=torch.exp(torch.tensor(-1)),
     quantile_accuracy=torch.tensor(0.01),
     posterior_sampler=posterior_sampler,
 )
 
+
 # %%
 # Set up experiment
-
-## Pick the search space over which to create a surrogate
-# TODO (@am-kaiser): this is for now limited to not get issues with nans in simulator (25-04-25)
-SEARCH_SPACE = SearchSpace(
-    parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-    ],
-)
-
-
-# %%
 def make_exp() -> Experiment:
     """Convenience function returns a fresh Experiment of this problem."""
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=1000)
@@ -116,7 +97,7 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
-    ax.axvline(brut_force_qoi, c="orange", label="Brute force results")
+    ax.axvline(brute_force_qoi, c="orange", label="Brute force results")
 
     ax.set_title(f"QoI estimate with {n_points} training points")
     ax.set_xlabel("Response")
