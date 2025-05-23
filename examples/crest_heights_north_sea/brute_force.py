@@ -1,4 +1,4 @@
-"""Obtain a brute force estimate of the Extreme Response Distribution (ERD)."""
+"""Obtain a brute force estimate of the extreme Response Distribution (ERD)."""
 
 # %%
 import json
@@ -83,7 +83,7 @@ def collect_or_calculate_results(
 
 
 def brute_force(period_length: int, num_estimates: int = 2_000) -> tuple[Tensor, Tensor]:
-    """Produces brute force samples of the Extreme Response Distribution.
+    """Produces brute force samples of the extreme Response Distribution.
 
     Args:
         period_length: The number of samples that create a single period of the ERD
@@ -149,48 +149,48 @@ class FileNotFoundCustomError(Exception):
     """Exception raised when the brute force file is not found."""
 
 
-def create_extrem_value_location_scatter_plot(brut_force_file_name: str) -> None:
-    """Make scatter plot of the extrem value location.
+def create_extreme_value_location_scatter_plot(brute_force_file_name: str) -> None:
+    """Make scatter plot of the extreme value location.
 
     The plot shows where in the (Hs, Tp) the maxima of c_max occured
-    when using the brut force approach.
+    when using the brute force approach.
 
     Args:
-        brut_force_file_name: file name where the brutforce results are stored.
+        brute_force_file_name: file name where the brute force results are stored.
     """
-    brut_force_file_path = _results_dir / brut_force_file_name
-    if brut_force_file_path.exists():
-        with brut_force_file_path.open() as fp:
+    brute_force_file_path = _results_dir / brute_force_file_name
+    if brute_force_file_path.exists():
+        with brute_force_file_path.open() as fp:
             results = json.load(fp)
             max_location = torch.tensor(results["env_data"])
     else:
-        raise FileNotFoundCustomError(f"File {brut_force_file_path} not found.")
+        raise FileNotFoundCustomError(f"File {brute_force_file_path} not found.")
 
     _ = plt.scatter(max_location[:, 0], max_location[:, 1], s=1, alpha=0.5)
-    _ = plt.title("Extrem value location")  # type: ignore[assignment]
+    _ = plt.title("extreme value location")  # type: ignore[assignment]
     _ = plt.xlabel("Hs")  # type: ignore[assignment]
     _ = plt.ylabel("Tp")  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003
 
-    plt.savefig(str(brut_force_file_path).replace(".json", "_scatter.png"))
+    plt.savefig(str(brute_force_file_path).replace(".json", "_scatter.png"))
 
 
-def create_extrem_value_location_kde_plot(brut_force_file_name: str) -> None:
-    """Make KDE (kernel density estimate) plot of the extrem value location.
+def create_extreme_value_location_kde_plot(brute_force_file_name: str) -> None:
+    """Make KDE (kernel density estimate) plot of the extreme value location.
 
     The plot shows where in the (Hs, Tp) the maxima of c_max occured
-    when using the brut force approach.
+    when using the brute force approach.
 
     Args:
-        brut_force_file_name: file name where the brutforce results are stored.
+        brute_force_file_name: file name where the bruteforce results are stored.
     """
-    brut_force_file_path = _results_dir / brut_force_file_name
-    if brut_force_file_path.exists():
-        with brut_force_file_path.open() as fp:
+    brute_force_file_path = _results_dir / brute_force_file_name
+    if brute_force_file_path.exists():
+        with brute_force_file_path.open() as fp:
             results = json.load(fp)
             max_location = pd.DataFrame(results["env_data"], columns=["Hs", "Tp"])
     else:
-        raise FileNotFoundCustomError(f"File {brut_force_file_path} not found.")
+        raise FileNotFoundCustomError(f"File {brute_force_file_path} not found.")
 
     _ = sns.kdeplot(
         data=max_location,
@@ -198,11 +198,11 @@ def create_extrem_value_location_kde_plot(brut_force_file_name: str) -> None:
         y="Tp",
         fill=True,
     )
-    _ = plt.title("Extrem value location")  # type: ignore[assignment]
+    _ = plt.title("extreme value location")  # type: ignore[assignment]
     _ = plt.xlabel("Hs")  # type: ignore[assignment]
     _ = plt.ylabel("Tp")  # type: ignore[assignment]
 
-    plt.savefig(str(brut_force_file_path).replace(".json", "_kde.png"))
+    plt.savefig(str(brute_force_file_path).replace(".json", "_kde.png"))
 
 
 # %%
@@ -215,29 +215,31 @@ if __name__ == "__main__":
 
     # %%
     # Get brute force QOI for a large number of estimates
-    extrem_response_values, extrem_response_mean, extrem_response_var = collect_or_calculate_results(
+    extreme_response_values, extreme_response_mean, extreme_response_var = collect_or_calculate_results(
         period_length,
         num_estimates=100_000,
     )
 
     # %%
-    print(f"Brute force median: {extrem_response_values.median()}")
-    print(f"Brute force exp(-1) quantile: {torch.quantile(extrem_response_values, np.exp(-1))}")
+    print(f"brute force median: {extreme_response_values.median()}")
+    print(f"brute force exp(-1) quantile: {torch.quantile(extreme_response_values, np.exp(-1))}")
 
     # %%
     # Plot brute force QOI
-    _ = plt.hist(extrem_response_values, bins=100, density=True)
+    _ = plt.hist(extreme_response_values, bins=100, density=True)
     _ = plt.title("R-year return value distribution")  # type: ignore[assignment]
     _ = plt.xlabel("R-year return value")  # type: ignore[assignment]
     _ = plt.ylabel("Density")  # type: ignore[assignment]
-    _ = plt.axvline(extrem_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
-    _ = plt.axvline(extrem_response_values.median().item(), color="purple", label="median")  # type: ignore[assignment]
-    _ = plt.axvline(torch.quantile(extrem_response_values, np.exp(-1)).item(), color="orange", label="exp(-1) quantile")  # type: ignore[assignment]
+    _ = plt.axvline(extreme_response_mean.item(), color="red", label="mean")  # type: ignore[assignment]
+    _ = plt.axvline(extreme_response_values.median().item(), color="purple", label="median")  # type: ignore[assignment]
+    _ = plt.axvline(
+        torch.quantile(extreme_response_values, np.exp(-1)).item(), color="orange", label="exp(-1) quantile"
+    )  # type: ignore[assignment]
     _ = plt.legend()  # type: ignore[assignment]
     plt.grid(True)  # noqa: FBT003
 
     # %%
-    # Analyse uncertainty in brut force estimate using both median and exp(-1) qunatile
+    # Analyse uncertainty in brute force estimate using both median and exp(-1) qunatile
     results_median = []
     results_quantile = []
     brute_force_samples = [1_000, 2_000, 4_000, 8_000, 16_000]
@@ -247,8 +249,8 @@ if __name__ == "__main__":
         # How many times to calc the median
         for _idx in range(200):
             # sample with replacement
-            random_indices = torch.randint(0, len(extrem_response_values), (n_samples,))
-            sampled_tensor = extrem_response_values[random_indices]
+            random_indices = torch.randint(0, len(extreme_response_values), (n_samples,))
+            sampled_tensor = extreme_response_values[random_indices]
             medians_from_samples_size.append(sampled_tensor.median())
             quantiles_from_samples_size.append(torch.quantile(sampled_tensor, np.exp(-1)))
 
@@ -272,12 +274,12 @@ if __name__ == "__main__":
             f"QOI calculated with {sample_size} erd samples\nmean (of exp(-1) quantile)"
             f" {quantile.mean():.3f}. std {quantile.std():.3f}"
         )
-    # %% Plot scatter plot of brut force solution for extrem value location
-    create_extrem_value_location_scatter_plot(f"{int(period_length)}_period_length.json")
+    # %% Plot scatter plot of brute force solution for extreme value location
+    create_extreme_value_location_scatter_plot(f"{int(period_length)}_period_length.json")
 
-    # %% Plot kde plot of brut force solution for extrem value location
+    # %% Plot kde plot of brute force solution for extreme value location
     # Note: Is very slow especially for large datasets
-    create_extrem_value_location_kde_plot(f"{int(period_length)}_period_length.json")
+    create_extreme_value_location_kde_plot(f"{int(period_length)}_period_length.json")
 
 
 # %%
