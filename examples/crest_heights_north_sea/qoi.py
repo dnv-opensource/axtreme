@@ -21,7 +21,7 @@ from axtreme.utils import population_estimators, transforms
 
 # %%
 ## A random dataloader give different env samples for each instance
-sampler = FixedRandomSampler(dataset, num_samples=1000, seed=10, replacement=True)  # type: ignore[arg-type]
+sampler = FixedRandomSampler(dataset, num_samples=1000, seed=10, replacement=True)
 dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 
 posterior_sampler = UTSampler()
