@@ -26,7 +26,7 @@ from ax import (
     Experiment,
     SearchSpace,
 )
-from ax.core import ParameterType, RangeParameter
+from ax.core import ParameterConstraint, ParameterType, RangeParameter
 from brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
@@ -38,13 +38,17 @@ from axtreme.experiment import make_experiment
 
 # %%
 # Pick the search space over which to create a surrogate
-# TODO(@henrikstoklandberg): Decide on the search space.
-# For now this is based on the min and max of the env data/long_term_distribution.npy
+hs_bounds = [0.1, 30]
+tp_bounds = [1, 30]
 SEARCH_SPACE = SearchSpace(
     parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=17),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=0, upper=32),
-    ]
+        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=hs_bounds[0], upper=hs_bounds[1]),
+        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=tp_bounds[0], upper=tp_bounds[1]),
+    ],
+    parameter_constraints=[
+        # Linear constraint: Hs + Tp.lower_bound <= 1.5 Tp
+        ParameterConstraint(constraint_dict={"Hs": 1, "Tp": -1.5}, bound=-tp_bounds[0]),
+    ],
 )
 
 # %%
