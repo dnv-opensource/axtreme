@@ -81,7 +81,7 @@ def make_exp() -> Experiment:
 # Get brute force QOI for this problem and period
 extreme_response_values, _ = collect_or_calculate_results(
     period_length,
-    num_estimates=100,  # each estimate draws a period_length samples
+    num_estimates=100_000,  # each estimate draws a period_length samples
 )
 
 # Exp(-1) quantile of the ERD is used to convert to the "return value"
