@@ -36,24 +36,26 @@ class ResultsObject:
     @classmethod
     def from_samples(cls, samples: torch.Tensor, env_data: torch.Tensor) -> "ResultsObject":
         """Create the object directly from samples."""
-        statistics = {"median": float(samples.median()), "mean": float(samples.mean())}
+        statistics = {"median": float(samples.median()), "mean": float(samples.mean()), "n_samples": samples.shape[0]}
         return ResultsObject(statistics=statistics, samples=samples.tolist(), env_data=env_data.tolist())
 
 
 def collect_or_calculate_results(
     period_length: int,
     num_estimates: int = 2_000,
-) -> tuple[Tensor, Tensor, Tensor]:
-    """Return a saved result for the desired length of time if available, otherwise calculate the result.
+) -> tuple[Tensor, Tensor]:
+    """Return a saved result for the desired period length if available, otherwise calculate the result.
 
-    New results will also be saved within this directory.
+    New results will also be saved to json.
 
     Args:
-        period_length: The number of samples that create a single period of the ERD
-        num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
+        period_length: The number of environment samples that create a single period of the ERD
+        num_estimates: The number of ERD samples to create. A new period is drawn for each estimate.
 
     Returns:
-        The QoI values calculated for each period. Shape (num_estimates,)
+        Tuple of:
+            ERD samples: (num_estimates,) samples of the ERD for that period length. QoIs can be calculated from this.
+            X_max: (num_estimates, d) The location in the environments space that produced the ERD sample.
     """
     results_path = _results_dir / f"{int(period_length)}_period_length.json"
 
@@ -80,19 +82,22 @@ def collect_or_calculate_results(
             json.dump(asdict(ResultsObject.from_samples(samples, max_location)), fp)
     elif len(samples) > num_estimates:
         samples = samples[:num_estimates]
+        max_location = max_location[:num_estimates]
 
-    return samples, samples.mean(), samples.var()
+    return samples, max_location
 
 
 def brute_force(period_length: int, num_estimates: int = 2_000) -> tuple[Tensor, Tensor]:
-    """Produces brute force samples of the extreme Response Distribution.
+    """Produces brute force samples of the Extreme Response Distribution.
 
     Args:
         period_length: The number of samples that create a single period of the ERD
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
     Returns:
-        The QoI values calculated for each period. Shape (num_estimates,)
+        Tuple of:
+            ERD samples: (num_estimates,) samples of the ERD for that period length. QoIs can be calculated from this.
+            X_max: (num_estimates, d) The location in the environments space that produced the ERD sample.
     """
     data: NDArray[np.float64] = np.load(Path(__file__).parent / "usecase" / "data" / "long_term_distribution.npy")
     dataset = TensorDataset(torch.Tensor(data))
@@ -110,7 +115,9 @@ def _brute_force_calc(
     dataloader: DataLoader[tuple[Tensor, ...]],
     num_estimates: int = 2_000,
 ) -> tuple[Tensor, Tensor]:
-    """Calculate the QOI by brute force by splitting the data into batches.
+    """Generate samples of the ERD via brute force.
+
+    Run the simulator on many periods of environment data, extract the max value for each period.
 
     Args:
         dataloader: The dataloader to use to get the environment samples.
@@ -118,13 +125,19 @@ def _brute_force_calc(
              - The sum of the batch sizes returned by iterating through the dataloader should be a return period
              - To get different results for each brute force estimate, the dataloader needs to give different
                data each time it is iterated through. This can be done by using e.g a RandomSampler.
+             - dataset is expected to be a TensorDataset (which wraps index results in a tuple)
         num_estimates: The number of brute force estimates of the QoI. A new period is drawn for each estimate.
 
     Returns:
-        The QoI values calculated for each period. Shape (num_estimates,)
+        Tuple of:
+            ERD samples: (num_estimates,) samples of the ERD for that period length. QoIs can be calculated from this.
+            X_max: (num_estimates, d) The location in the environments space that produced the ERD sample.
     """
     maxs = torch.zeros(num_estimates)
-    maxs_location = []
+
+    _, d = next(iter(dataloader))[0].shape
+    maxs_location = torch.zeros(num_estimates, d)
+
     for i in tqdm.tqdm(range(num_estimates)):
         current_max = float("-inf")
 
@@ -132,7 +145,9 @@ def _brute_force_calc(
         for batch in dataloader:
             samples = batch[0].to("cpu").numpy()
 
-            simulator_samples: np.ndarray[tuple[int,], Any] = max_crest_height_simulator_function(samples)  # type: ignore  # noqa: PGH003
+            simulator_samples: np.ndarray[tuple[int, int], np.dtype[np.float64]] = max_crest_height_simulator_function(
+                samples
+            )
 
             simulator_samples_max = simulator_samples.max()
             if simulator_samples_max > current_max:
@@ -140,33 +155,26 @@ def _brute_force_calc(
 
                 # Get env data corresponding to max(c_max)
                 max_index = np.argmax(simulator_samples)
-                maxs_location.append(samples[max_index, :])
+                maxs_location[i] = torch.tensor(samples[max_index, :])
 
         maxs[i] = current_max
 
-    return torch.FloatTensor(maxs), torch.FloatTensor(maxs_location)
-
-
-class FileNotFoundCustomError(Exception):
-    """Exception raised when the brute force file is not found."""
+    return maxs, maxs_location
 
 
 def create_extreme_value_location_scatter_plot(brute_force_file_name: str) -> None:
     """Make scatter plot of the extreme value location.
 
-    The plot shows where in the (Hs, Tp) the maxima of c_max occured
-    when using the brute force approach.
+    The plot shows where in the (Hs, Tp) the maxima of c_max occurred when using the brute force approach.
 
     Args:
         brute_force_file_name: file name where the brute force results are stored.
     """
     brute_force_file_path = _results_dir / brute_force_file_name
-    if brute_force_file_path.exists():
-        with brute_force_file_path.open() as fp:
-            results = json.load(fp)
-            max_location = torch.tensor(results["env_data"])
-    else:
-        raise FileNotFoundCustomError(f"File {brute_force_file_path} not found.")
+
+    with brute_force_file_path.open("r") as fp:
+        results = json.load(fp)
+        max_location = torch.tensor(results["env_data"])
 
     _ = plt.scatter(max_location[:, 0], max_location[:, 1], s=1, alpha=0.5)
     _ = plt.title("extreme value location")
@@ -180,19 +188,16 @@ def create_extreme_value_location_scatter_plot(brute_force_file_name: str) -> No
 def create_extreme_value_location_kde_plot(brute_force_file_name: str) -> None:
     """Make KDE (kernel density estimate) plot of the extreme value location.
 
-    The plot shows where in the (Hs, Tp) the maxima of c_max occured
-    when using the brute force approach.
+    The plot shows where in the (Hs, Tp) the maxima of c_max occurred when using the brute force approach.
 
     Args:
-        brute_force_file_name: file name where the bruteforce results are stored.
+        brute_force_file_name: file name where the brute force results are stored.
     """
     brute_force_file_path = _results_dir / brute_force_file_name
-    if brute_force_file_path.exists():
-        with brute_force_file_path.open() as fp:
-            results = json.load(fp)
-            max_location = pd.DataFrame(results["env_data"], columns=["Hs", "Tp"])
-    else:
-        raise FileNotFoundCustomError(f"File {brute_force_file_path} not found.")
+
+    with brute_force_file_path.open("r") as fp:
+        results = json.load(fp)
+        max_location = pd.DataFrame(results["env_data"], columns=["Hs", "Tp"])
 
     _ = sns.kdeplot(
         data=max_location,
@@ -209,7 +214,6 @@ def create_extreme_value_location_kde_plot(brute_force_file_name: str) -> None:
 
 # %% The following produces and analyses the brute fore estimate
 if __name__ == "__main__":
-    # %%
     # Set parameters for simulation
     year_return_value = 10
     n_sea_states_in_year = 2922
@@ -217,9 +221,9 @@ if __name__ == "__main__":
 
     # %%
     # Get brute force QOI for a large number of estimates
-    extreme_response_values, extreme_response_mean, extreme_response_var = collect_or_calculate_results(
+    extreme_response_values, extreme_response_env = collect_or_calculate_results(
         period_length,
-        num_estimates=100_000,
+        num_estimates=100_001,
     )
 
     # %%
@@ -231,7 +235,7 @@ if __name__ == "__main__":
     _ = plt.title("R-year return value distribution")
     _ = plt.xlabel("R-year return value")
     _ = plt.ylabel("Density")
-    _ = plt.axvline(extreme_response_mean.item(), color="red", label="mean")
+    _ = plt.axvline(extreme_response_values.mean().item(), color="red", label="mean")
     _ = plt.axvline(extreme_response_values.median().item(), color="purple", label="median")
     _ = plt.axvline(
         torch.quantile(extreme_response_values, np.exp(-1)).item(), color="orange", label="exp(-1) quantile"
