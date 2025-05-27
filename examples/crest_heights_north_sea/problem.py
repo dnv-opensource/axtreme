@@ -5,7 +5,7 @@
 As users of the axtreme package we always need to:
 1) Define the search space our problem lies within.
 2) Define distribution we want to use to represent the output of the simulator.
-3) Combine these with the simulator to create an Ax experiement.
+3) Combine these with the simulator to create an Ax experiment.
 
 Todo: TODO:
 - (sw 2024_09_15): Once defined in this module, everything should be treated as a constant. Should all public things be
@@ -25,6 +25,7 @@ from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
 from torch.utils.data import Dataset
+from usecase.env_data import collect_data
 
 from axtreme.data.dataset import MinimalDataset
 from axtreme.experiment import make_experiment
@@ -55,9 +56,7 @@ sim = MaxCrestHeightSimulator()
 # %%
 # Load environment data
 problem_dir = Path(__file__).resolve().parent
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
-    np.load(problem_dir / "usecase" / "data" / "long_term_distribution.npy")
-)
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(collect_data().to_numpy())
 # %%
 # Convert usecase specific naming conventions to ax conventions
 year_return_value = 10
@@ -71,10 +70,10 @@ period_length = year_return_value * n_sea_states_in_year
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
-    """Convenience function returns a fresh Experiement of this problem."""
-    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
+    """Convenience function returns a fresh Experiment of this problem."""
+    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acquisition
     # Functions are working on the same problem and are comparable
-    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)
+    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=30)
 
 
 # %%
