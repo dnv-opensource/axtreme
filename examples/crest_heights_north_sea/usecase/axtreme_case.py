@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as scst
 
-from wave_distributions import ForristallCrest
-
 
 def omega_to_k_rpc205(om, h):
     g = 9.81
@@ -71,6 +69,23 @@ def sample_from_f_hs(prms, size, seed):
     return scst.weibull_min.rvs(c, loc=loc, scale=scale, size=size, random_state=seed)
 
 
+def pdf_hs_tp(hs, tp, weib_prms, lognorm_prms):
+    a1, a2, a3, b1, b2, b3 = lognorm_prms
+    c, loc, scale = weib_prms
+
+    def mu(h, a1, a2, a3):
+        return a1 + a2 * h**a3
+
+    def sig(h, b1, b2, b3):
+        return np.sqrt(b1 + b2 * np.exp(-b3 * h))
+
+    pdf_hs = scst.weibull_min.pdf(hs, c, loc=loc, scale=scale)
+
+    pdf_tp = scst.lognorm.pdf(tp, s=sig(hs, b1, b2, b3), loc=0.0, scale=np.exp(mu(hs, a1, a2, a3)))
+
+    return pdf_hs * pdf_tp
+
+
 def sample_seastates(n_ss, weib_prms, lognorm_prms, seed=None, hslim=0):
     hs = sample_from_f_hs(weib_prms, n_ss, seed)
     # sample only above hslim
@@ -83,6 +98,8 @@ def sample_seastates(n_ss, weib_prms, lognorm_prms, seed=None, hslim=0):
 
 # %%
 if __name__ == "__main__":
+    from wave_distributions import ForristallCrest
+
     weib_prms = (1.2550, 0.5026, 1.9536)
     lognorm_prms = (1.557, 0.403, 0.408, 0.005, 0.137, 0.454)
     h = 110  # water depth 110 m
