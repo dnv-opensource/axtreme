@@ -24,11 +24,13 @@ from brute_force import collect_or_calculate_results  # type: ignore[import-not-
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from usecase.env_data import collect_data
 
-from axtreme.data.dataset import MinimalDataset
+from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.experiment import make_experiment
+from axtreme.qoi import MarginalCDFExtrapolation
+from axtreme.sampling.ut_sampler import UTSampler
 
 # %%
 # Pick the search space over which to create a surrogate
@@ -88,5 +90,27 @@ extreme_response_values, _ = collect_or_calculate_results(
 # This is based on discussion with Odin, and the following paper: https://www.duo.uio.no/bitstream/handle/10852/101693/JOMAE2022_TSsim_rev1.pdf?sequence=1
 brute_force_qoi = torch.quantile(extreme_response_values, np.exp(-1))
 
+# %% This is the result of `create_importance_samples.py` script.
+importance_samples = torch.load("results/importance_sampling/importance_samples.pt", weights_only=True)
+importance_weights = torch.load("results/importance_sampling/importance_weights.pt", weights_only=True)
+importance_dataset = ImportanceAddedWrapper(MinimalDataset(importance_samples), MinimalDataset(importance_weights))
+# %% This is based on the analysis performed in `qoi_bias_var.py` script.
+sampler = FixedRandomSampler(
+    importance_dataset,
+    num_samples=8_000,
+    seed=10,  # NOTE: we set a seed here for reproducibility, but this has not been cherry picked.
+    replacement=True,
+)
+dataloader = DataLoader(importance_dataset, sampler=sampler, batch_size=256)
+
+posterior_sampler = UTSampler()
+
+# NOTE: While a constant, the input and output transforms still need to be attached for unique model the QoI runs on.
+QOI_ESTIMATOR = MarginalCDFExtrapolation(
+    env_iterable=dataloader,
+    period_len=period_length,
+    quantile=torch.exp(torch.tensor(-1)),
+    quantile_accuracy=torch.tensor(0.01),
+    posterior_sampler=posterior_sampler,
+)
 # %%
-# TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
