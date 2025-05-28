@@ -7,13 +7,8 @@ As users of the axtreme package we always need to:
 2) Define distribution we want to use to represent the output of the simulator.
 3) Combine these with the simulator to create an Ax experiement.
 
-Convience items also defined here:
-- importance datasets generated.
-
-Guidance for creating/choosing the above is provided in `tutorials` (@melih)
-
 Todo: TODO:
-- (sw 2024_09_15): Once defined in this module, everything should be trated as a constant. Should all public things be
+- (sw 2024_09_15): Once defined in this module, everything should be treated as a constant. Should all public things be
 upper case? or is it enough that we all that stuff in problem is constant?
 """
 
@@ -85,9 +80,9 @@ def make_exp() -> Experiment:
 
 # %%
 # Get brute force QOI for this problem and period
-extreme_response_values, extreme_response_mean, extreme_response_variance = collect_or_calculate_results(
+extreme_response_values, _ = collect_or_calculate_results(
     period_length,
-    num_estimates=100,  # each estimate draws a period_length samples
+    num_estimates=100_000,  # each estimate draws a period_length samples
 )
 
 # Exp(-1) quantile of the ERD is used to convert to the "return value"
