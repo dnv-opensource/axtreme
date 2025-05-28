@@ -22,10 +22,8 @@ upper case? or is it enough that we all that stuff in problem is constant?
 from pathlib import Path
 
 import numpy as np
-from ax import (
-    Experiment,
-    SearchSpace,
-)
+import torch
+from ax import Experiment, ParameterConstraint, SearchSpace
 from ax.core import ParameterType, RangeParameter
 from brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
 from numpy.typing import NDArray
@@ -38,13 +36,17 @@ from axtreme.experiment import make_experiment
 
 # %%
 # Pick the search space over which to create a surrogate
-# TODO(@henrikstoklandberg): Decide on the search space.
-# For now this is based on the min and max of the env data/long_term_distribution.npy
+hs_bounds = [0.1, 30]
+tp_bounds = [1, 30]
 SEARCH_SPACE = SearchSpace(
     parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=0, upper=17),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=0, upper=32),
-    ]
+        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=hs_bounds[0], upper=hs_bounds[1]),
+        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=tp_bounds[0], upper=tp_bounds[1]),
+    ],
+    parameter_constraints=[
+        # Linear constraint: Hs + Tp.lower_bound <= 1.5 Tp
+        ParameterConstraint(constraint_dict={"Hs": 1, "Tp": -1.5}, bound=-tp_bounds[0]),
+    ],
 )
 
 # %%
@@ -70,12 +72,6 @@ n_sea_states_in_year = 2922
 # which is in this use case the number of sea states in the desired return period
 period_length = year_return_value * n_sea_states_in_year
 
-# %%
-# Set axtreme specific parameters
-num_estimates = 20  # The number of brute force estimates of the QoI. A new period is drawn for each estimate.
-
-year_return_value = 10
-
 
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
@@ -86,15 +82,17 @@ def make_exp() -> Experiment:
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)
 
 
-exp = make_exp()
 # %%
 # Get brute force QOI for this problem and period
-extrem_response_values, extrem_response_mean, extrem_response_variance = collect_or_calculate_results(
+extreme_response_values, extreme_response_mean, extreme_response_variance = collect_or_calculate_results(
     period_length,
-    num_estimates=num_estimates,
+    num_estimates=100,  # each estimate draws a period_length samples
 )
 
-brut_force_qoi = np.median(extrem_response_values)
+# Exp(-1) quantile of the ERD is used to convert to the "return value"
+# For example: the exp(-1) quantile of the 20 year period ERD give the 20 year return value.
+# This is based on discussion with Odin, and the following paper: https://www.duo.uio.no/bitstream/handle/10852/101693/JOMAE2022_TSsim_rev1.pdf?sequence=1
+brute_force_qoi = torch.quantile(extreme_response_values, np.exp(-1))
 
 # %%
 # TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
