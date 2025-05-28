@@ -81,6 +81,7 @@ env_data: NDArray[np.float64] = raw_data.to_numpy()
 
 # %%
 # Bruteforce estimate placeholder
+# TODO(@henrikstoklandberg 2025-05-09): Add more sophisticated brute force estimate of the QoI when ready
 n_erd_samples = 1000
 erd_samples = []
 for _ in range(n_erd_samples):
@@ -102,7 +103,7 @@ def run_trials(
     warm_up_runs: int = 3,
     doe_runs: int = 15,
 ) -> None:
-    """Helper function for running  trials for an experiment and returning the QOI results using QoI metric.
+    """Helper function for running trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
         experiment: Experiment to perform DOE on.
@@ -259,6 +260,7 @@ scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
 point_per_dim = 21
+
 # Acquisition function operates in the model space, so we feed the model space to the acquisition function.
 Hs = torch.linspace(0, 1, point_per_dim)
 Tp = torch.linspace(0, 1, point_per_dim)
@@ -406,6 +408,3 @@ _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  
 _ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
 _ = ax.set_ylabel("Response")  # type: ignore[assignment]
 _ = ax.legend()  # type: ignore[assignment]
-
-
-# %%
