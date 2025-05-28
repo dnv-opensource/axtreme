@@ -27,8 +27,6 @@ def max_crest_height_simulator_function(
 
     Parameters:
         x: (n,2) array of points to simulate, corresponds to hs (significant wave height) and tp (peak wave period)
-        water_depth: in meters
-        sample_period: in hours
 
     Returns:
         *(n,1) array of the simulator results for that point
@@ -80,6 +78,7 @@ class MaxCrestHeightSimulatorSeeded(Simulator):
         Args:
             x: An array of shape (n_points, n_input_dims) of points at which to evaluate the model.
             n_simulations_per_point: The number of simulations to run at each point.
+
         Returns:
             An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
             points.
