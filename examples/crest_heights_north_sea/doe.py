@@ -7,9 +7,8 @@ import pandas as pd
 import torch
 from ax import (
     Experiment,
-    SearchSpace,
 )
-from ax.core import GeneratorRun, ParameterType, RangeParameter
+from ax.core import GeneratorRun
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
@@ -19,9 +18,9 @@ from brute_force_loc_and_scale_estimates import (  # type: ignore[import-not-fou
 from numpy.typing import NDArray
 from problem import (  # type: ignore[import-not-found]
     DIST,
-    # make_exp,
+    SEARCH_SPACE,
+    make_exp,
     period_length,
-    sim,
 )
 from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 from torch.utils.data import DataLoader
@@ -30,7 +29,7 @@ from usecase.env_data import collect_data  # type: ignore[import-not-found]
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead
 from axtreme.data import FixedRandomSampler, MinimalDataset
-from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
+from axtreme.experiment import add_sobol_points_to_experiment
 from axtreme.metrics import QoIMetric
 from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment
@@ -44,24 +43,6 @@ device = "cpu"
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 
 # %%
-# TODO(@henrikstoklandberg 2025-04-28): Update the search space to match the problem once we decide on the search space.
-# For now a square search space is used, as we get Nan values from the simulator if we use the current search space in
-# problem.py as of 2025-04-28.
-search_space = SearchSpace(
-    parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-    ]
-)
-
-
-# To handle the difference in search space configuration between the problem and the DOE, a custom make experiment
-# function is also needed.
-def make_exp() -> Experiment:
-    """Convenience function returns a fresh Experiement of this problem."""
-    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
-    # Functions are working on the same problem and are comparable
-    return make_experiment(sim, search_space, DIST, n_simulations_per_point=10)  # 1_000)
 
 
 dist = DIST
@@ -150,8 +131,8 @@ QOI_ESTIMATOR = MarginalCDFExtrapolation(
 # How many iterations to run in the following DOEs
 
 # %%
-n_iter = 15  # 40
-warm_up_runs = 3
+n_iter = 40  # 15  # 40
+warm_up_runs = 6  # 3
 
 # %% [markdown]
 # ### Sobol model
@@ -170,7 +151,7 @@ exp_sobol = make_exp()
 _ = exp_sobol.add_tracking_metric(QOI_METRIC)
 
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
-sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
+sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=15)  # 5)
 
 
 def create_sobol_generator(sobol: ModelBridge) -> Callable[[Experiment], GeneratorRun]:
@@ -203,7 +184,7 @@ run_trials(
 # ###  Load brute force loc and scale function estimates from saved data file
 # %%
 # Get brute force loc and scale functions from saved data
-true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(search_space)
+true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(SEARCH_SPACE)
 
 
 # %%
@@ -363,7 +344,7 @@ exp_look_ahead = make_exp()
 _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
-sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
+sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=15)  # 5)
 
 run_trials(
     experiment=exp_look_ahead,
@@ -400,6 +381,191 @@ _ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  
 _ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
 _ = ax.set_ylabel("Response")  # type: ignore[assignment]
 _ = ax.legend()  # type: ignore[assignment]
+# ax.set_xlim(30)
+# ax.set_xlim(3, 15)
+# ax.set_ylim(10, 20)
+ax.set_ylim(14, 16)
+
+
+# %% [markdown]
+# ### Run experiments with 100, 500, and 1000 iterations of Sobol to see how the Qoi estimate changes with more data.
+# This should can be used as a baseline for comaring to how many iterations the QoILookAhead acquisition function
+# uses to get a simular QoI estimate with similar uncertainty.
+# TODO(hsb 2025-05-23): Should maybe be moved to a different file, brute force gp fit or something?
+# %%
+# run sobol 100 iterations
+exp_sobol_100 = make_exp()
+_ = exp_sobol_100.add_tracking_metric(QOI_METRIC)
+sobol_100 = Models.SOBOL(search_space=exp_sobol_100.search_space, seed=15)  # 5)
+sobol_generator_run_100 = create_sobol_generator(sobol_100)
+run_trials(
+    experiment=exp_sobol_100,
+    warm_up_generator=sobol_generator_run_100,
+    doe_generator=sobol_generator_run_100,
+    warm_up_runs=warm_up_runs,
+    doe_runs=100,
+)
+
+# %%
+# plot 100 sobol iterations
+ax = plot_qoi_estimates_from_experiment(exp_sobol_100, name="Sobol")
+# ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
+_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
+_ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
+_ = ax.set_ylabel("Response")  # type: ignore[assignment]
+_ = ax.legend()  # type: ignore[assignment]
+# ax.set_xlim(30)
+# ax.set_xlim(3, 15)
+# ax.set_ylim(10, 20)
+ax.set_ylim(14, 16)
 
 
 # %%
+# run sobol 500 iterations
+exp_sobol_500 = make_exp()
+_ = exp_sobol_500.add_tracking_metric(QOI_METRIC)
+sobol_500 = Models.SOBOL(search_space=exp_sobol_500.search_space, seed=15)  # 5)
+sobol_generator_run_500 = create_sobol_generator(sobol_500)
+run_trials(
+    experiment=exp_sobol_500,
+    warm_up_generator=sobol_generator_run_500,
+    doe_generator=sobol_generator_run_500,
+    warm_up_runs=warm_up_runs,
+    doe_runs=500,
+)
+
+
+# %%
+# plot 500 sobol iterations
+ax = plot_qoi_estimates_from_experiment(exp_sobol_500, name="Sobol")
+_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
+_ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
+_ = ax.set_ylabel("Response")  # type: ignore[assignment]
+_ = ax.legend()  # type: ignore[assignment]
+# ax.set_xlim(30)
+# ax.set_xlim(3, 15)
+# ax.set_ylim(10, 20)
+ax.set_ylim(14, 16)
+
+# %%
+# run sobol 1000 iterations
+exp_sobol_1000 = make_exp()
+_ = exp_sobol_1000.add_tracking_metric(QOI_METRIC)
+sobol_1000 = Models.SOBOL(search_space=exp_sobol_1000.search_space, seed=15)  # 5)
+sobol_generator_run_1000 = create_sobol_generator(sobol_1000)
+run_trials(
+    experiment=exp_sobol_1000,
+    warm_up_generator=sobol_generator_run_1000,
+    doe_generator=sobol_generator_run_1000,
+    warm_up_runs=warm_up_runs,
+    doe_runs=1000,
+)
+
+
+# %%
+# plot 1000 sobol iterations
+ax = plot_qoi_estimates_from_experiment(exp_sobol_1000, name="Sobol")
+_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
+_ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
+_ = ax.set_ylabel("Response")  # type: ignore[assignment]
+_ = ax.legend()  # type: ignore[assignment]
+# ax.set_xlim(30)
+# ax.set_xlim(3, 15)
+# ax.set_ylim(10, 20)
+ax.set_ylim(14, 16)
+
+
+# %%
+# After what iteration is the uncertainty in the estimate small enough?
+metrics = exp_look_ahead.fetch_data()
+print(metrics.df.columns)
+qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+trail_indexes = metrics.df["trial_index"]  # .unique()
+
+qoi_means = qoi_metrics["mean"]
+qoi_sems = qoi_metrics["sem"]
+
+for i, qoi_mean, qoi_sem in zip(trail_indexes, qoi_means, qoi_sems, strict=False):
+    print(f"idx: {i} mean: {qoi_mean}, sem: {qoi_sem}")
+
+# %%
+# After what iteration is the uncertainty in the estimate small enough?
+metrics = exp_sobol_100.fetch_data()
+print(metrics.df.columns)
+qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+trail_indexes = metrics.df["trial_index"].unique()
+
+qoi_means = qoi_metrics["mean"]
+qoi_sems = qoi_metrics["sem"]
+
+for i, qoi_mean, qoi_sem in zip(trail_indexes, qoi_means, qoi_sems, strict=False):
+    print(f"idx: {i} mean: {qoi_mean}, sem: {qoi_sem}")
+
+# %%
+# After what iteration is the uncertainty in the estimate small enough?
+metrics = exp_sobol_500.fetch_data()
+print(metrics.df.columns)
+qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+trail_indexes = metrics.df["trial_index"].unique()
+
+qoi_means = qoi_metrics["mean"]
+qoi_sems = qoi_metrics["sem"]
+
+for i, qoi_mean, qoi_sem in zip(trail_indexes, qoi_means, qoi_sems, strict=False):
+    print(f"idx: {i} mean: {qoi_mean}, sem: {qoi_sem}")
+
+# %%
+# After what iteration is the uncertainty in the estimate small enough?
+metrics = exp_sobol_1000.fetch_data()
+print(metrics.df.columns)
+qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+trail_indexes = metrics.df["trial_index"].unique()
+
+qoi_means = qoi_metrics["mean"]
+qoi_sems = qoi_metrics["sem"]
+
+for i, qoi_mean, qoi_sem in zip(trail_indexes, qoi_means, qoi_sems, strict=False):
+    print(f"idx: {i} mean: {qoi_mean}, sem: {qoi_sem}")
+
+
+# %%
+# PLot DOE new search space debugging
+# Plot the surface against brute force loc and scale function estimates for some trials
+sobol_fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, warm_up_runs, metrics=true_loc_scale_function_estimates
+)
+sobol_fig_trial_warm_up.show()
+fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, warm_up_runs, metrics=true_loc_scale_function_estimates
+)
+fig_trial_warm_up.show()
+
+sobolfig_2 = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, warm_up_runs + 2, metrics=true_loc_scale_function_estimates
+)
+sobolfig_2.show()
+
+fig_2 = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, warm_up_runs + 2, metrics=true_loc_scale_function_estimates
+)
+fig_2.show()
+
+# Plot surfaces 5 iterations after warmup
+sobol_fig_5 = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, warm_up_runs + 5, metrics=true_loc_scale_function_estimates
+)
+sobol_fig_5.show()
+fig_5 = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, warm_up_runs + 5, metrics=true_loc_scale_function_estimates
+)
+fig_5.show()
+
+
+sobol_fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, n_iter, metrics=true_loc_scale_function_estimates
+)
+sobol_fig_last_trial.show()
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, n_iter, metrics=true_loc_scale_function_estimates
+)
+fig_last_trial.show()

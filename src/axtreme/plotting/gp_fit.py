@@ -78,7 +78,7 @@ def plot_surface_over_2d_search_space(
     return plotly.graph_objects.Figure(data=surfaces)
 
 
-def scatter_plot_training(
+def scatter_plot_training_original(
     model_bridge: TorchModelBridge,
     metric_name: str,
     axis: tuple[int, int] = (0, 1),
@@ -148,6 +148,95 @@ def scatter_plot_training(
     return figure
 
 
+def scatter_plot_training(
+    model_bridge: TorchModelBridge,
+    metric_name: str,
+    axis: tuple[int, int] = (0, 1),
+    figure: Figure | None = None,
+    *,
+    error_bars: bool = True,
+    error_bar_confidence_interval: float = 0.95,
+    show_indices: bool = True,  # New parameter to toggle showing indices
+) -> Figure:
+    """Make a scattter plot of a metric for the training data of the model.
+
+    Args:
+        model_bridge: The model bridge used to make predictions.
+        metric_name: The name of the metric to plot. Must match the name of a metric in the model.
+        axis: The axis of the input space to plot the scatter plot in
+        figure: The figure to add the scatter plot to. If None, a new figure is created.
+        error_bars: Whether to add error bars to the plot.
+        error_bar_confidence_interval: The confidence interval the error bars in the scatter plot represents.
+        show_indices: Whether to show the indices of the points (their order in the training data).
+    """
+    training_data = model_bridge.get_training_data()
+    xs = np.array([list(obs.features.parameters.values()) for obs in training_data])
+    ys = []
+    y_noise = []
+
+    # Extract trial indices if available
+    trial_indices = []
+    for i, obs in enumerate(training_data):
+        metric_index = obs.data.metric_names.index(metric_name)
+        ys.append(obs.data.means[metric_index])
+        y_noise.append(np.sqrt(obs.data.covariance[metric_index][metric_index]))
+
+        # Try to get trial index, fall back to data order if not available
+        if hasattr(obs, "trial_index") and obs.trial_index is not None:
+            trial_indices.append(str(obs.trial_index))
+        else:
+            # Use the sequential order as fallback
+            trial_indices.append(str(i))
+
+    figure = figure or plotly.graph_objects.Figure()
+
+    # Add point indices as text if requested
+    text = trial_indices if show_indices else None
+
+    scatter = Scatter3d(
+        x=xs[:, axis[0]],
+        y=xs[:, axis[1]],
+        z=ys,
+        mode="markers+text" if show_indices else "markers",
+        text=text,
+        textposition="top center",
+        textfont=dict(size=10, color="black"),
+        marker={"size": 5, "color": "red"},
+    )
+
+    _ = figure.add_trace(scatter)
+    if error_bars:
+        # Rest of the error bar code remains unchanged
+        # ...
+        if error_bar_confidence_interval >= 1.0:
+            error_bar_confidence_interval = 1.0 - 1e-6
+        elif error_bar_confidence_interval <= 0.0:
+            error_bar_confidence_interval = 0.0
+
+        standard_interval = norm.interval(error_bar_confidence_interval)
+        # Add error bars
+        for i in range(xs.shape[0]):
+            _ = figure.add_trace(
+                plotly.graph_objects.Scatter3d(
+                    x=[
+                        xs[i, axis[0]],
+                        xs[i, axis[0]],
+                    ],
+                    y=[
+                        xs[i, axis[1]],
+                        xs[i, axis[1]],
+                    ],
+                    z=[
+                        ys[i] + y_noise[i] * standard_interval[0],
+                        ys[i] + y_noise[i] * standard_interval[1],
+                    ],
+                    mode="lines",
+                    line={"color": "red"},
+                )
+            )
+    return figure
+
+
 def plot_gp_fits_2d_surface(  # noqa: C901
     model_bridge: TorchModelBridge,
     search_space: SearchSpace,
@@ -157,6 +246,8 @@ def plot_gp_fits_2d_surface(  # noqa: C901
     ]
     | None = None,
     num_points: int = 101,
+    *,
+    show_bounds: bool = True,
 ) -> Figure:
     """Plot the GP fit for the given metrics over the 2D search space.
 
@@ -197,14 +288,203 @@ def plot_gp_fits_2d_surface(  # noqa: C901
                 )[0][metric_name]
                 for i in range(x.shape[0])
             ]
+            # Get full prediction results including means and covariances
+            predictions = [
+                model_bridge.predict(
+                    [
+                        ObservationFeatures(
+                            parameters={
+                                obs_name: x[i, obs_index] for obs_index, obs_name in enumerate(observations_names)
+                            }
+                        )
+                    ]
+                )
+                for i in range(x.shape[0])
+            ]
+
+            # Extract means and covariances
+            pred_means = [pred[0][metric_name] for pred in predictions]
+            pred_covs = [pred[1].get(metric_name, {}).get(metric_name, 0) for pred in predictions]
+            # Calculate standard deviations from covariances
+            pred_stds = np.sqrt(np.array(pred_covs))
+
+            # Create upper and lower bound lists
+            upper_bounds = np.array(pred_means) + pred_stds
+            lower_bounds = np.array(pred_means) - pred_stds
+
             return np.array(pred_val_list)
 
         return pred_helper
 
+    def pred_helper_closure_lower(
+        metric_name: str,
+    ) -> Callable[[Numpy2dArray], Numpy1dArray]:
+        def pred_helper(
+            x: Numpy2dArray,
+        ) -> Numpy1dArray:
+            if len(x.shape) == 1:
+                x = x.reshape(1, -1)
+            pred_val_list = [
+                model_bridge.predict(
+                    [
+                        ObservationFeatures(
+                            parameters={
+                                obs_name: x[i, obs_index] for obs_index, obs_name in enumerate(observations_names)
+                            }
+                        )
+                    ]
+                )[0][metric_name]
+                for i in range(x.shape[0])
+            ]
+            # Get full prediction results including means and covariances
+            predictions = [
+                model_bridge.predict(
+                    [
+                        ObservationFeatures(
+                            parameters={
+                                obs_name: x[i, obs_index] for obs_index, obs_name in enumerate(observations_names)
+                            }
+                        )
+                    ]
+                )
+                for i in range(x.shape[0])
+            ]
+
+            # Extract means and covariances
+            pred_means = [pred[0][metric_name] for pred in predictions]
+            pred_covs = [pred[1].get(metric_name, {}).get(metric_name, 0) for pred in predictions]
+            # Calculate standard deviations from covariances
+            pred_stds = np.sqrt(np.array(pred_covs))
+
+            # Create upper and lower bound lists
+            upper_bounds = np.array(pred_means) + pred_stds
+            lower_bounds = np.array(pred_means) - pred_stds
+
+            return lower_bounds
+
+        return pred_helper
+
+    def pred_helper_closure_upper(
+        metric_name: str,
+    ) -> Callable[[Numpy2dArray], Numpy1dArray]:
+        def pred_helper(
+            x: Numpy2dArray,
+        ) -> Numpy1dArray:
+            if len(x.shape) == 1:
+                x = x.reshape(1, -1)
+            pred_val_list = [
+                model_bridge.predict(
+                    [
+                        ObservationFeatures(
+                            parameters={
+                                obs_name: x[i, obs_index] for obs_index, obs_name in enumerate(observations_names)
+                            }
+                        )
+                    ]
+                )[0][metric_name]
+                for i in range(x.shape[0])
+            ]
+            # Get full prediction results including means and covariances
+            predictions = [
+                model_bridge.predict(
+                    [
+                        ObservationFeatures(
+                            parameters={
+                                obs_name: x[i, obs_index] for obs_index, obs_name in enumerate(observations_names)
+                            }
+                        )
+                    ]
+                )
+                for i in range(x.shape[0])
+            ]
+
+            # Extract means and covariances
+            pred_means = [pred[0][metric_name] for pred in predictions]
+            pred_covs = [pred[1].get(metric_name, {}).get(metric_name, 0) for pred in predictions]
+            # Calculate standard deviations from covariances
+            pred_stds = np.sqrt(np.array(pred_covs))
+
+            # Create upper and lower bound lists
+            upper_bounds = np.array(pred_means) + pred_stds
+            lower_bounds = np.array(pred_means) - pred_stds
+
+            return upper_bounds
+
+        return pred_helper
+
+    def get_gp_prediction_functions(
+        model_bridge: TorchModelBridge,
+        metric_name: str,
+    ) -> list[Callable[[Numpy2dArray], Numpy1dArray]]:
+        """Creates prediction functions for the given metric.
+
+        Args:
+            model_bridge: The GP model used to make predictions
+            metric_name: Name of the metric to predict
+
+        Returns:
+            A list of [mean, lower_bound, upper_bound] functions of the GP model.
+        """
+
+        def make_predictions(x: Numpy2dArray) -> tuple[Numpy1dArray, Numpy1dArray, Numpy1dArray]:
+            if len(x.shape) == 1:
+                x = x.reshape(1, -1)
+
+            # Get full prediction results including means and covariances
+            predictions = [
+                model_bridge.predict(
+                    [
+                        ObservationFeatures(
+                            parameters={
+                                obs_name: x[i, obs_index] for obs_index, obs_name in enumerate(observations_names)
+                            }
+                        )
+                    ]
+                )
+                for i in range(x.shape[0])
+            ]
+
+            # Extract means and covariances
+            pred_means = np.array([pred[0][metric_name] for pred in predictions])
+            pred_covs = np.array([pred[1].get(metric_name, {}).get(metric_name, 0) for pred in predictions])
+
+            # Calculate standard deviations from covariances
+            pred_stds = np.sqrt(pred_covs)
+
+            upper_bounds = pred_means + pred_stds
+            lower_bounds = pred_means - pred_stds
+
+            return pred_means, lower_bounds, upper_bounds
+
+        funcs = [
+            lambda x: make_predictions(x)[0],  # mean function
+            lambda x: make_predictions(x)[1],  # lower bound function
+            lambda x: make_predictions(x)[2],  # upper bound function
+        ]
+
+        return funcs
+
     for metric_name in metrics_names:
         fig = None
-        funcs = [pred_helper_closure(metric_name)]
+        # funcs = [pred_helper_closure(metric_name)]
+        # funcs = [
+        #    pred_helper_closure(metric_name),
+        #    pred_helper_closure_lower(metric_name),
+        #    pred_helper_closure_upper(metric_name),
+        # ]
+
+        # colors = ["Reds"]
+        # colors = ["Reds", "Blues", "Blues"]
+        funcs = get_gp_prediction_functions(
+            model_bridge=model_bridge,
+            metric_name=metric_name,
+        )
         colors = ["Reds"]
+        if show_bounds:
+            colors = ["Reds", "Blues", "Blues"]
+        else:
+            funcs = [funcs[0]]  # Only use mean function
+            colors = ["Reds"]
 
         # If we have a ground truth function for the metric add it to the plot
         if metrics is not None and metric_name in metrics:
