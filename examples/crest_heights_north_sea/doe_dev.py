@@ -1,4 +1,10 @@
-"""Module for running different DOE experiments for acquisition function and DOE development."""
+"""The script explores the sensitivity of DOE results to the sobol seed.
+
+The sobol seed controls the initial dataset generated (used to train the GP),
+and the baseline performance the DOE/acquisition function is compared to.
+This runs using the QoI and Experiment define in doe.py and is intend as
+an additional analysis of how the sobol seed effects the DOE process defined there.
+"""
 
 # %%
 from pathlib import Path
@@ -41,7 +47,6 @@ def run_multiple_seeded_experiments(
         save_dir: Directory to save plots
         base_seed: Starting seed value
         seed_step: Step between seed values for more diversity
-        quantile: Quantile to use for QoI estimation
 
     Returns:
         Tuple containing lists of Sobol and Look-ahead experiments
