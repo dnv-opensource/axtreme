@@ -21,9 +21,12 @@ from problem import (  # type: ignore[import-not-found]
     DIST,
     # make_exp,
     period_length,
-    sim,
+    # sim,
 )
-from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
+from simulator import (  # type: ignore[import-not-found]
+    MaxCrestHeightSimulatorSeeded,
+    max_crest_height_simulator_function,
+)
 from torch.utils.data import DataLoader
 from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
@@ -53,6 +56,9 @@ search_space = SearchSpace(
         RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
     ]
 )
+
+# Seeded simulator function for reproduceable results
+sim = MaxCrestHeightSimulatorSeeded()
 
 
 # To handle the difference in search space configuration between the problem and the DOE, a custom make experiment
