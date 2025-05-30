@@ -23,7 +23,7 @@ from ax.core import ParameterType, RangeParameter
 from brute_force import collect_or_calculate_results  # type: ignore[import-not-found]
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
-from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
+from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
 from torch.utils.data import DataLoader, Dataset
 from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
@@ -31,6 +31,7 @@ from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalData
 from axtreme.experiment import make_experiment
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.sampling.ut_sampler import UTSampler
+from axtreme.simulator.utils import simulator_from_func
 
 # %%
 # Pick the search space over which to create a surrogate
@@ -53,7 +54,7 @@ DIST = gumbel_r
 
 # %%
 # Load simulator
-sim = MaxCrestHeightSimulator()
+sim = simulator_from_func(max_crest_height_simulator_function)
 
 # %%
 # Load environment data

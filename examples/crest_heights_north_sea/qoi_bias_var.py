@@ -48,8 +48,7 @@ input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_ou
     transforms=list(botorch_model_bridge.transforms.values()), outcome_names=botorch_model_bridge.outcomes
 )
 
-# %% Create qois with different variants of dataset and samples
-# NOTE: the could be simplified by just using a random sampler, but this is a bit more obvious what its doing.
+# %% Create jobs with different amount of env data
 qoi_jobs = []
 datasets = {"mc": mc_dataset, "importance_sample": importance_dataset}
 for dataset_name, dataset in datasets.items():
