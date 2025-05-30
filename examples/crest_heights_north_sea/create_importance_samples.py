@@ -53,18 +53,23 @@ For iteration 1 we cheat and visually check the important `xmax` values are with
 
 """
 print("Number of importance samples: ", importance_samples.shape[0])
-_ = plt.scatter(importance_samples[:, 0], importance_samples[:, 1], s=1, c="tab:blue", label="Importance samples")
+_ = plt.scatter(importance_samples[:, 0], importance_samples[:, 1], s=2, c="tab:blue", label="Importance samples")
 
 with open("results/brute_force/29220_period_length.json") as f:  # noqa: PTH123
     brute_force = json.load(f)
 xmax = np.array(brute_force["env_data"])
 
-_ = plt.scatter(xmax[:, 0], xmax[:, 1], s=1, c="tab:orange", label="Brute force samples")
+_ = plt.scatter(xmax[:, 0], xmax[:, 1], s=2, c="tab:orange", label="Brute force samples")
+_ = plt.title("Importance samples vs brute force xmax samples")
+_ = plt.legend()
 
 # %% plot the importance weights
-_ = plt.scatter(
+sc = plt.scatter(
     importance_samples[:, 0], importance_samples[:, 1], s=1, c=importance_weights, label="Importance samples"
 )
+_ = plt.colorbar(sc, label="Importance weights")
+_ = plt.title("Importance samples weights")
+_ = plt.legend()
 
 # %% Save the result if we are happy with them.
 torch.save(importance_samples, "results/importance_sampling/importance_samples.pt")
