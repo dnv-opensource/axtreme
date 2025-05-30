@@ -2,97 +2,50 @@
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 import torch
 from ax import (
     Experiment,
-    SearchSpace,
 )
-from ax.core import GeneratorRun, ParameterType, RangeParameter
+from ax.core import GeneratorRun
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
-from brute_force_loc_and_scale_estimates import (  # type: ignore[import-not-found]
-    get_brute_force_loc_and_scale_functions,
-)
-from numpy.typing import NDArray
-from problem import (  # type: ignore[import-not-found]
-    DIST,
-    # make_exp,
-    period_length,
-    # sim,
-)
-from simulator import (  # type: ignore[import-not-found]
-    MaxCrestHeightSimulatorSeeded,
-    max_crest_height_simulator_function,
-)
-from torch.utils.data import DataLoader
-from usecase.env_data import collect_data  # type: ignore[import-not-found]
+from problem import QOI_ESTIMATOR, brute_force_qoi, make_exp  # type: ignore[import-not-found]
 
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead
-from axtreme.data import FixedRandomSampler, MinimalDataset
-from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
+from axtreme.experiment import add_sobol_points_to_experiment
 from axtreme.metrics import QoIMetric
 from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment
-from axtreme.qoi import MarginalCDFExtrapolation
-from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.utils import transforms
 
 torch.set_default_dtype(torch.float64)
 device = "cpu"
 
 # pyright: reportUnnecessaryTypeIgnoreComment=false
-
 # %%
-# TODO(@henrikstoklandberg 2025-04-28): Update the search space to match the problem once we decide on the search space.
-# For now a square search space is used, as we get Nan values from the simulator if we use the current search space in
-# problem.py as of 2025-04-28.
-search_space = SearchSpace(
-    parameters=[
-        RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-        RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-    ]
+print(f"Brute force estimate of our QOI is {brute_force_qoi}")
+
+# %% Long term estimate
+large_dataset_points = 256
+exp = make_exp()
+add_sobol_points_to_experiment(exp, n_iter=large_dataset_points, seed=8)
+model_bridge_only_model = Models.BOTORCH_MODULAR(
+    experiment=exp,
+    data=exp.fetch_data(metrics=list(exp.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
+    fit_tracking_metrics=False,  # Needed for QoIMetric to work properly
 )
+input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_output(
+    transforms=list(model_bridge_only_model.transforms.values()), outcome_names=model_bridge_only_model.outcomes
+)
+# Adding the transforms to the QoI estimator
+QOI_ESTIMATOR.input_transform = input_transform
+QOI_ESTIMATOR.outcome_transform = outcome_transform
 
-# Seeded simulator function for reproduceable results
-sim = MaxCrestHeightSimulatorSeeded()
-
-
-# To handle the difference in search space configuration between the problem and the DOE, a custom make experiment
-# function is also needed.
-def make_exp() -> Experiment:
-    """Convenience function returns a fresh Experiement of this problem."""
-    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
-    # Functions are working on the same problem and are comparable
-    return make_experiment(sim, search_space, DIST, n_simulations_per_point=10)  # 1_000)
-
-
-dist = DIST
-
-
-# %%
-raw_data: pd.DataFrame = collect_data()
-
-# we convert this data to Numpy for ease of use from here on out
-env_data: NDArray[np.float64] = raw_data.to_numpy()
-
-# %%
-# Bruteforce estimate placeholder
-# TODO(@henrikstoklandberg 2025-05-09): Add more sophisticated brute force estimate of the QoI when ready
-n_erd_samples = 1000
-erd_samples = []
-for _ in range(n_erd_samples):
-    indices = np.random.choice(env_data.shape[0], size=period_length, replace=True)  # noqa: NPY002
-    period_sample = env_data[indices]
-
-    responses = max_crest_height_simulator_function(period_sample)
-    erd_samples.append(responses.max())
-
-brute_force_qoi_estimate = np.median(erd_samples)
-print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
+ests = QOI_ESTIMATOR(model=model_bridge_only_model.model.surrogate.model)
+large_dataset_mean = QOI_ESTIMATOR.mean(ests)
+large_dataset_var = QOI_ESTIMATOR.var(ests)
 
 
 # %%
@@ -129,36 +82,12 @@ def run_trials(
         print(f"iter {i} done")
 
 
-# %%
-# QOI estimator
-# A note on DataLoaders:
-# We make use of Dataloader to manage providing data to the QoI. Env samples are only used in the QoI, so your env data
-# can be in whatever format is supported by the QoI.
-n_env_samples = 1_000
-dataset = MinimalDataset(env_data)
-sampler = FixedRandomSampler(dataset, num_samples=n_env_samples, seed=10, replacement=True)
-dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
-
-posterior_sampler = UTSampler()
-# posterior_sampler = NormalIndependentSampler(torch.Size([n_posterior_samples])
-
-QOI_ESTIMATOR = MarginalCDFExtrapolation(
-    # random dataloader give different env samples for each instance
-    env_iterable=dataloader,
-    period_len=period_length,
-    quantile=torch.tensor(0.5),
-    quantile_accuracy=torch.tensor(0.01),
-    # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
-    posterior_sampler=posterior_sampler,
-)
-
-
 # %% [markdown]
 # How many iterations to run in the following DOEs
 
 # %%
-n_iter = 15  # 40
-warm_up_runs = 3
+n_iter = 30  # 40
+warm_up_runs = 8
 
 # %% [markdown]
 # ### Sobol model
@@ -210,16 +139,19 @@ run_trials(
 # ###  Load brute force loc and scale function estimates from saved data file
 # %%
 # Get brute force loc and scale functions from saved data
-true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(search_space)
+# true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(SEARCH_SPACE)
 
 
 # %%
 # Plot the surface against brute force loc and scale function estimates for some trials
 fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol, warm_up_runs, metrics=true_loc_scale_function_estimates
+    exp_sobol,
+    warm_up_runs,  # , metrics=true_loc_scale_function_estimates
 )
 fig_trial_warm_up.show()
-fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter, metrics=true_loc_scale_function_estimates)
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, n_iter
+)  # , metrics=true_loc_scale_function_estimates)
 fig_last_trial.show()
 
 # %%
@@ -259,8 +191,7 @@ acqusition = QoILookAhead(model, QOI_ESTIMATOR)
 scores = acqusition(torch.tensor([[[0.5, 0.5]]]))
 
 # %% Perform the grid search and plot
-point_per_dim = 21
-
+point_per_dim = 20
 # Acquisition function operates in the model space, so we feed the model space to the acquisition function.
 Hs = torch.linspace(0, 1, point_per_dim)
 Tp = torch.linspace(0, 1, point_per_dim)
@@ -384,11 +315,13 @@ run_trials(
 # %%
 # Plot the surface against brute force loc and scale function estimates for some trials
 fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, warm_up_runs, metrics=true_loc_scale_function_estimates
+    exp_look_ahead,
+    warm_up_runs,  # , metrics=true_loc_scale_function_estimates
 )
 fig_trial_warm_up.show()
 fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, n_iter, metrics=true_loc_scale_function_estimates
+    exp_look_ahead,
+    n_iter,  # , metrics=true_loc_scale_function_estimates
 )
 fig_last_trial.show()
 
@@ -402,9 +335,21 @@ fig_last_trial.write_html("results/doe/plots/doe_gp_vs_true_functions.html")
 
 
 # %%
-ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
+# TODO (sw 25_-5_2025): This plot shows story, but needs some polishing)
+# Need to show a long term sobol estimate (stopping criteria?): maybe better as a fill between?
+_, ax = plt.subplots()
+_ = ax.axhline(
+    large_dataset_mean + 1.96 * large_dataset_var**0.5,
+    c="sandybrown",
+    label=f"Stopping criteria\n({large_dataset_points} Sobol points)",
+)
+_ = ax.axhline(large_dataset_mean - 1.96 * large_dataset_var**0.5, c="sandybrown")
+ax = plot_qoi_estimates_from_experiment(exp_sobol, ax=ax, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
-_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")  # type: ignore[assignment]
-_ = ax.set_xlabel("Number of DOE iterations")  # type: ignore[assignment]
-_ = ax.set_ylabel("Response")  # type: ignore[assignment]
-_ = ax.legend()  # type: ignore[assignment]
+_ = ax.axhline(brute_force_qoi, c="black", label="brute_force_value")
+_ = ax.set_xlabel("Number of DOE iterations")
+_ = ax.set_ylabel("Response")
+_ = ax.legend()
+
+
+# %%
