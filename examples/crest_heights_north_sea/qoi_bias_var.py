@@ -52,7 +52,6 @@ input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_ou
 )
 
 # %% Create jobs with different amount of env data
-# NOTE: the could be simplified by just using a random sampler, but this is a bit more obvious what its doing.
 qoi_jobs = []
 for dataset_size in [1_000, 8_000, 16_000]:
     for i in range(40):
