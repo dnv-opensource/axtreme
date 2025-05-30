@@ -15,7 +15,7 @@ from typing import cast
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from axtreme_case import pdf_hs_tp, sample_seastates
+from axtreme_case import pdf_hs_tp, sample_seastates  # type: ignore[import-not-found]
 from numpy.typing import NDArray
 
 

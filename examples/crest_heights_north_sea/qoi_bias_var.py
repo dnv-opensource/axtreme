@@ -22,7 +22,7 @@ import pandas as pd
 import torch
 from ax.modelbridge.registry import Models
 from matplotlib.axes import Axes
-from problem import brute_force_qoi, importance_dataset, make_exp, period_length
+from problem import brute_force_qoi, importance_dataset, make_exp, period_length  # type: ignore[import-not-found]
 from problem import dataset as mc_dataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm

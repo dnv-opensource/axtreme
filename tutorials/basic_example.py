@@ -610,11 +610,11 @@ scores = scores.reshape(grid.shape[:-1])
 # %%
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection="3d")
-_ = ax.view_init(elev=30, azim=45)  # pyright: ignore[reportAttributeAccessIssue]
-_ = ax.plot_surface(grid_x1, grid_x2, scores, cmap="viridis", edgecolor="none")  # pyright: ignore[reportAttributeAccessIssue]
+_ = ax.view_init(elev=30, azim=45)  # type: ignore[attr-defined]
+_ = ax.plot_surface(grid_x1, grid_x2, scores, cmap="viridis", edgecolor="none")  # type: ignore[attr-defined]
 _ = ax.set_xlabel("x1")
 _ = ax.set_ylabel("x2")
-_ = ax.set_zlabel("score")  # pyright: ignore[reportAttributeAccessIssue]
+_ = ax.set_zlabel("score")  # type: ignore[attr-defined]
 _ = ax.set_title("Score surface plot")
 print("max_score ", scores.max())
 
@@ -733,7 +733,7 @@ surface_final_trial.show()
 # %%
 ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
-_ = ax.axhline(brute_force_qoi_estimate, c="black", label="brute_force_value")
+_ = ax.axhline(float(brute_force_qoi_estimate), c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()

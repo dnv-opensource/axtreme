@@ -25,7 +25,7 @@ from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import MaxCrestHeightSimulator  # type: ignore[import-not-found]
 from torch.utils.data import DataLoader, Dataset
-from usecase.env_data import collect_data
+from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.experiment import make_experiment
