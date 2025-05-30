@@ -4,16 +4,18 @@
 
 import matplotlib.pyplot as plt
 import torch
-from ax import (
-    Experiment,
-)
 from ax.modelbridge.registry import Models
-from problem import DIST, SEARCH_SPACE, brute_force_qoi, dataset, period_length, sim  # type: ignore[import-not-found]
+from problem import (  # type: ignore[import-not-found]
+    brute_force_qoi,
+    dataset,
+    make_exp,
+    period_length,
+)
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
 
 from axtreme.data import FixedRandomSampler
-from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
+from axtreme.experiment import add_sobol_points_to_experiment
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.sampling.ut_sampler import UTSampler
@@ -33,14 +35,6 @@ qoi_estimator = MarginalCDFExtrapolation(
     quantile_accuracy=torch.tensor(0.01),
     posterior_sampler=posterior_sampler,
 )
-
-
-# %%
-# Set up experiment
-def make_exp() -> Experiment:
-    """Convenience function returns a fresh Experiment of this problem."""
-    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=1000)
-
 
 # %%
 n_training_points = [30, 50, 128, 512]
