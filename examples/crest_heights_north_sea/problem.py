@@ -5,7 +5,7 @@
 As users of the axtreme package we always need to:
 1) Define the search space our problem lies within.
 2) Define distribution we want to use to represent the output of the simulator.
-3) Combine these with the simulator to create an Ax experiement.
+3) Combine these with the simulator to create an Ax experiment.
 
 Todo: TODO:
 - (sw 2024_09_15): Once defined in this module, everything should be treated as a constant. Should all public things be
@@ -24,10 +24,13 @@ from brute_force import collect_or_calculate_results  # type: ignore[import-not-
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import max_crest_height_simulator_function  # type: ignore[import-not-found]
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
+from usecase.env_data import collect_data  # type: ignore[import-not-found]
 
-from axtreme.data.dataset import MinimalDataset
+from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.experiment import make_experiment
+from axtreme.qoi import MarginalCDFExtrapolation
+from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.simulator.utils import simulator_from_func
 
 # %%
@@ -56,9 +59,7 @@ sim = simulator_from_func(max_crest_height_simulator_function)
 # %%
 # Load environment data
 problem_dir = Path(__file__).resolve().parent
-dataset: Dataset[NDArray[np.float64]] = MinimalDataset(
-    np.load(problem_dir / "usecase" / "data" / "long_term_distribution.npy")
-)
+dataset: Dataset[NDArray[np.float64]] = MinimalDataset(collect_data().to_numpy())
 # %%
 # Convert usecase specific naming conventions to ax conventions
 year_return_value = 10
@@ -72,10 +73,10 @@ period_length = year_return_value * n_sea_states_in_year
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
-    """Convenience function returns a fresh Experiement of this problem."""
-    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acqusition
+    """Convenience function returns a fresh Experiment of this problem."""
+    # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acquisition
     # Functions are working on the same problem and are comparable
-    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=10_000)
+    return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=30)
 
 
 # %%
@@ -90,5 +91,27 @@ extreme_response_values, _ = collect_or_calculate_results(
 # This is based on discussion with Odin, and the following paper: https://www.duo.uio.no/bitstream/handle/10852/101693/JOMAE2022_TSsim_rev1.pdf?sequence=1
 brute_force_qoi = torch.quantile(extreme_response_values, np.exp(-1))
 
+# %% This is the result of `create_importance_samples.py` script.
+importance_samples = torch.load("results/importance_sampling/importance_samples.pt", weights_only=True)
+importance_weights = torch.load("results/importance_sampling/importance_weights.pt", weights_only=True)
+importance_dataset = ImportanceAddedWrapper(MinimalDataset(importance_samples), MinimalDataset(importance_weights))
+# %% This is based on the analysis performed in `qoi_bias_var.py` script.
+sampler = FixedRandomSampler(
+    importance_dataset,
+    num_samples=8_000,
+    seed=10,  # NOTE: we set a seed here for reproducibility, but this has not been cherry picked.
+    replacement=True,
+)
+dataloader = DataLoader(importance_dataset, sampler=sampler, batch_size=256)
+
+posterior_sampler = UTSampler()
+
+# NOTE: While a constant, the input and output transforms still need to be attached for unique model the QoI runs on.
+QOI_ESTIMATOR = MarginalCDFExtrapolation(
+    env_iterable=dataloader,
+    period_len=period_length,
+    quantile=torch.exp(torch.tensor(-1)),
+    quantile_accuracy=torch.tensor(0.01),
+    posterior_sampler=posterior_sampler,
+)
 # %%
-# TODO(@henrikstoklandberg): Add importance sampling dataset and dataloader
