@@ -1,0 +1,13 @@
+axtreme.qoi.utils
+=================
+
+.. automodule:: axtreme.qoi.utils
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      attach_transforms_to_qoi_estimator
+   

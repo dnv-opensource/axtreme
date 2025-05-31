@@ -1,0 +1,17 @@
+﻿axtreme.plotting
+================
+
+.. automodule:: axtreme.plotting
+   :members:
+
+
+   
+.. rubric:: Modules
+.. autosummary::
+   :toctree:
+   :template: custom-module.rst
+   :recursive:
+
+   doe
+   gp_fit
+   histogram3d

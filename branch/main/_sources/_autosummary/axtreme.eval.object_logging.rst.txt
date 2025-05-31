@@ -1,0 +1,18 @@
+axtreme.eval.object\_logging
+============================
+
+.. automodule:: axtreme.eval.object_logging
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      default_config
+      get_closest_class_value
+      nested_content_to_str
+      public_vars
+      unpack_object
+      unpack_object_str_content
+   
