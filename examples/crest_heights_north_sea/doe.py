@@ -342,6 +342,7 @@ _ = ax.axhline(
     label=f"Stopping criteria\n({large_dataset_points} Sobol points)",
 )
 _ = ax.axhline(large_dataset_mean - 1.96 * large_dataset_var**0.5, c="sandybrown")
+_ = ax.axhline(large_dataset_mean, c="sandybrown", linestyle="--", label="Sobol mean")
 ax = plot_qoi_estimates_from_experiment(exp_sobol, ax=ax, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
 _ = ax.axhline(brute_force_qoi, c="black", label="brute_force_value")
