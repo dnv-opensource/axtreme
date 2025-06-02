@@ -10,7 +10,10 @@ from ax.core import GeneratorRun
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
-from problem import QOI_ESTIMATOR, brute_force_qoi, make_exp  # type: ignore[import-not-found]
+from brute_force_loc_and_scale_estimates import (  # type: ignore[import-not-found]
+    get_brute_force_loc_and_scale_functions,
+)
+from problem import QOI_ESTIMATOR, SEARCH_SPACE, brute_force_qoi, make_exp  # type: ignore[import-not-found]
 
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead
@@ -139,19 +142,16 @@ run_trials(
 # ###  Load brute force loc and scale function estimates from saved data file
 # %%
 # Get brute force loc and scale functions from saved data
-# true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(SEARCH_SPACE)
+true_loc_scale_function_estimates = get_brute_force_loc_and_scale_functions(SEARCH_SPACE)
 
 
 # %%
 # Plot the surface against brute force loc and scale function estimates for some trials
 fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol,
-    warm_up_runs,  # , metrics=true_loc_scale_function_estimates
+    exp_sobol, warm_up_runs, metrics=true_loc_scale_function_estimates
 )
 fig_trial_warm_up.show()
-fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol, n_iter
-)  # , metrics=true_loc_scale_function_estimates)
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter, metrics=true_loc_scale_function_estimates)
 fig_last_trial.show()
 
 # %%
@@ -315,13 +315,11 @@ run_trials(
 # %%
 # Plot the surface against brute force loc and scale function estimates for some trials
 fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead,
-    warm_up_runs,  # , metrics=true_loc_scale_function_estimates
+    exp_look_ahead, warm_up_runs, metrics=true_loc_scale_function_estimates
 )
 fig_trial_warm_up.show()
 fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead,
-    n_iter,  # , metrics=true_loc_scale_function_estimates
+    exp_look_ahead, n_iter, metrics=true_loc_scale_function_estimates
 )
 fig_last_trial.show()
 
