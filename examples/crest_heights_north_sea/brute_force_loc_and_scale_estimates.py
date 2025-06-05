@@ -9,6 +9,7 @@ import numpy as np
 from ax import SearchSpace
 from matplotlib.figure import Figure
 from numpy.typing import NDArray
+from problem import SEARCH_SPACE  # type: ignore[import]
 from scipy.interpolate import RegularGridInterpolator
 from scipy.stats import gumbel_r
 from simulator import max_crest_height_simulator_function  # type: ignore[import]
@@ -20,7 +21,7 @@ DEFAULT_FILENAME = "brute_force_loc_scale_data.npz"
 
 # TODO(@henrikstoklandberg 2025-05-12): Add seed to
 # #simulator function when implemnted seeded simulator
-def generate_and_save_static_dataset(
+def generate_and_save_static_dataset(  # noqa: C901
     search_space: SearchSpace,
     save_dir: Path = SAVE_DIR,
     filename: str = DEFAULT_FILENAME,
@@ -60,12 +61,41 @@ def generate_and_save_static_dataset(
     tp_values = np.linspace(tp_range[0], tp_range[1], grid_size)
     hs_grid, tp_grid = np.meshgrid(hs_values, tp_values)
 
-    loc_values = np.zeros_like(hs_grid)
-    scale_values = np.zeros_like(hs_grid)
+    # Extract constraints
+    constraints = []
+    if hasattr(search_space, "parameter_constraints"):
+        constraints = search_space.parameter_constraints
 
-    print(f"Running {grid_size}x{grid_size} grid with {n_samples} samples per point...")
+    # Create mask to track valid points
+    validity_mask = np.ones((grid_size, grid_size), dtype=bool)
+
+    # Mark invalid points based on constraints
+    for i in range(grid_size):
+        for j in range(grid_size):
+            hs = hs_grid[i, j]
+            tp = tp_grid[i, j]
+
+            # Check if point satisfies all constraints
+            for constraint in constraints:
+                constraint_value = 0
+                for param_name, coef in constraint.constraint_dict.items():
+                    if param_name == "Hs":
+                        constraint_value += coef * hs
+                    elif param_name == "Tp":
+                        constraint_value += coef * tp
+
+                if constraint_value > constraint.bound:
+                    validity_mask[i, j] = False
+                    break
+
+    # Initialize result arrays as full grid but with NaN for invalid points
+    loc_values = np.full_like(hs_grid, np.nan, dtype=float)
+    scale_values = np.full_like(hs_grid, np.nan, dtype=float)
+
     for i in tqdm(range(grid_size)):
         for j in range(grid_size):
+            if not validity_mask[i, j]:
+                continue  # Skip invalid points
             hs = hs_grid[i, j]
             tp = tp_grid[i, j]
             x = np.full((n_samples, 2), [hs, tp])
@@ -234,14 +264,7 @@ def visualize_brute_force_loc_scale_data(
 
 # %% Main
 if __name__ == "__main__":
-    from ax import ParameterType, RangeParameter, SearchSpace
-
-    search_space = SearchSpace(
-        parameters=[
-            RangeParameter(name="Hs", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-            RangeParameter(name="Tp", parameter_type=ParameterType.FLOAT, lower=7.5, upper=20),
-        ]
-    )
+    search_space = SEARCH_SPACE
 
     # Generate and save the static dataset
     dataset_path = generate_and_save_static_dataset(search_space)
