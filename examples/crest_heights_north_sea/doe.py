@@ -349,6 +349,3 @@ _ = ax.axhline(brute_force_qoi, c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
-
-
-# %%
