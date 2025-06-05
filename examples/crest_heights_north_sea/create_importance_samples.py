@@ -13,6 +13,7 @@ This is currently at iteration 1.
 
 # %%
 import json
+from typing import Any
 
 import numpy as np
 import torch
@@ -21,6 +22,9 @@ from matplotlib import pyplot as plt
 from usecase.env_data import env_pdf  # type: ignore[import-not-found]
 
 torch.set_default_dtype(torch.float64)
+
+# Initialize _ as Any to avoid mypy type checking issues
+_: Any = None
 
 
 # %% Get the true PDF of the environment distribution.
