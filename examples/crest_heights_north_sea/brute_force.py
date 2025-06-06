@@ -1,4 +1,14 @@
-"""Obtain a brute force estimate of the extreme Response Distribution (ERD)."""
+"""Obtain a brute force estimate of the extreme Response Distribution (ERD).
+
+To judge the quality of the Quantity of Interest (QoI) estimate we use the brute force estimate of the ERD.
+For this brute force estimate to be as close as possible to the real solution and to account for the
+stochastic variability of the simulator it needs to be run a large number of times.
+
+This file does the following:
+- calculate brute force estimate of the ERD
+- calculate the location in the environment space of the extreme responses
+- estimate uncertainty in the brute force estimate
+"""
 
 # %%
 import json
@@ -23,10 +33,12 @@ if not _results_dir.exists():
 
 _: Any
 
+torch.set_default_dtype(torch.float64)
+
 
 @dataclass
 class ResultsObject:
-    "The results object saved (as json) after brute force is run."
+    """The results object saved (as json) after brute force is run."""
 
     # statistics are optional
     statistics: dict[str, float]
@@ -44,12 +56,12 @@ def collect_or_calculate_results(
     period_length: int,
     num_estimates: int = 2_000,
 ) -> tuple[Tensor, Tensor]:
-    """Return a saved result for the desired period length if available, otherwise calculate the result.
+    """Return the saved result for the desired period length if available, otherwise calculate the result.
 
-    New results will also be saved to json.
+    New results will also be saved to a json.
 
     Args:
-        period_length: The number of environment samples that create a single period of the ERD
+        period_length: The number of environment samples that create a single period of the ERD.
         num_estimates: The number of ERD samples to create. A new period is drawn for each estimate.
 
     Returns:
@@ -165,10 +177,10 @@ def _brute_force_calc(
 def create_extreme_value_location_scatter_plot(brute_force_file_name: str) -> None:
     """Make scatter plot of the extreme value location.
 
-    The plot shows where in the (Hs, Tp) the maxima of c_max occurred when using the brute force approach.
+    The plot shows where in the (Hs, Tp) space the maxima of c_max occurred when using the brute force approach.
 
     Args:
-        brute_force_file_name: file name where the brute force results are stored.
+        brute_force_file_name: file name where the brute force results are saved.
     """
     brute_force_file_path = _results_dir / brute_force_file_name
 
@@ -188,10 +200,10 @@ def create_extreme_value_location_scatter_plot(brute_force_file_name: str) -> No
 def create_extreme_value_location_kde_plot(brute_force_file_name: str) -> None:
     """Make KDE (kernel density estimate) plot of the extreme value location.
 
-    The plot shows where in the (Hs, Tp) the maxima of c_max occurred when using the brute force approach.
+    The plot shows where in the (Hs, Tp) space the maxima of c_max occurred when using the brute force approach.
 
     Args:
-        brute_force_file_name: file name where the brute force results are stored.
+        brute_force_file_name: file name where the brute force results are saved.
     """
     brute_force_file_path = _results_dir / brute_force_file_name
 
@@ -235,8 +247,6 @@ if __name__ == "__main__":
     _ = plt.title("R-year return value distribution")
     _ = plt.xlabel("R-year return value")
     _ = plt.ylabel("Density")
-    _ = plt.axvline(extreme_response_values.mean().item(), color="red", label="mean")
-    _ = plt.axvline(extreme_response_values.median().item(), color="purple", label="median")
     _ = plt.axvline(
         torch.quantile(extreme_response_values, np.exp(-1)).item(), color="orange", label="exp(-1) quantile"
     )
@@ -247,7 +257,7 @@ if __name__ == "__main__":
     # We need to estimate the amount of uncertainty there is in the point estimate. The following shows a negligible
     #  amount when 16_000 samples are used (Obviously these are not truly random samples so this is not perfect).
     # %%
-    # Analyse uncertainty in brute force estimate using both median and exp(-1) quantile
+    # Analyse uncertainty in brute force estimate using the exp(-1) quantile
     results_quantile = []
     brute_force_samples = [1_000, 2_000, 4_000, 8_000, 16_000]
     for n_samples in brute_force_samples:
