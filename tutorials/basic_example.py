@@ -159,12 +159,14 @@ N_ENV_SAMPLES_PER_PERIOD = 1000
 
 n_erd_samples = 1000
 erd_samples = []
+erd_samples_loc = []
 for _ in range(n_erd_samples):
     indices = np.random.choice(env_data.shape[0], size=N_ENV_SAMPLES_PER_PERIOD, replace=True)  # noqa: NPY002
     period_sample = env_data[indices]
 
     responses = dummy_simulator_function(period_sample)
     erd_samples.append(responses.max())
+    erd_samples_loc.append(period_sample[np.argmax(responses), :])
 
 _, axes = plt.subplots(ncols=2, figsize=(12, 5))
 
@@ -195,10 +197,28 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 
 # %%
 # For this specific problem we have precalculated a large number of brute force ERD samples.
-# This allows up to treat the brute_force_qoi_estimate as a point for the purpose of this tutorial.
-precalced_erd_samples = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+# This allows us to treat the brute_force_qoi_estimate as a point for the purpose of this tutorial.
+precalced_erd_samples, precalced_er_loc = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
 brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
+
+_ = plt.hist(precalced_erd_samples, bins=100, label="ERD samples", density=True)
+_ = plt.axvline(brute_force_qoi_estimate, color="orange", label="QoI")
+_ = plt.xlabel("Response value")
+_ = plt.ylabel("Density")
+_ = plt.legend()
+
+# %%
+# We are not only interested in the ERD but also in the locations where the extreme responses occur. If only few
+# environment samples cover the region where the extreme responses occur the QoI estimation with axtreme will require
+# a higher amount of runs. One solution for this is importance sampling. This is discussed in more detail later on in
+# this tutorial.
+
+_ = plt.scatter(env_data[:, 0], env_data[:, 1], s=1, alpha=1, color="grey")
+_ = plt.scatter(precalced_er_loc[:, 0], precalced_er_loc[:, 1], s=1, alpha=0.5, color="blue")
+_ = plt.title("extreme response location")
+_ = plt.xlabel("$x_1$")
+_ = plt.ylabel("$x_2$")
 
 # %% [markdown]
 # # Using `axtreme` to solve the problem
