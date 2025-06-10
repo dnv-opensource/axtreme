@@ -1,9 +1,14 @@
-"""The script explores the sensitivity of DOE results to the sobol seed.
+"""The script explores the sensitivity of DOE results to the sobol seed and for DOE until a given stopping criteria.
 
 The sobol seed controls the initial dataset generated (used to train the GP),
 and the baseline performance the DOE/acquisition function is compared to.
 This runs using the QoI and Experiment define in doe.py and is intend as
 an additional analysis of how the sobol seed effects the DOE process defined there.
+
+Additionally, it runs the DOE until a given stopping criteria is met.
+This is useful to see how the DOE process converges to the QoI estimate with a given error and uncertaionty and how the
+uncertainty in the estimate decreases over time. ALso direct comparison between Sobol and Look-ahead DOE is made to see
+the benefits of the Look-ahead DOE approach.
 """
 
 # %%
@@ -22,10 +27,11 @@ from doe import (  # type: ignore[import-not-found]
     create_sobol_generator,
     look_ahead_generator_run,
     make_exp,
-    plot_qoi_estimates_from_experiment,
     run_trials,
 )
 from problem import N_SIMULATIONS_PER_POINT  # type: ignore[import-not-found]
+
+from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 
 # %% [markdown]
 # As of 2025-05-14, this multiple DOE experiments with different seeds for the sobol generator to see the effects this
@@ -288,14 +294,14 @@ def run_trials_until_convergence(
     error_tolerance: float = 0.01,
     warm_up_runs: int = 8,
 ) -> dict[str, Any]:
-    """Run DOE trials until SEM and QoI error is reduced to given thresholds.
+    """Run DOE trials until Standard Error of Mean(SEM) and QoI error is reduced to given thresholds.
 
     Args:
         experiment: Experiment to perform DOE on
         warm_up_generator: Generator for initial training data
         doe_generator: Generator for DOE iterations
         reference_qoi_mean: Reference mean value for error calculation
-        sem_threshold: uncertainty threshold for standerd error of mean (SEM)
+        sem_threshold: uncertainty threshold for standard error of mean (SEM)
         error_tolerance: Relative error tolerance of the QoI Mean for stopping
         warm_up_runs: Number of warm-up runs before DOE
 
@@ -421,24 +427,20 @@ def run_single_convergence_experiment(
     return exp_sobol, exp_lookahead, sobol_results, lookahead_results
 
 
-def plot_convergence(  # noqa: C901, PLR0912, PLR0913, PLR0915
+def plot_qoi_convergence(
     exp_sobol: Experiment,
     exp_lookahead: Experiment,
-    sobol_results: dict[str, Any],
-    lookahead_results: dict[str, Any],
     sem_threshold: float,
     error_tolerance: float,
     save_path: str | None = None,
     *,
     show_n_sim_runs: bool = True,
 ) -> None:
-    """Plot how the QoI estimates and SEM changes over the DoE process for a sobol and look_ahead experiments.
+    """Plot QoI convergence comparison between Sobol and look-ahead experiments.
 
     Args:
         exp_sobol: Sobol experiment
         exp_lookahead: Look-ahead experiment
-        sobol_results: Sobol convergence results
-        lookahead_results: Look-ahead convergence results
         sem_threshold: Uncertainty threshold used
         error_tolerance: Error tolerance used
         save_path: Path to save the plot
@@ -459,59 +461,55 @@ def plot_convergence(  # noqa: C901, PLR0912, PLR0913, PLR0915
     marker = "-" if show_n_sim_runs else "o-"
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 8))
 
-    if len(sobol_qoi) > 0:
-        sobol_valid = sobol_qoi.dropna(subset=["mean", "sem"])
-        if len(sobol_valid) > 0:
-            _ = ax1.plot(
-                sobol_valid["trial_index"],
-                sobol_valid["mean"],
-                marker,
-                color="blue",
-                label="Sobol",
-                markersize=4,
-                linewidth=2,
-                alpha=0.8,
-            )
+    sobol_valid = sobol_qoi.dropna(subset=["mean", "sem"])
+    _ = ax1.plot(
+        sobol_valid["trial_index"],
+        sobol_valid["mean"],
+        marker,
+        color="blue",
+        label="Sobol",
+        markersize=4,
+        linewidth=2,
+        alpha=0.8,
+    )
 
-            confidence_interval = 1.96
-            upper_bound = sobol_valid["mean"] + confidence_interval * sobol_valid["sem"]
-            lower_bound = sobol_valid["mean"] - confidence_interval * sobol_valid["sem"]
+    confidence_interval = 1.96
+    upper_bound = sobol_valid["mean"] + confidence_interval * sobol_valid["sem"]
+    lower_bound = sobol_valid["mean"] - confidence_interval * sobol_valid["sem"]
 
-            _ = ax1.fill_between(
-                sobol_valid["trial_index"],
-                lower_bound,
-                upper_bound,
-                alpha=0.2,
-                color="blue",
-                label="Sobol 90% CI",
-            )
+    _ = ax1.fill_between(
+        sobol_valid["trial_index"],
+        lower_bound,
+        upper_bound,
+        alpha=0.2,
+        color="blue",
+        label="Sobol 95% CI",
+    )
 
-    if len(lookahead_qoi) > 0:
-        lookahead_valid = lookahead_qoi.dropna(subset=["mean", "sem"])
-        if len(lookahead_valid) > 0:
-            _ = ax1.plot(
-                lookahead_valid["trial_index"],
-                lookahead_valid["mean"],
-                marker,
-                color="green",
-                label="Look-ahead DOE",
-                markersize=4,
-                linewidth=2,
-                alpha=0.8,
-            )
+    lookahead_valid = lookahead_qoi.dropna(subset=["mean", "sem"])
+    _ = ax1.plot(
+        lookahead_valid["trial_index"],
+        lookahead_valid["mean"],
+        marker,
+        color="green",
+        label="Look-ahead DOE",
+        markersize=4,
+        linewidth=2,
+        alpha=0.8,
+    )
 
-            confidence_interval = 1.96  # 90% CI
-            upper_bound = lookahead_valid["mean"] + confidence_interval * lookahead_valid["sem"]
-            lower_bound = lookahead_valid["mean"] - confidence_interval * lookahead_valid["sem"]
+    confidence_interval = 1.96
+    upper_bound = lookahead_valid["mean"] + confidence_interval * lookahead_valid["sem"]
+    lower_bound = lookahead_valid["mean"] - confidence_interval * lookahead_valid["sem"]
 
-            _ = ax1.fill_between(
-                lookahead_valid["trial_index"],
-                lower_bound,
-                upper_bound,
-                alpha=0.2,
-                color="green",
-                label="Look-ahead 90% CI",
-            )
+    _ = ax1.fill_between(
+        lookahead_valid["trial_index"],
+        lower_bound,
+        upper_bound,
+        alpha=0.2,
+        color="green",
+        label="Look-ahead 95% CI",
+    )
 
     # Add reference line
     _ = ax1.axhline(brute_force_qoi, c="black", label="Brute force QoI", linestyle="--", linewidth=2)
@@ -527,14 +525,14 @@ def plot_convergence(  # noqa: C901, PLR0912, PLR0913, PLR0915
         label=f"Error tolerance (±{error_tolerance * 100:.1f}%)",
     )
 
-    uncertainty_band = sem_threshold * 1.96  # 90% confidence interval
+    uncertainty_band = sem_threshold * 1.96  # 95% confidence interval
     _ = ax1.fill_between(
         [0, max_trials],
         brute_force_qoi - uncertainty_band,
         brute_force_qoi + uncertainty_band,
         alpha=0.15,
         color="red",
-        label=f"SEM threshold (±{sem_threshold:.4f} SEM, 90% CB)",
+        label=f"SEM threshold (±{sem_threshold:.4f} SEM, 95% CI)",
     )
 
     _ = ax1.axhline(brute_force_qoi + error_band, c="red", alpha=0.5, linestyle=":")
@@ -542,27 +540,25 @@ def plot_convergence(  # noqa: C901, PLR0912, PLR0913, PLR0915
     _ = ax1.axhline(brute_force_qoi + uncertainty_band, c="red", alpha=0.3, linestyle="-.")
     _ = ax1.axhline(brute_force_qoi - uncertainty_band, c="red", alpha=0.3, linestyle="-.")
 
-    if sobol_results["converged"]:
-        stop_trial = sobol_results["total_trials"] - 1
-        _ = ax1.axvline(
-            stop_trial,
-            color="blue",
-            linestyle="-.",
-            alpha=0.8,
-            linewidth=2,
-            label=f"Sobol stopped (trial {stop_trial})",
-        )
+    stop_trial = sobol_qoi["trial_index"].max()
+    _ = ax1.axvline(
+        stop_trial,
+        color="blue",
+        linestyle="-.",
+        alpha=0.8,
+        linewidth=2,
+        label=f"Sobol stopped (trial {stop_trial})",
+    )
 
-    if lookahead_results["converged"]:
-        stop_trial = lookahead_results["total_trials"] - 1
-        _ = ax1.axvline(
-            stop_trial,
-            color="green",
-            linestyle="-.",
-            alpha=0.8,
-            linewidth=2,
-            label=f"Look-ahead stopped (trial {stop_trial})",
-        )
+    stop_trial = lookahead_qoi["trial_index"].max()
+    _ = ax1.axvline(
+        stop_trial,
+        color="green",
+        linestyle="-.",
+        alpha=0.8,
+        linewidth=2,
+        label=f"Look-ahead stopped (trial {stop_trial})",
+    )
 
     if show_n_sim_runs:
         current_ticks = ax1.get_xticks()
@@ -574,17 +570,46 @@ def plot_convergence(  # noqa: C901, PLR0912, PLR0913, PLR0915
     else:
         _ = ax1.set_xlabel("Trial Number")
     _ = ax1.set_ylabel("QoI Estimate")
-    _ = ax1.set_title("QoI Convergence with 90% Confidence bound: Sobol vs Look-ahead DOE ")
+    _ = ax1.set_title("QoI Convergence with 95% Confidence bound: Sobol vs Look-ahead DOE")
     _ = ax1.legend()
     ax1.grid(visible=True, alpha=0.3)
 
-    qoi_save_path = f"{save_path}qoi_convergence.png"
     if save_path:
+        qoi_save_path = f"{save_path}qoi_convergence.png"
         plt.savefig(qoi_save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
-    # Plot 2: SEM convergence
+
+def plot_sem_convergence(
+    exp_sobol: Experiment,
+    exp_lookahead: Experiment,
+    sobol_results: dict[str, Any],
+    lookahead_results: dict[str, Any],
+    sem_threshold: float,
+    save_path: str | None = None,
+    *,
+    show_n_sim_runs: bool = True,
+) -> None:
+    """Plot SEM convergence comparison between Sobol and look-ahead experiments.
+
+    Args:
+        exp_sobol: Sobol experiment
+        exp_lookahead: Look-ahead experiment
+        sobol_results: Sobol convergence results
+        lookahead_results: Look-ahead convergence results
+        sem_threshold: Uncertainty threshold used
+        save_path: Path to save the plot
+        show_n_sim_runs: Whether to show number of simulation runs on x-axis or trial number
+    """
+    # Get data for both experiments
+    sobol_metrics = exp_sobol.fetch_data()
+    sobol_qoi = sobol_metrics.df[sobol_metrics.df["metric_name"] == "QoIMetric"]
+    lookahead_metrics = exp_lookahead.fetch_data()
+    lookahead_qoi = lookahead_metrics.df[lookahead_metrics.df["metric_name"] == "QoIMetric"]
+
+    marker = "-" if show_n_sim_runs else "o-"
     fig2, ax2 = plt.subplots(1, 1, figsize=(12, 8))
+
     if len(sobol_qoi) > 0:
         sobol_valid = sobol_qoi.dropna(subset=["sem"])
         if len(sobol_valid) > 0:
@@ -645,14 +670,14 @@ def plot_convergence(  # noqa: C901, PLR0912, PLR0913, PLR0915
     else:
         _ = ax2.set_xlabel("Trial Number")
     _ = ax2.set_ylabel("Standard Error of Mean (SEM)")
-    _ = ax2.set_title("Standard Error of Mean  Reduction Comparison (Individual SEM Values)")
+    _ = ax2.set_title("Standard Error of Mean Reduction Comparison (Individual SEM Values)")
     _ = ax2.legend()
     ax2.grid(visible=True, alpha=0.3)
 
     plt.tight_layout()
 
-    sem_save_path = f"{save_path}sem_convergence.png"
     if save_path:
+        sem_save_path = f"{save_path}sem_convergence.png"
         plt.savefig(sem_save_path, dpi=300, bbox_inches="tight")
 
     plt.show()
@@ -679,15 +704,22 @@ if __name__ == "__main__":
     )
 
     # %%
-    # Create comparison plot
-    plot_convergence(
-        exp_sobol,
-        exp_lookahead,
-        sobol_results,
-        lookahead_results,
-        sem_threshold,
-        error_tolerance,
+    plot_qoi_convergence(
+        exp_sobol=exp_sobol,
+        exp_lookahead=exp_lookahead,
+        sem_threshold=sem_threshold,
+        error_tolerance=error_tolerance,
         save_path="./results/doe/",
     )
+
+    plot_sem_convergence(
+        exp_sobol=exp_sobol,
+        exp_lookahead=exp_lookahead,
+        sobol_results=sobol_results,
+        lookahead_results=lookahead_results,
+        sem_threshold=sem_threshold,
+        save_path="./results/doe/",
+    )
+
 
 # %%

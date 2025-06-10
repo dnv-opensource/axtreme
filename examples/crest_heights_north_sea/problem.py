@@ -1,5 +1,3 @@
-# Currently mostly copied from TDR_rax/examples/dem2d/problem.py
-# Update as simulator, BF QoI and make experiments are ready.
 """Helper file to put fundamental problem decisions in one place.
 
 As users of the axtreme package we always need to:
@@ -25,7 +23,7 @@ from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from simulator import (  # type: ignore[import-not-found]
     MaxCrestHeightSimulatorSeeded,
-    max_crest_height_simulator_function,
+    # max_crest_height_simulator_function,
 )
 from torch.utils.data import DataLoader, Dataset
 from usecase.env_data import collect_data  # type: ignore[import-not-found]
@@ -34,7 +32,8 @@ from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalData
 from axtreme.experiment import make_experiment
 from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.sampling.ut_sampler import UTSampler
-from axtreme.simulator.utils import simulator_from_func
+
+# from axtreme.simulator.utils import simulator_from_func  # noqa: ERA001
 
 # %%
 # Pick the search space over which to create a surrogate
@@ -55,12 +54,15 @@ SEARCH_SPACE = SearchSpace(
 # Pick a distribution that you believe captures the noise behaviour of the simulator
 DIST = gumbel_r
 
-# %%
-# Load simulator
-sim = simulator_from_func(max_crest_height_simulator_function)
 
 # %%
-# TODO(hsb 2025-06-04): Should this be included here?I think it is nice to use the seeded simulator for reproducibility.
+# For now the seeded simulator is used for reproducibility of the results over different runs.
+# This is useful for development and debugging purposes, but in production you might want to use the non-seeded version.
+# This is because the seeded simulator will always return the same results for the same input parameters.
+# If you want to use the non-seeded simulator, use:
+# sim = simulator_from_func(max_crest_height_simulator_function)  # noqa: ERA001
+
+
 # Instantiate the seeded simulator
 sim = MaxCrestHeightSimulatorSeeded()
 
@@ -79,7 +81,6 @@ period_length = year_return_value * n_sea_states_in_year
 
 # %%
 # Number of simulations per point for each point added to the experiment.
-# TODO(hsb 2025-06-04): Is the comment/explaination neccesary?
 # Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
 # the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
 # debugging and testing purposes.

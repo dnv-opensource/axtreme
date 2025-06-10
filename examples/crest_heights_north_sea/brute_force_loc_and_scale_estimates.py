@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from ax import SearchSpace
+from ax.core import ParameterConstraint  # type: ignore[import]
 from matplotlib.figure import Figure
 from numpy.typing import NDArray
 from problem import SEARCH_SPACE  # type: ignore[import]
@@ -21,7 +22,7 @@ DEFAULT_FILENAME = "brute_force_loc_scale_data.npz"
 
 # TODO(@henrikstoklandberg 2025-05-12): Add seed to
 # #simulator function when implemnted seeded simulator
-def generate_and_save_static_dataset(  # noqa: C901
+def generate_and_save_static_dataset(
     search_space: SearchSpace,
     save_dir: Path = SAVE_DIR,
     filename: str = DEFAULT_FILENAME,
@@ -66,43 +67,29 @@ def generate_and_save_static_dataset(  # noqa: C901
     if hasattr(search_space, "parameter_constraints"):
         constraints = search_space.parameter_constraints
 
-    # Create mask to track valid points
-    validity_mask = np.ones((grid_size, grid_size), dtype=bool)
-
-    # Mark invalid points based on constraints
-    for i in range(grid_size):
-        for j in range(grid_size):
-            hs = hs_grid[i, j]
-            tp = tp_grid[i, j]
-
-            # Check if point satisfies all constraints
-            for constraint in constraints:
-                constraint_value = 0
-                for param_name, coef in constraint.constraint_dict.items():
-                    if param_name == "Hs":
-                        constraint_value += coef * hs
-                    elif param_name == "Tp":
-                        constraint_value += coef * tp
-
-                if constraint_value > constraint.bound:
-                    validity_mask[i, j] = False
-                    break
+    validity_mask = create_validity_mask(
+        constraints=constraints,
+        hs_grid=hs_grid,
+        tp_grid=tp_grid,
+        grid_size=grid_size,
+    )
 
     # Initialize result arrays as full grid but with NaN for invalid points
     loc_values = np.full_like(hs_grid, np.nan, dtype=float)
     scale_values = np.full_like(hs_grid, np.nan, dtype=float)
 
-    for i in tqdm(range(grid_size)):
-        for j in range(grid_size):
-            if not validity_mask[i, j]:
+    # fit Gumbel distribution parameters from simulator for valid grid points
+    for row_idx in tqdm(range(grid_size)):
+        for col_idx in range(grid_size):
+            if not validity_mask[row_idx, col_idx]:
                 continue  # Skip invalid points
-            hs = hs_grid[i, j]
-            tp = tp_grid[i, j]
+            hs = hs_grid[row_idx, col_idx]
+            tp = tp_grid[row_idx, col_idx]
             x = np.full((n_samples, 2), [hs, tp])
             results = max_crest_height_simulator_function(x)
             loc, scale = gumbel_r.fit(results)
-            loc_values[i, j] = loc
-            scale_values[i, j] = scale
+            loc_values[row_idx, col_idx] = loc
+            scale_values[row_idx, col_idx] = scale
 
     # Save the dataset
     save_data = {
@@ -119,6 +106,44 @@ def generate_and_save_static_dataset(  # noqa: C901
     print(f"Data saved to {save_path}")
 
     return save_path
+
+
+def create_validity_mask(
+    constraints: list[ParameterConstraint], hs_grid: NDArray[np.float64], tp_grid: NDArray[np.float64], grid_size: int
+) -> NDArray[np.bool_]:
+    """Create validity mask with marked invalid points in the grid based on parameter constraints.
+
+    Args:
+        constraints: List of ParameterConstraint objects defining the constraints.
+        hs_grid: 2D array of Hs values.
+        tp_grid: 2D array of Tp values.
+        grid_size: Size of the grid (number of points in each dimension).
+
+    Returns:
+        2D boolean array where True indicates valid points and False indicates invalid points.
+    """
+    # Create mask to track valid points
+    validity_mask = np.ones((grid_size, grid_size), dtype=bool)
+
+    # Mark invalid points based on constraints
+    for row_idx in range(grid_size):
+        for col_idx in range(grid_size):
+            hs = hs_grid[row_idx, col_idx]
+            tp = tp_grid[row_idx, col_idx]
+
+            # Check if point satisfies all constraints
+            for constraint in constraints:
+                constraint_value = 0
+                for param_name, coef in constraint.constraint_dict.items():
+                    if param_name == "Hs":
+                        constraint_value += coef * hs
+                    elif param_name == "Tp":
+                        constraint_value += coef * tp
+
+                if constraint_value > constraint.bound:
+                    validity_mask[row_idx, col_idx] = False
+                    break
+    return validity_mask
 
 
 def create_functions_from_static_dataset(

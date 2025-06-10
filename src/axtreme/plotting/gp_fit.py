@@ -100,8 +100,10 @@ def scatter_plot_training(
         show_indices: Whether to show the indices of the points (their order of when each point is added to the GP).
     """
     training_data = model_bridge.get_training_data()
-    xs = np.array([list(obs.features.parameters.values()) for obs in training_data])
-    ys = []
+    xs = np.array(
+        [list(obs.features.parameters.values()) for obs in training_data]
+    )  # input parameter values for training data
+    ys = []  # response values for training data
     y_noise = []
 
     # Extract trial indices if available
