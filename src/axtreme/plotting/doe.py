@@ -64,7 +64,7 @@ def plot_qoi_estimates_from_experiment(
     name: str | None = None,
     **kwargs: Any,  # noqa: ANN401
 ) -> Axes:
-    """Plot how the QoI estimates changes over the DoE process from a given experiment wiht the QoI metric attached.
+    """Plot how the QoI estimates changes over the DoE process from a given experiment with the QoI metric attached.
 
     Args:
         experiment: the experiment to plot the results from, QOI metric must be present.
