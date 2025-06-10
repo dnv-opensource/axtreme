@@ -1,11 +1,17 @@
-# Currently mostly copied from TDR_rax/examples/dem2d/problem.py
-# Update as simulator, BF QoI and make experiments are ready.
-"""Helper file to put fundamental problem decisions in one place.
+"""Helper file to put fundamental problem decisions for the crest_heights_north_sea example in one place.
 
-As users of the axtreme package we always need to:
-1) Define the search space our problem lies within.
-2) Define distribution we want to use to represent the output of the simulator.
-3) Combine these with the simulator to create an Ax experiment.
+This file includes the following:
+1) Definition of the search space for which the surrogate model is created
+2) Definition of the distribution that best captures the simulators response
+3) Loading  simulator
+4) Load environment data
+5) Calculation of brute force solution
+6) Calculation of importance samples and weights
+7) Calculation of QoI
+
+Future projects can use this structure as a guideline on how an axtreme use case can be set up.
+
+Variables and functions from this file are used in the DOE calculations (doe.py, doe_dev.py).
 
 Todo: TODO:
 - (sw 2024_09_15): Once defined in this module, everything should be treated as a constant. Should all public things be
@@ -33,6 +39,8 @@ from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.simulator.utils import simulator_from_func
 
+torch.set_default_dtype(torch.float64)
+
 # %%
 # Pick the search space over which to create a surrogate
 hs_bounds = [0.1, 30]
@@ -54,12 +62,15 @@ DIST = gumbel_r
 
 # %%
 # Load simulator
+# This function ensures that the simulator has the correct output dimensions required for
+# the usage in axtreme.
 sim = simulator_from_func(max_crest_height_simulator_function)
 
 # %%
 # Load environment data
 problem_dir = Path(__file__).resolve().parent
 dataset: Dataset[NDArray[np.float64]] = MinimalDataset(collect_data().to_numpy())
+
 # %%
 # Convert usecase specific naming conventions to ax conventions
 year_return_value = 10
@@ -73,9 +84,9 @@ period_length = year_return_value * n_sea_states_in_year
 # %%
 # Automatically set up your experiment using the sim, search_space, and dist defined above.
 def make_exp() -> Experiment:
-    """Convenience function returns a fresh Experiment of this problem."""
+    """Convenience function that returns a fresh Experiment of this problem."""
     # n_simulations_per_point can be changed, but it is typically a good idea to set it here so all QOIs and Acquisition
-    # Functions are working on the same problem and are comparable
+    # functions are working on the same problem and are comparable
     return make_experiment(sim, SEARCH_SPACE, DIST, n_simulations_per_point=30)
 
 
@@ -91,11 +102,14 @@ extreme_response_values, _ = collect_or_calculate_results(
 # This is based on discussion with Odin, and the following paper: https://www.duo.uio.no/bitstream/handle/10852/101693/JOMAE2022_TSsim_rev1.pdf?sequence=1
 brute_force_qoi = torch.quantile(extreme_response_values, np.exp(-1))
 
-# %% This is the result of `create_importance_samples.py` script.
+# %%
+# This is the result of `create_importance_samples.py` script.
 importance_samples = torch.load("results/importance_sampling/importance_samples.pt", weights_only=True)
 importance_weights = torch.load("results/importance_sampling/importance_weights.pt", weights_only=True)
 importance_dataset = ImportanceAddedWrapper(MinimalDataset(importance_samples), MinimalDataset(importance_weights))
-# %% This is based on the analysis performed in `qoi_bias_var.py` script.
+
+# %%
+# This is based on the analysis performed in `qoi_bias_var.py` script.
 sampler = FixedRandomSampler(
     importance_dataset,
     num_samples=8_000,
