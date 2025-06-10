@@ -50,6 +50,8 @@ def run_multiple_seeded_experiments(
 ) -> tuple[list[Experiment], list[Experiment]]:
     """Run multiple Sobol and Look-ahead experiments with different seeds.
 
+    Usefull for testing the sensitivity of the DOE results to different sobol seed.
+
     Args:
         n_experiments: Number of experiments to run with different seeds
         n_iter: Number of DOE iterations for each experiment
@@ -136,7 +138,7 @@ def create_comparison_plots(
     brute_force_qoi_estimate: float,
     save_dir: str,
 ) -> None:
-    """Create comparison plots for multiple experiments.
+    """Create comparison plots for multiple experiments generated using run_multiple_seeded_experiments().
 
     Args:
         sobol_experiments: List of Sobol experiments

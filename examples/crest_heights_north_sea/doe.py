@@ -1,4 +1,21 @@
-"""This file runs a DOE on the crest heights in the North Sea using the Axtreme library."""
+"""Design of Experiments (DOE) analysis for crest heights in the North Sea.
+
+This module demonstrates the application of the AXtreme library for performing
+Design of Experiments on North Sea crest height example. It compares the two approaches;
+
+1. Sobol sampling: Traditional space-filling design using quasi-random sequences
+2. Look-ahead DOE: axtreme acquisition function that picks the next point based on
+the expected uncertainty reduction in the QoI estimate of the GP.
+
+The analysis includes:
+- Baseline QoI estimation using large Sobol datasets
+- Comparative DOE experiments between Sobol and look-ahead methods
+- Visualization of acquisition function surfaces
+- GP model fitting and validation against brute-force estimates
+
+See Also doe_dev.py for extended analysis with stopping criteria
+and analysis on how different seeds affect the DOE results.
+"""
 
 # %%
 from collections.abc import Callable
@@ -244,7 +261,22 @@ print(candidate, result)
 acqf_class = QoILookAhead
 
 
-def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:  # noqa: D103
+def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
+    """Generate the next optimal point using QoI look-ahead acquisition function.
+
+    Builds a GP model from current experiment data and uses QoILookAhead acquisition
+    function to select the next point that reduces QoI uncertainty the most.
+
+    Args:
+        experiment: Ax experiment containing current trial data.
+
+    Returns:
+        GeneratorRun containing the next optimal point to evaluate.
+
+    Note:
+        Uses two-step model building to handle transform issues with QoI metrics.
+        Refits GP hyperparameters on each call.
+    """
     # Fist building model to get the transforms
     # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
 

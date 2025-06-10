@@ -1,4 +1,16 @@
-"""Generate and save brute force estimates of location and scale functions."""
+"""Generate brute-force estimates of Gumbel distribution location and scale parameters for North Sea crest heights.
+
+This file creates reference location and scale functions by computing location and scale
+parameters of fitted Gumbel distributions across a dense grid of environmental conditions
+convering the search space defined in problem.py.
+
+The brute-force approach involves:
+- Creating a dense parameter grid covering the full constrained search space
+- Running n_samples simulator evaluations at each grid point
+- Fitting Gumbel distributions to the simulator outputs
+- Storing the fitted parameters for later interpolation as functions
+- Saving the results to a compressed .npz file for efficient storage and retrieval
+"""
 
 # %%
 from collections.abc import Callable
