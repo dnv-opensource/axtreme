@@ -15,17 +15,13 @@ from botorch.optim import optimize_acqf
 from brute_force_loc_and_scale_estimates import (  # type: ignore[import-not-found]
     get_brute_force_loc_and_scale_functions,
 )
-from doe_dev import (  # type: ignore[import-not-found]
-    plot_qoi_convergence,
-    plot_sem_convergence,
-    run_single_convergence_experiment,
-)
 from problem import QOI_ESTIMATOR, SEARCH_SPACE, brute_force_qoi, make_exp  # type: ignore[import-not-found]
 
 from axtreme import sampling
 from axtreme.acquisition import QoILookAhead
 from axtreme.experiment import add_sobol_points_to_experiment
 from axtreme.metrics import QoIMetric
+from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment
 from axtreme.utils import transforms
 
@@ -38,7 +34,7 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi}")
 
 # %% Long term estimate
 # Below we fit a GP model to a large dataset of Sobol points to get
-# a basline QoI estimate for a GP trinaed on a large dataset.
+# a basline QoI estimate for a GP trained on a large dataset.
 large_dataset_points = 256
 exp = make_exp()
 add_sobol_points_to_experiment(exp, n_iter=large_dataset_points, seed=8)
@@ -336,32 +332,23 @@ fig_last_trial.show()
 fig_last_trial.write_html("results/doe/plots/doe_gp_vs_true_functions.html")
 
 
-# %%
-sem_threshold = 0.01
-error_tolerance = 0.01
-# Run the sobol and lookahead experiments until sem threshold and error tolerance is reached.
-exp_sobol, exp_lookahead, sobol_results, lookahead_results = run_single_convergence_experiment(
-    sem_threshold=sem_threshold,
-    error_tolerance=error_tolerance,
-    warm_up_runs=8,
-    seed=42,
-)
+# %% [markdown]
+# ### Plot the results
+
 
 # %%
-# plot results from stopping criteria experiments
-plot_qoi_convergence(
-    exp_sobol=exp_sobol,
-    exp_lookahead=exp_lookahead,
-    sem_threshold=sem_threshold,
-    error_tolerance=error_tolerance,
-    save_path="./results/doe/",
+# For a more sophisticated stopping criteria experiment, see doe_dev.py as of 2025-06-10.
+_, ax = plt.subplots()
+_ = ax.axhline(
+    large_dataset_mean + 1.96 * large_dataset_var**0.5,
+    c="sandybrown",
+    label=f"Stopping criteria\n({large_dataset_points} Sobol points)",
 )
-
-plot_sem_convergence(
-    exp_sobol=exp_sobol,
-    exp_lookahead=exp_lookahead,
-    sobol_results=sobol_results,
-    lookahead_results=lookahead_results,
-    sem_threshold=sem_threshold,
-    save_path="./results/doe/",
-)
+_ = ax.axhline(large_dataset_mean - 1.96 * large_dataset_var**0.5, c="sandybrown")
+_ = ax.axhline(large_dataset_mean, c="sandybrown", linestyle="--", label="Sobol mean")
+ax = plot_qoi_estimates_from_experiment(exp_sobol, ax=ax, name="Sobol")
+ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
+_ = ax.axhline(brute_force_qoi, c="black", label="brute_force_value")
+_ = ax.set_xlabel("Number of DOE iterations")
+_ = ax.set_ylabel("Response")
+_ = ax.legend()
