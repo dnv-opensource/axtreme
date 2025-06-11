@@ -56,6 +56,8 @@ from axtreme.utils import population_estimators, transforms
 torch.set_default_dtype(torch.float64)
 device = "cpu"
 
+_: Any  # for typing
+
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 
 # %% [markdown]
