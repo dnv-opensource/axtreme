@@ -205,7 +205,7 @@ brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 
 _ = plt.hist(precalced_erd_samples, bins=100, label="ERD samples", density=True)
-_ = plt.axvline(brute_force_qoi_estimate, color="orange", label="QoI")
+_ = plt.axvline(float(brute_force_qoi_estimate), color="orange", label="QoI")
 _ = plt.xlabel("Response value")
 _ = plt.ylabel("Density")
 _ = plt.legend()
