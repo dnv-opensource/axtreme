@@ -30,6 +30,9 @@ if __name__ == "__main__":
     from simulator import _true_loc_func, _true_scale_func  # type: ignore[import-not-found]
 else:
     from .simulator import _true_loc_func, _true_scale_func
+
+torch.set_default_dtype(torch.float64)
+
 # for typing
 _: Any
 

@@ -20,9 +20,11 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler
 
 from axtreme.data import BatchInvariantSampler2d, SizableSequentialSampler
 
+torch.set_default_dtype(torch.float64)
+
 # %%
 """Basics: torch components.
-The following show the most basic verion of the torch components we use in axtreme.
+The following show the most basic version of the torch components we use in axtreme.
 NOTE: We make use of a more advanced set up detailed in the next section.
 """
 
