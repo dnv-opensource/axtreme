@@ -1,4 +1,4 @@
-"""Visualise the data that define this problem."""
+"""Visualize the environment data."""
 
 # %%
 
@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from axtreme.plotting.histogram3d import histogram_surface3d
 
 # %%
-### Visualise the Environment data
+### Visualize the environment data
 _problem_dir = Path(__file__).parent
 data: NDArray[np.float64] = np.load(_problem_dir / "data/long_term_distribution.npy")
 
