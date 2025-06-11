@@ -211,16 +211,17 @@ _ = plt.ylabel("Density")
 _ = plt.legend()
 
 # %%
-# We are not only interested in the ERD but also in the locations where the extreme responses occur. If only few
-# environment samples cover the region where the extreme responses occur the QoI estimation with axtreme will require
-# a higher amount of runs. One solution for this is importance sampling. This is discussed in more detail later on in
-# this tutorial.
+# We're interested not only in the ERD but also in where the extreme responses happen—that is, which (x1, x2) values
+# correspond to them.
 
-_ = plt.scatter(env_data[:, 0], env_data[:, 1], s=1, alpha=1, color="grey")
-_ = plt.scatter(precalced_er_loc[:, 0], precalced_er_loc[:, 1], s=1, alpha=0.5, color="blue")
+_ = plt.scatter(env_data[:, 0], env_data[:, 1], s=1, alpha=1, color="grey", label="environment data")
+_ = plt.scatter(
+    precalced_er_loc[:, 0], precalced_er_loc[:, 1], s=1, alpha=0.5, color="blue", label="extreme response location"
+)
 _ = plt.title("extreme response location")
 _ = plt.xlabel("$x_1$")
 _ = plt.ylabel("$x_2$")
+_ = plt.legend()
 
 # %% [markdown]
 # # Using `axtreme` to solve the problem
