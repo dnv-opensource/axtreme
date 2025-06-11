@@ -213,8 +213,8 @@ _ = plt.legend()
 # %%
 # We are not only interested in the ERD but also in the locations where the extreme responses occur. If only few
 # environment samples cover the region where the extreme responses occur the QoI estimation with axtreme will require
-# a higher amount of runs. One solution for this is importance sampling. This is discussed in more detail later on in
-# this tutorial.
+# a higher amount of runs. One solution for this is importance sampling. This is discussed in more detail in
+# the tutorial `importance_sampling_basic_example.py`.
 
 _ = plt.scatter(env_data[:, 0], env_data[:, 1], s=1, alpha=1, color="grey")
 _ = plt.scatter(precalced_er_loc[:, 0], precalced_er_loc[:, 1], s=1, alpha=0.5, color="blue")
