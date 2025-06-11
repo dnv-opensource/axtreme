@@ -11,6 +11,8 @@ from scipy.stats import gumbel_r
 
 from axtreme.simulator.base import Simulator
 
+torch.set_default_dtype(torch.float64)
+
 _branin_currin = BraninCurrin(negate=False).to(dtype=torch.double)
 
 
