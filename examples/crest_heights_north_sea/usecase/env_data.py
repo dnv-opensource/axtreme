@@ -1,11 +1,11 @@
 """Interface to the information available about the environment data.
 
-This may include:
+This includes:
 - samples of the environment distribution.
 - The distribution of the environment data (e.g. provided by an engineer).
 
-In this usecase we assume we have access to samples of the long term. For R&D purposes the environment distribution is
-also made available.
+In this use case we assume we have access to samples of the long term distribution.
+For research and development (R&D) purposes the environment distribution is also made available.
 """
 
 # %%
@@ -34,7 +34,7 @@ _LOGNORMAL_PRMS = (1.557, 0.403, 0.408, 0.005, 0.137, 0.454)
 
 
 def generate_data(n_years_in_period: int, n_sea_states_in_year: int) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    """Genarates environment data.
+    """Generates environment data.
 
     Args:
         n_years_in_period: number of years considered

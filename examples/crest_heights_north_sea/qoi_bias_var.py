@@ -35,6 +35,8 @@ from axtreme.qoi import MarginalCDFExtrapolation
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.utils import population_estimators, transforms
 
+torch.set_default_dtype(torch.float64)
+
 # %% create a single GP to run the QoI with
 exp = make_exp()
 add_sobol_points_to_experiment(exp, n_iter=100, seed=8)

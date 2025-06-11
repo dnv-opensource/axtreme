@@ -1,4 +1,7 @@
-"""Define the simulator."""
+"""This defines the simulator used for this example.
+
+An unseeded and a seeded version of this simulator is defined.
+"""
 
 # %%
 from typing import cast
@@ -53,12 +56,12 @@ def max_crest_height_simulator_function(
 class MaxCrestHeightSimulatorSeeded(Simulator):
     """A seeded version of the max_crest_height_simulator_function conforming to the ``Simulator`` protocol.
 
-    Each unique point(before the 13th descimal) in the x domain has a fixed seed used when generating samples, which
+    Each unique point(before the 13th decimal) in the x domain has a fixed seed used when generating samples, which
     ensures reproducibility. Points still appear "semi" random, as points close together use completely different
     seeds.
 
     For a more detailed explanation of the seeding process, see the following issue #46:
-    https://github.com/orgs/dnv-opensource/projects/4/views/1?pane=issue&itemId=108180911&issue=dnv-opensource%7Caxtreme%7C46
+    https://github.com/dnv-opensource/axtreme/issues/46
     Here plots are added to show the effect of this seeding process vs simply using a fixed seed.
 
     Details:
