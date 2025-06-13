@@ -21,6 +21,8 @@ More are given in [problem.py](problem.py).
 | **Environment Data**   | `usecase/env_data.py`         | Defines all parameters for generating the environmental input data. Also provides functionality to generate and access this data. Visualization available in `usecase/eda.py`. |
 | **Simulator**          | `simulator.py`                | Defines a simplified simulator that models the crest height distribution for the given environment data. |
 | **Brute Force Solver** | `brute_force.py`              | Computes a brute force reference solution which is used to benchmark the accuracy of the `axtreme`’s QoI estimate. |
+||`brute_force_loc_and_scale_estimates.py`|Helper functions for computing underlying distribution functions for the Gaussian process fit comparison|
 | **Importance Sampling**| `create_importance_samples.py`| Computes importance samples and weights to efficiently estimate the QoI. Uses the environment distribution defined in `usecase/env_data.py`. A visual representation of the distribution is available in `usecase/data/hs_tp_pdf.png`. |
+| | `importance_sampling.py`| Helper functions for computing the importance samples and weights.|
 | **QoI Analysis**       | `qoi_bias_var.py`             | Provides tools to analyze bias and variance of different the QoI estimator for different hyperparameters. Used to select hyperparameters for the final QoI estimator in `problem.py`. |
 | **Design of Experiments (DOE)** | `doe.py`            | Compares two DOE approaches: Sobol sampling and Look-ahead DOE. The companion script `doe_dev.py` explores sensitivity to Sobol seed and defines a stopping criterion. |
