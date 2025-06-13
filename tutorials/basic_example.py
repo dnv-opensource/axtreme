@@ -256,6 +256,13 @@ search_space = SearchSpace(
 # %%
 dist = gumbel_r
 
+
+# %%
+# Pick a number of simuations per point. Number of simulations per point for each point added to the experiment.
+# Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
+# the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
+# debugging and testing purposes.
+N_SIMULATIONS_PER_POINT = 200
 # %% [markdown]
 # ## Automatically set up you experiment
 # Use the sim, search_space, and dist defined above to set up the `ax` `Experiment`.
@@ -264,7 +271,7 @@ dist = gumbel_r
 # %%
 def make_exp() -> Experiment:
     """Helper to ensure we always create an experiment with the same settings (so results are comparable)."""
-    return make_experiment(sim, search_space, dist, n_simulations_per_point=200)
+    return make_experiment(sim, search_space, dist, n_simulations_per_point=N_SIMULATIONS_PER_POINT)
 
 
 exp = make_exp()
@@ -738,4 +745,48 @@ _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
 
+# %% [markdown]
+### Find the DOE iteration at which the QoI converged to a given percentage of the brute force estimate.
+
+
 # %%
+def find_convergence_trial(experiment: Experiment, uncertainty_threshold_percent: float = 10.0) -> int:
+    """Find the trial index when uncertainty falls below threshold percentage of brute force QoI."""
+    metrics = experiment.fetch_data()
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+
+    if len(qoi_metrics) == 0:
+        print("No QoIMetric data found in the experiment.")
+        return 0
+
+    threshold = abs(brute_force_qoi_estimate) * (uncertainty_threshold_percent / 100.0)
+
+    for _, row in qoi_metrics.iterrows():
+        if pd.notna(row["sem"]) and (1.96 * row["sem"]) <= threshold:
+            return int(row["trial_index"])
+    print(f"No convergence trial found for uncertainty threshold {uncertainty_threshold_percent}% of brute force QoI.")
+    return 0
+
+
+# Find trial where the uncertainty is below a given percentage of the brute force estimate.
+uncertainty_threshold_percent = 10.0
+sobol_trial = find_convergence_trial(exp_sobol, uncertainty_threshold_percent)
+lookahead_trial = find_convergence_trial(exp_look_ahead, uncertainty_threshold_percent)
+print(f"Sobol reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {sobol_trial}")
+print(f"Look-ahead reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {lookahead_trial}")
+
+# %%
+# PLot the surfaces of the Sobol and Look-ahead experiments with when both experiments have the same uncertainty in
+# the QoI estimate. As one can observe, fewer points are added to the GP in Look-ahead experiment in order to reach
+# the same uncertainty in the QoI estimate.
+# %%
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, sobol_trial, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
+
+# %%
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, lookahead_trial, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
