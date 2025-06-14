@@ -1,0 +1,18 @@
+axtreme.data.importance\_dataset
+================================
+
+.. automodule:: axtreme.data.importance_dataset
+   :members:
+   :exclude-members: ImportanceAddedWrapper,ImportanceIndexWrapper,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      ImportanceAddedWrapper
+      ImportanceIndexWrapper
+   
