@@ -95,7 +95,7 @@ period_length = year_return_value * n_sea_states_in_year
 # Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
 # the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
 # debugging and testing purposes.
-N_SIMULATIONS_PER_POINT = 30
+N_SIMULATIONS_PER_POINT = 20
 
 
 # %%
