@@ -23,6 +23,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 import scipy
 import torch
 from ax import (
@@ -145,6 +146,57 @@ _ = fig.update_layout(title_text="Environment distribution estimate from samples
 _ = fig.update_layout(scene_aspectmode="cube")
 fig.show()
 
+# %%
+# Brute force extreme response location
+precalced_erd_samples, precalced_er_loc = collect_or_calculate_results(1000, 300_000)
+
+bins = 50  # increase for finer resolution
+heatmap, xedges, yedges = np.histogram2d(
+    precalced_er_loc[:, 0], precalced_er_loc[:, 1], bins=bins, range=[[0, 1], [0, 1]]
+)
+
+# Plot as heatmap
+_ = plt.figure(figsize=(8, 6))
+_ = plt.imshow(
+    heatmap.T,  # transpose to match axis orientation
+    origin="lower",
+    extent=(0.0, 1.0, 0.0, 1.0),
+    aspect="auto",
+    cmap="viridis",
+)
+# %%
+exteme_responses: NDArray[np.float64] = precalced_er_loc.numpy()
+fig = histogram_surface3d(exteme_responses)
+_ = fig.update_layout(title_text="Extreme response distribution estimate from samples")
+_ = fig.update_layout(scene_aspectmode="cube")
+fig.show()
+
+# %%
+# Create combined histogram using the same pattern
+fig_combined = go.Figure()
+
+# Add environment data traces
+fig_env = histogram_surface3d(env_data)
+_ = [
+    fig_combined.add_trace(trace.update(colorscale="Blues", name="Environment Data", showscale=False))  # type: ignore  # noqa: PGH003
+    for trace in fig_env.data
+]
+
+# Add extreme responses traces
+fig_extreme = histogram_surface3d(exteme_responses)
+_ = [
+    fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
+    for trace in fig_extreme.data
+]
+
+# Update layout
+_ = fig_combined.update_layout(
+    title="Combined 3D Histogram: Environment Data vs Extreme Responses",
+    scene=dict(xaxis_title="x1", yaxis_title="x2", zaxis_title="Density", aspectmode="cube"),
+)
+
+fig_combined.show()
+
 # %% [markdown]
 # ### Define the problem
 # Because we are using a toy example we can directly calculate the ERD and our QOI. This is the answer that we are
@@ -196,7 +248,7 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # %%
 # For this specific problem we have precalculated a large number of brute force ERD samples.
 # This allows up to treat the brute_force_qoi_estimate as a point for the purpose of this tutorial.
-precalced_erd_samples = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+precalced_erd_samples, _ = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
 brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 
@@ -264,7 +316,8 @@ dist = gumbel_r
 # %%
 def make_exp() -> Experiment:
     """Helper to ensure we always create an experiment with the same settings (so results are comparable)."""
-    return make_experiment(sim, search_space, dist, n_simulations_per_point=200)
+    # return make_experiment(sim, search_space, dist, n_simulations_per_point=200)
+    return make_experiment(sim, search_space, dist, n_simulations_per_point=500)
 
 
 exp = make_exp()
@@ -737,5 +790,425 @@ _ = ax.axhline(float(brute_force_qoi_estimate), c="black", label="brute_force_va
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
+
+
+# %% [markdown]
+### Find the DOE iteration at which the QoI converged to a given percentage of the brute force estimate.
+
+
+# %%
+def find_convergence_trial(experiment: Experiment, uncertainty_threshold_percent: float = 10.0) -> int:
+    """Find the trial index when uncertainty falls below threshold percentage of brute force QoI."""
+    metrics = experiment.fetch_data()
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+
+    if len(qoi_metrics) == 0:
+        print("No QoIMetric data found in the experiment.")
+        return 0
+
+    threshold = abs(brute_force_qoi_estimate) * (uncertainty_threshold_percent / 100.0)
+
+    for _, row in qoi_metrics.iterrows():
+        if pd.notna(row["sem"]) and (1.96 * row["sem"]) <= threshold:
+            return int(row["trial_index"])
+    print(f"No convergence trial found for uncertainty threshold {uncertainty_threshold_percent}% of brute force QoI.")
+    return 0
+
+
+# Find trial where the uncertainty is below a given percentage of the brute force estimate.
+uncertainty_threshold_percent = 10.0
+sobol_trial = find_convergence_trial(exp_sobol, uncertainty_threshold_percent)
+lookahead_trial = find_convergence_trial(exp_look_ahead, uncertainty_threshold_percent)
+print(f"Sobol reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {sobol_trial}")
+print(f"Look-ahead reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {lookahead_trial}")
+
+# %%
+# PLot the surfaces of the Sobol and Look-ahead experiments with when both experiments have the same uncertainty in
+# the QoI estimate. As one can observe, fewer points are added to the GP in Look-ahead experiment in order to reach
+# the same uncertainty in the QoI estimate.
+# %%
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, sobol_trial, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
+
+# %%
+surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, lookahead_trial, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+surface_final_trial.show()
+
+# %%
+# plot results of the two experiments until convergence
+ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol", trial_index=sobol_trial)
+ax = plot_qoi_estimates_from_experiment(
+    exp_look_ahead, ax=ax, color="green", name="look ahead", trial_index=lookahead_trial
+)
+_ = ax.axhline(float(brute_force_qoi_estimate), c="black", label="brute_force_value")
+_ = ax.set_xlabel("Number of DOE iterations")
+_ = ax.set_ylabel("Response")
+_ = ax.legend()
+
+
+# %%
+def plot_true_functions_with_heatmap(
+    true_loc_func: Callable,
+    true_scale_func: Callable,
+    heat_map_data: NDArray[np.float64],
+    search_space: SearchSpace = None,
+    num_points: int = 101,
+    bins: int = 50,
+) -> go.Figure:
+    """
+    Plot true loc and scale functions as 2D surfaces with extreme response heatmap as color.
+
+    Args:
+        true_loc_func: Function that takes numpy array and returns location values
+        true_scale_func: Function that takes numpy array and returns scale values
+        heat_map_data: Extreme response locations array of shape (n_samples, 2)
+        search_space: SearchSpace to use for plotting
+        num_points: Number of points in each dimension for surface evaluation
+        bins: Number of bins for the extreme response heatmap
+
+    Returns:
+        Plotly figure with surfaces colored by extreme response density
+    """
+
+    # Extract parameter ranges
+    x1_range = [search_space.parameters["x1"].lower, search_space.parameters["x1"].upper]
+    x2_range = [search_space.parameters["x2"].lower, search_space.parameters["x2"].upper]
+
+    # Create grid for surface evaluation
+    x1_vals = np.linspace(x1_range[0], x1_range[1], num_points)
+    x2_vals = np.linspace(x2_range[0], x2_range[1], num_points)
+    X1_grid, X2_grid = np.meshgrid(x1_vals, x2_vals)
+
+    # Create input array for function evaluation
+    input_points = np.column_stack([X1_grid.ravel(), X2_grid.ravel()])
+
+    # Evaluate true functions
+    loc_values = true_loc_func(input_points).reshape(X1_grid.shape)
+    scale_values = true_scale_func(input_points).reshape(X1_grid.shape)
+
+    # Create extreme response heatmap
+    heatmap, _, _ = np.histogram2d(
+        heat_map_data[:, 0],
+        heat_map_data[:, 1],
+        bins=bins,
+        range=[[x1_range[0], x1_range[1]], [x2_range[0], x2_range[1]]],
+    )
+
+    # Interpolate heatmap to match surface grid size
+    from scipy.interpolate import RegularGridInterpolator
+
+    # Create interpolator for heatmap
+    heatmap_x1 = np.linspace(x1_range[0], x1_range[1], bins)
+    heatmap_x2 = np.linspace(x2_range[0], x2_range[1], bins)
+    interpolator = RegularGridInterpolator(
+        (heatmap_x1, heatmap_x2),
+        heatmap,
+        bounds_error=False,
+        fill_value=0,
+    )
+
+    # Interpolate heatmap values to surface grid
+    heatmap_interp = interpolator((X1_grid, X2_grid))
+
+    # Create the surface plots
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        specs=[[{"type": "surface"}, {"type": "surface"}]],
+        subplot_titles=("True Location Function", "True Scale Function"),
+    )
+
+    # Add location surface with heatmap coloring
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=loc_values,
+            surfacecolor=heatmap_interp,
+            colorscale="Reds",
+            showscale=True,
+            colorbar=dict(title=" Density", x=0.45),
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Add scale surface with heatmap coloring
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=scale_values,
+            surfacecolor=heatmap_interp,
+            colorscale="Reds",
+            showscale=True,
+            colorbar=dict(title=" Density", x=1.0),
+        ),
+        row=1,
+        col=2,
+    )
+
+    # Update layout
+    fig.update_scenes(
+        {"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Location"}}, row=1, col=1
+    )
+
+    fig.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Scale"}}, row=1, col=2)
+
+    fig.update_layout(title="True Functions with heatmap", width=1000, height=500)
+
+    return fig
+
+
+# %%
+# Create surface plots with heatmap for extreme responses
+fig_heatmap = plot_true_functions_with_heatmap(
+    true_loc_func=_true_loc_func,
+    true_scale_func=_true_scale_func,
+    heat_map_data=exteme_responses,
+    search_space=search_space,
+    num_points=101,
+    bins=50,
+)
+
+fig_heatmap.show()
+# %%
+# Create surface plots with heatmap for environment data
+fig_env_data = plot_true_functions_with_heatmap(
+    true_loc_func=_true_loc_func,
+    true_scale_func=_true_scale_func,
+    heat_map_data=env_data,
+    search_space=search_space,
+    num_points=101,
+    bins=50,
+)
+
+fig_env_data.show()
+
+
+# %%
+def plot_true_functions_with_dual_heatmaps(
+    true_loc_func: Callable,
+    true_scale_func: Callable,
+    env_data: NDArray[np.float64],
+    extreme_responses: NDArray[np.float64],
+    search_space: SearchSpace = None,
+    num_points: int = 101,
+    bins: int = 50,
+    env_opacity: float = 0.6,
+    extreme_opacity: float = 0.8,
+) -> go.Figure:
+    """
+    Plot true loc and scale functions as 2D surfaces with overlaid heatmaps for both env data and extreme responses.
+
+    Args:
+        true_loc_func: Function that takes numpy array and returns location values
+        true_scale_func: Function that takes numpy array and returns scale values
+        env_data: Environment data array of shape (n_samples, 2)
+        extreme_responses: Extreme response locations array of shape (n_samples, 2)
+        search_space: SearchSpace to use for plotting
+        num_points: Number of points in each dimension for surface evaluation
+        bins: Number of bins for the heatmaps
+        env_opacity: Opacity for environment data heatmap
+        extreme_opacity: Opacity for extreme responses heatmap
+
+    Returns:
+        Plotly figure with surfaces colored by both heatmaps
+    """
+
+    # Extract parameter ranges
+    x1_range = [search_space.parameters["x1"].lower, search_space.parameters["x1"].upper]
+    x2_range = [search_space.parameters["x2"].lower, search_space.parameters["x2"].upper]
+
+    # Create grid for surface evaluation
+    x1_vals = np.linspace(x1_range[0], x1_range[1], num_points)
+    x2_vals = np.linspace(x2_range[0], x2_range[1], num_points)
+    X1_grid, X2_grid = np.meshgrid(x1_vals, x2_vals)
+
+    # Create input array for function evaluation
+    input_points = np.column_stack([X1_grid.ravel(), X2_grid.ravel()])
+
+    # Evaluate true functions
+    loc_values = true_loc_func(input_points).reshape(X1_grid.shape)
+    scale_values = true_scale_func(input_points).reshape(X1_grid.shape)
+
+    # Create heatmaps for both datasets
+    env_heatmap, _, _ = np.histogram2d(
+        env_data[:, 0],
+        env_data[:, 1],
+        bins=bins,
+        range=[[x1_range[0], x1_range[1]], [x2_range[0], x2_range[1]]],
+    )
+
+    extreme_heatmap, _, _ = np.histogram2d(
+        extreme_responses[:, 0],
+        extreme_responses[:, 1],
+        bins=bins,
+        range=[[x1_range[0], x1_range[1]], [x2_range[0], x2_range[1]]],
+    )
+
+    # Interpolate heatmaps to match surface grid size
+    from scipy.interpolate import RegularGridInterpolator
+
+    # Create interpolators for both heatmaps
+    heatmap_x1 = np.linspace(x1_range[0], x1_range[1], bins)
+    heatmap_x2 = np.linspace(x2_range[0], x2_range[1], bins)
+
+    env_interpolator = RegularGridInterpolator(
+        (heatmap_x1, heatmap_x2),
+        env_heatmap,
+        bounds_error=False,
+        fill_value=0,
+    )
+
+    extreme_interpolator = RegularGridInterpolator(
+        (heatmap_x1, heatmap_x2),
+        extreme_heatmap,
+        bounds_error=False,
+        fill_value=0,
+    )
+
+    # Interpolate heatmap values to surface grid
+    env_heatmap_interp = env_interpolator((X1_grid, X2_grid))
+    extreme_heatmap_interp = extreme_interpolator((X1_grid, X2_grid))
+
+    # Create the surface plots
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        specs=[[{"type": "surface"}, {"type": "surface"}]],
+        subplot_titles=("True Location Function", "True Scale Function"),
+    )
+
+    # Location function surfaces
+    # Base surface (can be neutral color or one of the heatmaps)
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=loc_values,
+            colorscale="Greys",
+            opacity=0.3,
+            showscale=False,
+            name="Location Surface",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Environment data heatmap on location surface
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=loc_values + 0.001,  # Slight offset to avoid z-fighting
+            surfacecolor=env_heatmap_interp,
+            colorscale="Blues",
+            opacity=env_opacity,
+            showscale=True,
+            colorbar=dict(title="Environment Density", x=0.2, len=0.4),
+            name="Environment Data",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Extreme responses heatmap on location surface
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=loc_values + 0.002,  # Slightly higher offset
+            surfacecolor=extreme_heatmap_interp,
+            colorscale="Reds",
+            opacity=extreme_opacity,
+            showscale=True,
+            colorbar=dict(title="Extreme Response Density", x=0.45, len=0.4),
+            name="Extreme Responses",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Scale function surfaces (same pattern)
+    # Base surface
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid, y=X2_grid, z=scale_values, colorscale="Greys", opacity=0.3, showscale=False, name="Scale Surface"
+        ),
+        row=1,
+        col=2,
+    )
+
+    # Environment data heatmap on scale surface
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=scale_values + 0.001,
+            surfacecolor=env_heatmap_interp,
+            colorscale="Blues",
+            opacity=env_opacity,
+            showscale=True,
+            colorbar=dict(title="Environment Density", x=0.75, len=0.4),
+            name="Environment Data",
+        ),
+        row=1,
+        col=2,
+    )
+
+    # Extreme responses heatmap on scale surface
+    fig.add_trace(
+        go.Surface(
+            x=X1_grid,
+            y=X2_grid,
+            z=scale_values + 0.002,
+            surfacecolor=extreme_heatmap_interp,
+            colorscale="Reds",
+            opacity=extreme_opacity,
+            showscale=True,
+            colorbar=dict(title="Extreme Response Density", x=1.0, len=0.4),
+            name="Extreme Responses",
+        ),
+        row=1,
+        col=2,
+    )
+
+    # Update layout
+    fig.update_scenes(
+        {"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Location"}}, row=1, col=1
+    )
+
+    fig.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Scale"}}, row=1, col=2)
+
+    fig.update_layout(
+        title="True Functions with Environment (Blue) and Extreme Response (Red) Density Overlays",
+        width=1200,
+        height=600,
+    )
+
+    return fig
+
+
+# %%
+# Create the dual heatmap plot
+fig_dual_heatmap = plot_true_functions_with_dual_heatmaps(
+    true_loc_func=_true_loc_func,
+    true_scale_func=_true_scale_func,
+    env_data=env_data,
+    extreme_responses=exteme_responses,
+    search_space=search_space,
+    num_points=101,
+    bins=50,
+    env_opacity=0.7,
+    extreme_opacity=0.4,
+)
+
+fig_dual_heatmap.show()
+
 
 # %%

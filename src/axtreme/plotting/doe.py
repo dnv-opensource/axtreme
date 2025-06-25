@@ -62,6 +62,7 @@ def plot_qoi_estimates_from_experiment(
     ax: None | Axes = None,
     points_between_ests: int = 1,
     name: str | None = None,
+    trial_index: int | None = None,
     **kwargs: Any,  # noqa: ANN401
 ) -> Axes:
     """Plot how the QoI estimates changes over the DoE process from a given experiment with the QoI metric attached.
@@ -72,6 +73,7 @@ def plot_qoi_estimates_from_experiment(
         points_between_ests: This should be used if multiple DoE iterations are used between qoi estimates
             (e.g if the estimate is expensive). It adjusts the scale of the x axis.
         name: optional name that should be added to the legend information for this plot
+        trial_index: If provided, only plot data up to this trial index
         kwargs: kwargs that should be passed to matplotlib. Must be applicable to `ax.plot` and `ax.fill_between`
 
     Returns:
@@ -80,8 +82,13 @@ def plot_qoi_estimates_from_experiment(
     metrics = experiment.fetch_data()
     qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
 
+    # Filter by trial index if provided
+    if trial_index is not None:
+        qoi_metrics = qoi_metrics[qoi_metrics["trial_index"] <= trial_index]
+
     qoi_means = qoi_metrics["mean"]
     qoi_sems = qoi_metrics["sem"]
+
     if ax is None:
         _, ax = plt.subplots()
 
