@@ -198,11 +198,13 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
     """
     #### Problem parameters
     # bookkeeping parameters
-    jobs_output_file = output_dir / "qoi_job_results.json" if output_dir else None
-
-    # Problem constants # TODO(sw): come back with a cleaner way to do this
+    jobs_output_file = (
+        output_dir / "qoi_job_results.json" if output_dir else None
+    )  # Problem constants # TODO(sw): come back with a cleaner way to do this
     brute_force_qoi: float = float(
-        brute_force.collect_or_calculate_results(period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000).median()
+        brute_force.collect_or_calculate_results(period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000)[
+            0
+        ].median()
     )
 
     _data = env_data.collect_data()
@@ -813,7 +815,7 @@ def ground_truth_estimate(
             - samples: The samples produced by the QoIeEstimator for that run.
             - name: Name of the estimator. This is used to group these results together.
     """
-    brute_force_erd_samples = brute_force.collect_or_calculate_results(
+    brute_force_erd_samples, _ = brute_force.collect_or_calculate_results(
         period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000
     )
 
