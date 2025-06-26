@@ -146,85 +146,6 @@ _ = fig.update_layout(title_text="Environment distribution estimate from samples
 _ = fig.update_layout(scene_aspectmode="cube")
 fig.show()
 
-# %%
-# Brute force extreme response location
-precalced_erd_samples, precalced_er_loc = collect_or_calculate_results(1000, 300_000)
-
-bins = 50  # increase for finer resolution
-heatmap, xedges, yedges = np.histogram2d(
-    precalced_er_loc[:, 0], precalced_er_loc[:, 1], bins=bins, range=[[0, 1], [0, 1]]
-)
-
-# Plot as heatmap
-_ = plt.figure(figsize=(8, 6))
-_ = plt.imshow(
-    heatmap.T,  # transpose to match axis orientation
-    origin="lower",
-    extent=(0.0, 1.0, 0.0, 1.0),
-    aspect="auto",
-    cmap="viridis",
-)
-# %%
-exteme_responses: NDArray[np.float64] = precalced_er_loc.numpy()
-fig = histogram_surface3d(exteme_responses)
-_ = fig.update_layout(title_text="Extreme response distribution estimate from samples")
-_ = fig.update_layout(scene_aspectmode="cube")
-fig.show()
-
-# %%
-# Create combined histogram of environment data and extreme responses
-fig_combined = go.Figure()
-
-# Add environment data traces
-fig_env = histogram_surface3d(env_data)
-_ = [
-    fig_combined.add_trace(trace.update(colorscale="Blues", name="Environment Data", showscale=False))  # type: ignore  # noqa: PGH003
-    for trace in fig_env.data
-]
-
-# Add extreme responses traces
-fig_extreme = histogram_surface3d(exteme_responses)
-_ = [
-    fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
-    for trace in fig_extreme.data
-]
-
-
-fig_combined.show()
-
-# %%
-# Create combined histogram of environment data and extreme responses also including the gumbel response surface
-fig_combined = go.Figure()
-
-# Add environment data traces
-fig_env = histogram_surface3d(env_data)
-_ = [
-    fig_combined.add_trace(trace.update(colorscale="Blues", name="Environment Data", showscale=False))  # type: ignore  # noqa: PGH003
-    for trace in fig_env.data
-]
-
-# Add extreme responses traces
-fig_extreme = histogram_surface3d(exteme_responses)
-_ = [
-    fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
-    for trace in fig_extreme.data
-]
-
-# Add gumbel response surface traces
-
-quantile_plotters: list[Callable[[np.ndarray[Any, np.dtype[np.float64]]], np.ndarray[Any, np.dtype[np.float64]]]] = [
-    partial(gumbel_helper, q=q) for q in [0.99]
-]
-response_distribution = plot_surface_over_2d_search_space(plot_search_space, funcs=quantile_plotters)
-_ = [fig_combined.add_trace(data) for data in response_distribution.data]
-
-# Update layout
-_ = fig_combined.update_layout(
-    title="Combined 3D Histogram: Environment Data vs Extreme Responses",
-    scene=dict(xaxis_title="x1", yaxis_title="x2", zaxis_title="Density", aspectmode="cube"),
-)
-
-fig_combined.show()
 
 # %% [markdown]
 # ### Define the problem
@@ -277,9 +198,45 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # %%
 # For this specific problem we have precalculated a large number of brute force ERD samples.
 # This allows up to treat the brute_force_qoi_estimate as a point for the purpose of this tutorial.
-precalced_erd_samples, _ = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+precalced_erd_samples, precalced_er_loc = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
 brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
+
+# %% [markdown]
+## Brute Force Extreme Response Locations
+# Additionally, we have precalculated the location of the extreme responses. For this toy problem this can be useful
+# in order to understand both the problem and how `axtreme` works to solve such problems.
+# Below we plot the extreme response locations.
+
+# %%
+exteme_responses: NDArray[np.float64] = precalced_er_loc.numpy()
+fig = histogram_surface3d(exteme_responses)
+_ = fig.update_layout(title_text="Extreme response distribution")
+_ = fig.update_layout(scene_aspectmode="cube")
+fig.show()
+
+# %%
+# Create combined histogram of environment data and extreme responses
+fig_combined = go.Figure()
+
+# Add environment data traces
+fig_env = histogram_surface3d(env_data)
+_ = [
+    fig_combined.add_trace(trace.update(colorscale="Blues", name="Environment Data", showscale=False))  # type: ignore  # noqa: PGH003
+    for trace in fig_env.data
+]
+
+# Add extreme responses traces
+fig_extreme = histogram_surface3d(exteme_responses)
+_ = [
+    fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
+    for trace in fig_extreme.data
+]
+
+_ = fig_combined.update_layout(title_text="Environment Data(blue) vs Extreme Responses(red)")
+
+
+fig_combined.show()
 
 # %% [markdown]
 # # Using `axtreme` to solve the problem
@@ -345,8 +302,7 @@ dist = gumbel_r
 # %%
 def make_exp() -> Experiment:
     """Helper to ensure we always create an experiment with the same settings (so results are comparable)."""
-    # return make_experiment(sim, search_space, dist, n_simulations_per_point=200)
-    return make_experiment(sim, search_space, dist, n_simulations_per_point=500)
+    return make_experiment(sim, search_space, dist, n_simulations_per_point=200)
 
 
 exp = make_exp()
@@ -700,7 +656,7 @@ _ = ax.set_zlabel("score")  # type: ignore[attr-defined]
 _ = ax.set_title("Score surface plot")
 print("max_score ", scores.max())
 
-# %%
+
 # %% perform a round of optimisation using the under the hood optimiser
 candidate, result = optimize_acqf(
     acqusition,
@@ -823,6 +779,10 @@ _ = ax.legend()
 
 # %% [markdown]
 ### Find the DOE iteration at which the QoI converged to a given percentage of the brute force estimate.
+# Here you can see the benefit of using the custom acquisition function. The look-ahead experiment reaches the same
+# uncertainty in the QoI estimate with fewer iterations than the Sobol experiment.
+# This is because the look-ahead acquisition function selects points that
+# are expected to reduce uncertainty in the QoI estimate more effectively than random sampling.
 
 
 # %%
@@ -852,7 +812,7 @@ print(f"Sobol reached uncertainty threshold {uncertainty_threshold_percent}% at 
 print(f"Look-ahead reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {lookahead_trial}")
 
 # %%
-# PLot the surfaces of the Sobol and Look-ahead experiments with when both experiments have the same uncertainty in
+# PLot the surfaces of the Sobol and Look-ahead experiments when both experiments have the same uncertainty in
 # the QoI estimate. As one can observe, fewer points are added to the GP in Look-ahead experiment in order to reach
 # the same uncertainty in the QoI estimate.
 # %%
@@ -868,7 +828,7 @@ surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
 surface_final_trial.show()
 
 # %%
-# plot results of the two experiments until convergence
+# plot results of the two experiments when convergence is achieved.
 ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol", trial_index=sobol_trial)
 ax = plot_qoi_estimates_from_experiment(
     exp_look_ahead, ax=ax, color="green", name="look ahead", trial_index=lookahead_trial
@@ -881,43 +841,47 @@ _ = ax.legend()
 
 # %%
 def plot_true_functions_with_heatmap(
-    true_loc_func: Callable,
-    true_scale_func: Callable,
+    true_loc_func: Callable[[NDArray[np.float64]], NDArray[np.float64]],
+    true_scale_func: Callable[[NDArray[np.float64]], NDArray[np.float64]],
     heat_map_data: NDArray[np.float64],
     search_space: SearchSpace = None,
     num_points: int = 101,
     bins: int = 50,
 ) -> go.Figure:
     """
-    Plot true loc and scale functions as 2D surfaces with extreme response heatmap as color.
+    Plot true loc and scale functions as 2D surfaces with heatmap as color.
 
     Args:
         true_loc_func: Function that takes numpy array and returns location values
         true_scale_func: Function that takes numpy array and returns scale values
-        heat_map_data: Extreme response locations array of shape (n_samples, 2)
+        heat_map_data: data for the 2d heatmap overlay(Env data or Extreme response locs) array of shape (n_samples, 2)
         search_space: SearchSpace to use for plotting
         num_points: Number of points in each dimension for surface evaluation
-        bins: Number of bins for the extreme response heatmap
+        bins: Number of bins for the heatmap
 
     Returns:
-        Plotly figure with surfaces colored by extreme response density
+        Plotly figure with surfaces colored by heatmap density
     """
 
     # Extract parameter ranges
-    x1_range = [search_space.parameters["x1"].lower, search_space.parameters["x1"].upper]
-    x2_range = [search_space.parameters["x2"].lower, search_space.parameters["x2"].upper]
+    x1_param = search_space.parameters["x1"]
+    x2_param = search_space.parameters["x2"]
+    assert isinstance(x1_param, RangeParameter), "x1 must be a RangeParameter"
+    assert isinstance(x2_param, RangeParameter), "x2 must be a RangeParameter"
+    x1_range = [x1_param.lower, x1_param.upper]
+    x2_range = [x2_param.lower, x2_param.upper]
 
     # Create grid for surface evaluation
     x1_vals = np.linspace(x1_range[0], x1_range[1], num_points)
     x2_vals = np.linspace(x2_range[0], x2_range[1], num_points)
-    X1_grid, X2_grid = np.meshgrid(x1_vals, x2_vals)
+    x1_grid, x2_grid = np.meshgrid(x1_vals, x2_vals)
 
     # Create input array for function evaluation
-    input_points = np.column_stack([X1_grid.ravel(), X2_grid.ravel()])
+    input_points = np.column_stack([x1_grid.ravel(), x2_grid.ravel()])
 
     # Evaluate true functions
-    loc_values = true_loc_func(input_points).reshape(X1_grid.shape)
-    scale_values = true_scale_func(input_points).reshape(X1_grid.shape)
+    loc_values = true_loc_func(input_points).reshape(x1_grid.shape)
+    scale_values = true_scale_func(input_points).reshape(x1_grid.shape)
 
     # Create extreme response heatmap
     heatmap, _, _ = np.histogram2d(
@@ -941,7 +905,7 @@ def plot_true_functions_with_heatmap(
     )
 
     # Interpolate heatmap values to surface grid
-    heatmap_interp = interpolator((X1_grid, X2_grid))
+    heatmap_interp = interpolator((x1_grid, x2_grid))
 
     # Create the surface plots
     fig = make_subplots(
@@ -952,43 +916,45 @@ def plot_true_functions_with_heatmap(
     )
 
     # Add location surface with heatmap coloring
-    fig.add_trace(
+    _ = fig.add_trace(
         go.Surface(
-            x=X1_grid,
-            y=X2_grid,
+            x=x1_grid,
+            y=x2_grid,
             z=loc_values,
             surfacecolor=heatmap_interp,
             colorscale="Reds",
             showscale=True,
-            colorbar=dict(title=" Density", x=0.45),
+            colorbar={"title": " Density", "x": 0.45},
         ),
         row=1,
         col=1,
     )
 
     # Add scale surface with heatmap coloring
-    fig.add_trace(
+    _ = fig.add_trace(
         go.Surface(
-            x=X1_grid,
-            y=X2_grid,
+            x=x1_grid,
+            y=x2_grid,
             z=scale_values,
             surfacecolor=heatmap_interp,
             colorscale="Reds",
             showscale=True,
-            colorbar=dict(title=" Density", x=1.0),
+            colorbar={"title": " Density", "x": 1.0},
         ),
         row=1,
         col=2,
     )
 
     # Update layout
-    fig.update_scenes(
+    _ = fig.update_scenes(
         {"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Location"}}, row=1, col=1
     )
 
-    fig.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Scale"}}, row=1, col=2)
+    _ = fig.update_scenes(
+        {"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Scale"}}, row=1, col=2
+    )
 
-    fig.update_layout(title="True Functions with heatmap", width=1000, height=500)
+    _ = fig.update_layout(title="True Functions with heatmap", width=1000, height=500)
 
     return fig
 
@@ -1018,370 +984,109 @@ fig_env_data = plot_true_functions_with_heatmap(
 
 fig_env_data.show()
 
-# %%
-# create gumbel response plots with heatmaps for both environment data and extreme responses
-quantile_plotters: list[Callable[[np.ndarray[Any, np.dtype[np.float64]]], np.ndarray[Any, np.dtype[np.float64]]]] = [
-    partial(gumbel_helper, q=q) for q in [0.9, 0.99]
-]
-
-fig_gumbel_extreme = plot_true_functions_with_heatmap(
-    true_loc_func=quantile_plotters[0],
-    true_scale_func=quantile_plotters[1],
-    heat_map_data=exteme_responses,
-    search_space=search_space,
-    num_points=101,
-    bins=50,
-)
-
-fig_gumbel_extreme.show()
-
-fig_gumbel_env = plot_true_functions_with_heatmap(
-    true_loc_func=quantile_plotters[0],
-    true_scale_func=quantile_plotters[1],
-    heat_map_data=env_data,
-    search_space=search_space,
-    num_points=101,
-    bins=50,
-)
-
-fig_gumbel_env.show()
-
 
 # %%
-def plot_true_functions_with_dual_heatmaps(
-    true_loc_func: Callable,
-    true_scale_func: Callable,
-    env_data: NDArray[np.float64],
-    extreme_responses: NDArray[np.float64],
-    search_space: SearchSpace = None,
-    num_points: int = 101,
-    bins: int = 50,
-    env_opacity: float = 0.6,
-    extreme_opacity: float = 0.8,
-) -> go.Figure:
-    """
-    Plot true loc and scale functions as 2D surfaces with overlaid heatmaps for both env data and extreme responses.
-
-    Args:
-        true_loc_func: Function that takes numpy array and returns location values
-        true_scale_func: Function that takes numpy array and returns scale values
-        env_data: Environment data array of shape (n_samples, 2)
-        extreme_responses: Extreme response locations array of shape (n_samples, 2)
-        search_space: SearchSpace to use for plotting
-        num_points: Number of points in each dimension for surface evaluation
-        bins: Number of bins for the heatmaps
-        env_opacity: Opacity for environment data heatmap
-        extreme_opacity: Opacity for extreme responses heatmap
-
-    Returns:
-        Plotly figure with surfaces colored by both heatmaps
-    """
-
-    # Extract parameter ranges
-    x1_range = [search_space.parameters["x1"].lower, search_space.parameters["x1"].upper]
-    x2_range = [search_space.parameters["x2"].lower, search_space.parameters["x2"].upper]
-
-    # Create grid for surface evaluation
-    x1_vals = np.linspace(x1_range[0], x1_range[1], num_points)
-    x2_vals = np.linspace(x2_range[0], x2_range[1], num_points)
-    X1_grid, X2_grid = np.meshgrid(x1_vals, x2_vals)
-
-    # Create input array for function evaluation
-    input_points = np.column_stack([X1_grid.ravel(), X2_grid.ravel()])
-
-    # Evaluate true functions
-    loc_values = true_loc_func(input_points).reshape(X1_grid.shape)
-    scale_values = true_scale_func(input_points).reshape(X1_grid.shape)
-
-    # Create heatmaps for both datasets
-    env_heatmap, _, _ = np.histogram2d(
-        env_data[:, 0],
-        env_data[:, 1],
-        bins=bins,
-        range=[[x1_range[0], x1_range[1]], [x2_range[0], x2_range[1]]],
-    )
-
-    extreme_heatmap, _, _ = np.histogram2d(
-        extreme_responses[:, 0],
-        extreme_responses[:, 1],
-        bins=bins,
-        range=[[x1_range[0], x1_range[1]], [x2_range[0], x2_range[1]]],
-    )
-
-    # Interpolate heatmaps to match surface grid size
-    from scipy.interpolate import RegularGridInterpolator
-
-    # Create interpolators for both heatmaps
-    heatmap_x1 = np.linspace(x1_range[0], x1_range[1], bins)
-    heatmap_x2 = np.linspace(x2_range[0], x2_range[1], bins)
-
-    env_interpolator = RegularGridInterpolator(
-        (heatmap_x1, heatmap_x2),
-        env_heatmap,
-        bounds_error=False,
-        fill_value=0,
-    )
-
-    extreme_interpolator = RegularGridInterpolator(
-        (heatmap_x1, heatmap_x2),
-        extreme_heatmap,
-        bounds_error=False,
-        fill_value=0,
-    )
-
-    # Interpolate heatmap values to surface grid
-    env_heatmap_interp = env_interpolator((X1_grid, X2_grid))
-    extreme_heatmap_interp = extreme_interpolator((X1_grid, X2_grid))
-
-    # Create the surface plots
-    fig = make_subplots(
-        rows=1,
-        cols=2,
-        specs=[[{"type": "surface"}, {"type": "surface"}]],
-        subplot_titles=("True Location Function", "True Scale Function"),
-    )
-
-    # Location function surfaces
-    # Base surface (can be neutral color or one of the heatmaps)
-    fig.add_trace(
-        go.Surface(
-            x=X1_grid,
-            y=X2_grid,
-            z=loc_values,
-            colorscale="Greys",
-            opacity=0.3,
-            showscale=False,
-            name="Location Surface",
-        ),
-        row=1,
-        col=1,
-    )
-
-    # Environment data heatmap on location surface
-    fig.add_trace(
-        go.Surface(
-            x=X1_grid,
-            y=X2_grid,
-            z=loc_values + 0.001,  # Slight offset to avoid z-fighting
-            surfacecolor=env_heatmap_interp,
-            colorscale="Blues",
-            opacity=env_opacity,
-            showscale=True,
-            colorbar=dict(title="Environment Density", x=0.2, len=0.4),
-            name="Environment Data",
-        ),
-        row=1,
-        col=1,
-    )
-
-    # Extreme responses heatmap on location surface
-    fig.add_trace(
-        go.Surface(
-            x=X1_grid,
-            y=X2_grid,
-            z=loc_values + 0.002,  # Slightly higher offset
-            surfacecolor=extreme_heatmap_interp,
-            colorscale="Reds",
-            opacity=extreme_opacity,
-            showscale=True,
-            colorbar=dict(title="Extreme Response Density", x=0.45, len=0.4),
-            name="Extreme Responses",
-        ),
-        row=1,
-        col=1,
-    )
-
-    # Scale function surfaces (same pattern)
-    # Base surface
-    fig.add_trace(
-        go.Surface(
-            x=X1_grid, y=X2_grid, z=scale_values, colorscale="Greys", opacity=0.3, showscale=False, name="Scale Surface"
-        ),
-        row=1,
-        col=2,
-    )
-
-    # Environment data heatmap on scale surface
-    fig.add_trace(
-        go.Surface(
-            x=X1_grid,
-            y=X2_grid,
-            z=scale_values + 0.001,
-            surfacecolor=env_heatmap_interp,
-            colorscale="Blues",
-            opacity=env_opacity,
-            showscale=True,
-            colorbar=dict(title="Environment Density", x=0.75, len=0.4),
-            name="Environment Data",
-        ),
-        row=1,
-        col=2,
-    )
-
-    # Extreme responses heatmap on scale surface
-    fig.add_trace(
-        go.Surface(
-            x=X1_grid,
-            y=X2_grid,
-            z=scale_values + 0.002,
-            surfacecolor=extreme_heatmap_interp,
-            colorscale="Reds",
-            opacity=extreme_opacity,
-            showscale=True,
-            colorbar=dict(title="Extreme Response Density", x=1.0, len=0.4),
-            name="Extreme Responses",
-        ),
-        row=1,
-        col=2,
-    )
-
-    # Update layout
-    fig.update_scenes(
-        {"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Location"}}, row=1, col=1
-    )
-
-    fig.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "Scale"}}, row=1, col=2)
-
-    fig.update_layout(
-        title="True Functions with Environment (Blue) and Extreme Response (Red) Density Overlays",
-        width=1200,
-        height=600,
-    )
-
-    return fig
-
+## Analysis of Sobol vs LookAhead point selection
+# Below is a comparison of the points selected by the Sobol and LookAhead acquisition functions with overlays
+# of the environment data and the extreme responses. This allows us to visually assess how well the points cover
+# the search space and how they relate to the density of the environment data and extreme responses.
 
 # %%
-# Create the dual heatmap plot
-fig_dual_heatmap = plot_true_functions_with_dual_heatmaps(
-    true_loc_func=_true_loc_func,
-    true_scale_func=_true_scale_func,
-    env_data=env_data,
-    extreme_responses=exteme_responses,
-    search_space=search_space,
-    num_points=101,
-    bins=50,
-    env_opacity=0.7,
-    extreme_opacity=0.4,
-)
+# Extract points with trial indices
+sobol_trials = []
+sobol_trial_indices = []
+lookahead_trials = []
+lookahead_trial_indices = []
 
-fig_dual_heatmap.show()
+for trial_idx, trial in exp_sobol.trials.items():
+    if trial.arm:  # type: ignore  # noqa: PGH003
+        params = trial.arm.parameters  # type: ignore  # noqa: PGH003
+        sobol_trials.append([params["x1"], params["x2"]])
+        sobol_trial_indices.append(trial_idx)
 
+for trial_idx, trial in exp_look_ahead.trials.items():
+    if trial.arm:  # type: ignore  # noqa: PGH003
+        params = trial.arm.parameters  # type: ignore  # noqa: PGH003
+        lookahead_trials.append([params["x1"], params["x2"]])
+        lookahead_trial_indices.append(trial_idx)
 
-# %%
-######################################################################
-####################################################################
-# Add this after creating your acquisition function to visualize it
+sobol_points = np.array(sobol_trials)
+lookahead_points = np.array(lookahead_trials)
 
+# Plot comparison
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
-def analyze_point_selection(exp_sobol, exp_lookahead, title="Point Selection Analysis"):
-    """Analyze where Sobol vs LookAhead place points."""
+# Sobol vs lookahead points
 
-    # Get trial data
-    sobol_data = exp_sobol.fetch_data().df
-    lookahead_data = exp_lookahead.fetch_data().df
+# Env heat map
+axes[0].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds")
+axes[0].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
+axes[0].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
+# Add trial numbers
+for i, (x, y) in enumerate(sobol_points):
+    axes[0].annotate(
+        str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
+    )
+for i, (x, y) in enumerate(lookahead_points):
+    axes[0].annotate(
+        str(lookahead_trial_indices[i]),
+        (x, y),
+        xytext=(2, 2),
+        textcoords="offset points",
+        fontsize=8,
+        color="darkgreen",
+    )
+axes[0].set_title("Points vs Env Density")
+axes[0].set_xlabel("x1")
+axes[0].set_ylabel("x2")
+axes[0].legend()
 
-    # Extract points
-    # Extract points with trial indices
-    sobol_trials = []
-    sobol_trial_indices = []
-    lookahead_trials = []
-    lookahead_trial_indices = []
+# Overlay with extreme response heatmap
+axes[1].hist2d(exteme_responses[:, 0], exteme_responses[:, 1], bins=30, alpha=0.6, cmap="Greens")
+axes[1].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
+axes[1].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
+for i, (x, y) in enumerate(sobol_points):
+    axes[1].annotate(
+        str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
+    )
+for i, (x, y) in enumerate(lookahead_points):
+    axes[1].annotate(
+        str(lookahead_trial_indices[i]),
+        (x, y),
+        xytext=(2, 2),
+        textcoords="offset points",
+        fontsize=8,
+        color="darkgreen",
+    )
+axes[1].set_title("Points vs Extreme Response Density")
+axes[1].set_xlabel("x1")
+axes[1].set_ylabel("x2")
+axes[1].legend()
 
-    for trial_idx, trial in exp_sobol.trials.items():
-        if trial.arm:
-            params = trial.arm.parameters
-            sobol_trials.append([params["x1"], params["x2"]])
-            sobol_trial_indices.append(trial_idx)
+axes[2].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.8, cmap="Reds")
+axes[2].hist2d(exteme_responses[:, 0], exteme_responses[:, 1], bins=30, alpha=0.4, cmap="Greens")
+axes[2].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
+axes[2].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
+for i, (x, y) in enumerate(sobol_points):
+    axes[2].annotate(
+        str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
+    )
+for i, (x, y) in enumerate(lookahead_points):
+    axes[2].annotate(
+        str(lookahead_trial_indices[i]),
+        (x, y),
+        xytext=(2, 2),
+        textcoords="offset points",
+        fontsize=8,
+        color="darkgreen",
+    )
+axes[2].set_title("Points vs Env Density")
+axes[2].set_xlabel("x1")
+axes[2].set_ylabel("x2")
+axes[2].legend()
 
-    for trial_idx, trial in exp_lookahead.trials.items():
-        if trial.arm:
-            params = trial.arm.parameters
-            lookahead_trials.append([params["x1"], params["x2"]])
-            lookahead_trial_indices.append(trial_idx)
+plt.tight_layout()
+plt.show()
 
-    sobol_points = np.array(sobol_trials)
-    lookahead_points = np.array(lookahead_trials)
-
-    # Plot comparison
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-    # Sobol vs lookahead points
-
-    # Env heat map
-    axes[0].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds")
-    axes[0].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
-    axes[0].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
-    # Add trial numbers
-    for i, (x, y) in enumerate(sobol_points):
-        axes[0].annotate(
-            str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
-        )
-    for i, (x, y) in enumerate(lookahead_points):
-        axes[0].annotate(
-            str(lookahead_trial_indices[i]),
-            (x, y),
-            xytext=(2, 2),
-            textcoords="offset points",
-            fontsize=8,
-            color="darkgreen",
-        )
-    axes[0].set_title("Points vs Env Density")
-    axes[0].set_xlabel("x1")
-    axes[0].set_ylabel("x2")
-    axes[0].legend()
-
-    # Overlay with extreme response heatmap
-    axes[1].hist2d(exteme_responses[:, 0], exteme_responses[:, 1], bins=30, alpha=0.6, cmap="Greens")
-    axes[1].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
-    axes[1].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
-    for i, (x, y) in enumerate(sobol_points):
-        axes[1].annotate(
-            str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
-        )
-    for i, (x, y) in enumerate(lookahead_points):
-        axes[1].annotate(
-            str(lookahead_trial_indices[i]),
-            (x, y),
-            xytext=(2, 2),
-            textcoords="offset points",
-            fontsize=8,
-            color="darkgreen",
-        )
-    axes[1].set_title("Points vs Extreme Response Density")
-    axes[1].set_xlabel("x1")
-    axes[1].set_ylabel("x2")
-    axes[1].legend()
-
-    axes[2].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.8, cmap="Reds")
-    axes[2].hist2d(exteme_responses[:, 0], exteme_responses[:, 1], bins=30, alpha=0.4, cmap="Greens")
-    axes[2].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
-    axes[2].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
-    for i, (x, y) in enumerate(sobol_points):
-        axes[2].annotate(
-            str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
-        )
-    for i, (x, y) in enumerate(lookahead_points):
-        axes[2].annotate(
-            str(lookahead_trial_indices[i]),
-            (x, y),
-            xytext=(2, 2),
-            textcoords="offset points",
-            fontsize=8,
-            color="darkgreen",
-        )
-    axes[2].set_title("Points vs Env Density")
-    axes[2].set_xlabel("x1")
-    axes[2].set_ylabel("x2")
-    axes[2].legend()
-
-    plt.tight_layout()
-    plt.show()
-
-    return sobol_points, lookahead_points
-
-
-# Use this after running your experiments
-sobol_pts, lookahead_pts = analyze_point_selection(exp_sobol, exp_look_ahead)
 
 # %%
