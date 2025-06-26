@@ -172,7 +172,7 @@ _ = fig.update_layout(scene_aspectmode="cube")
 fig.show()
 
 # %%
-# Create combined histogram using the same pattern
+# Create combined histogram of environment data and extreme responses
 fig_combined = go.Figure()
 
 # Add environment data traces
@@ -188,6 +188,35 @@ _ = [
     fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
     for trace in fig_extreme.data
 ]
+
+
+fig_combined.show()
+
+# %%
+# Create combined histogram of environment data and extreme responses also including the gumbel response surface
+fig_combined = go.Figure()
+
+# Add environment data traces
+fig_env = histogram_surface3d(env_data)
+_ = [
+    fig_combined.add_trace(trace.update(colorscale="Blues", name="Environment Data", showscale=False))  # type: ignore  # noqa: PGH003
+    for trace in fig_env.data
+]
+
+# Add extreme responses traces
+fig_extreme = histogram_surface3d(exteme_responses)
+_ = [
+    fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
+    for trace in fig_extreme.data
+]
+
+# Add gumbel response surface traces
+
+quantile_plotters: list[Callable[[np.ndarray[Any, np.dtype[np.float64]]], np.ndarray[Any, np.dtype[np.float64]]]] = [
+    partial(gumbel_helper, q=q) for q in [0.99]
+]
+response_distribution = plot_surface_over_2d_search_space(plot_search_space, funcs=quantile_plotters)
+_ = [fig_combined.add_trace(data) for data in response_distribution.data]
 
 # Update layout
 _ = fig_combined.update_layout(
@@ -548,7 +577,7 @@ def run_trials(
 # How many iterations to run in the following DOEs
 
 # %%
-n_iter = 40
+n_iter = 20  # 40
 warm_up_runs = 3
 
 # %% [markdown]
@@ -989,6 +1018,34 @@ fig_env_data = plot_true_functions_with_heatmap(
 
 fig_env_data.show()
 
+# %%
+# create gumbel response plots with heatmaps for both environment data and extreme responses
+quantile_plotters: list[Callable[[np.ndarray[Any, np.dtype[np.float64]]], np.ndarray[Any, np.dtype[np.float64]]]] = [
+    partial(gumbel_helper, q=q) for q in [0.9, 0.99]
+]
+
+fig_gumbel_extreme = plot_true_functions_with_heatmap(
+    true_loc_func=quantile_plotters[0],
+    true_scale_func=quantile_plotters[1],
+    heat_map_data=exteme_responses,
+    search_space=search_space,
+    num_points=101,
+    bins=50,
+)
+
+fig_gumbel_extreme.show()
+
+fig_gumbel_env = plot_true_functions_with_heatmap(
+    true_loc_func=quantile_plotters[0],
+    true_scale_func=quantile_plotters[1],
+    heat_map_data=env_data,
+    search_space=search_space,
+    num_points=101,
+    bins=50,
+)
+
+fig_gumbel_env.show()
+
 
 # %%
 def plot_true_functions_with_dual_heatmaps(
@@ -1210,5 +1267,121 @@ fig_dual_heatmap = plot_true_functions_with_dual_heatmaps(
 
 fig_dual_heatmap.show()
 
+
+# %%
+######################################################################
+####################################################################
+# Add this after creating your acquisition function to visualize it
+
+
+def analyze_point_selection(exp_sobol, exp_lookahead, title="Point Selection Analysis"):
+    """Analyze where Sobol vs LookAhead place points."""
+
+    # Get trial data
+    sobol_data = exp_sobol.fetch_data().df
+    lookahead_data = exp_lookahead.fetch_data().df
+
+    # Extract points
+    # Extract points with trial indices
+    sobol_trials = []
+    sobol_trial_indices = []
+    lookahead_trials = []
+    lookahead_trial_indices = []
+
+    for trial_idx, trial in exp_sobol.trials.items():
+        if trial.arm:
+            params = trial.arm.parameters
+            sobol_trials.append([params["x1"], params["x2"]])
+            sobol_trial_indices.append(trial_idx)
+
+    for trial_idx, trial in exp_lookahead.trials.items():
+        if trial.arm:
+            params = trial.arm.parameters
+            lookahead_trials.append([params["x1"], params["x2"]])
+            lookahead_trial_indices.append(trial_idx)
+
+    sobol_points = np.array(sobol_trials)
+    lookahead_points = np.array(lookahead_trials)
+
+    # Plot comparison
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    # Sobol vs lookahead points
+
+    # Env heat map
+    axes[0].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds")
+    axes[0].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
+    axes[0].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
+    # Add trial numbers
+    for i, (x, y) in enumerate(sobol_points):
+        axes[0].annotate(
+            str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
+        )
+    for i, (x, y) in enumerate(lookahead_points):
+        axes[0].annotate(
+            str(lookahead_trial_indices[i]),
+            (x, y),
+            xytext=(2, 2),
+            textcoords="offset points",
+            fontsize=8,
+            color="darkgreen",
+        )
+    axes[0].set_title("Points vs Env Density")
+    axes[0].set_xlabel("x1")
+    axes[0].set_ylabel("x2")
+    axes[0].legend()
+
+    # Overlay with extreme response heatmap
+    axes[1].hist2d(exteme_responses[:, 0], exteme_responses[:, 1], bins=30, alpha=0.6, cmap="Greens")
+    axes[1].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
+    axes[1].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
+    for i, (x, y) in enumerate(sobol_points):
+        axes[1].annotate(
+            str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
+        )
+    for i, (x, y) in enumerate(lookahead_points):
+        axes[1].annotate(
+            str(lookahead_trial_indices[i]),
+            (x, y),
+            xytext=(2, 2),
+            textcoords="offset points",
+            fontsize=8,
+            color="darkgreen",
+        )
+    axes[1].set_title("Points vs Extreme Response Density")
+    axes[1].set_xlabel("x1")
+    axes[1].set_ylabel("x2")
+    axes[1].legend()
+
+    axes[2].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.8, cmap="Reds")
+    axes[2].hist2d(exteme_responses[:, 0], exteme_responses[:, 1], bins=30, alpha=0.4, cmap="Greens")
+    axes[2].scatter(sobol_points[:, 0], sobol_points[:, 1], alpha=0.8, c="blue", s=30, label="Sobol")
+    axes[2].scatter(lookahead_points[:, 0], lookahead_points[:, 1], alpha=0.8, c="green", s=30, label="LookAhead")
+    for i, (x, y) in enumerate(sobol_points):
+        axes[2].annotate(
+            str(sobol_trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color="darkblue"
+        )
+    for i, (x, y) in enumerate(lookahead_points):
+        axes[2].annotate(
+            str(lookahead_trial_indices[i]),
+            (x, y),
+            xytext=(2, 2),
+            textcoords="offset points",
+            fontsize=8,
+            color="darkgreen",
+        )
+    axes[2].set_title("Points vs Env Density")
+    axes[2].set_xlabel("x1")
+    axes[2].set_ylabel("x2")
+    axes[2].legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    return sobol_points, lookahead_points
+
+
+# Use this after running your experiments
+sobol_pts, lookahead_pts = analyze_point_selection(exp_sobol, exp_look_ahead)
 
 # %%
