@@ -46,7 +46,7 @@ class TestApproximateMixture:
     # TODO(sw 2024-12-14): Test more distributions
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("dist_class", [Gumbel, LogNormal])
-    def test_lower_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):
+    def test_lower_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):  # noqa: PT028
         """Fnd bounds that do not throw error and produce 0."""
         dist = dist_class(torch.tensor(0, dtype=dtype), 1)  # type: ignore  # noqa: PGH003
 
@@ -75,7 +75,7 @@ class TestApproximateMixture:
 
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("dist_class", [Gumbel, LogNormal])
-    def test_upper_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):
+    def test_upper_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):  # noqa: PT028
         dist = dist_class(torch.tensor(0, dtype=dtype), 1)  # type: ignore  # noqa: PGH003
 
         if visualise:

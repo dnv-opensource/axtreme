@@ -21,6 +21,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+import git
 import numpy as np
 import pandas as pd
 import pytest
@@ -121,7 +122,6 @@ def collect_statistics(df: pd.DataFrame, true_value: float) -> dict[str, float]:
 
 def get_id() -> str:
     """Produces and id which can be used to label related objects when saving."""
-    import git
 
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
@@ -141,16 +141,16 @@ def output_dir():
 @pytest.mark.non_deterministic
 def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
     output_dir: None | Path,
-    n_env_samples: int = 14_000,
-    n_posterior_samples: int = 50,
-    n_qoi_runs: int = 50,
-    jobs_input_file: None | Path | pd.DataFrame = None,
-    error_tol_scaling: float = 1,
-    ground_truth_n_periods: int = 101,
+    n_env_samples: int = 14_000,  # noqa: PT028
+    n_posterior_samples: int = 50,  # noqa: PT028
+    n_qoi_runs: int = 50,  # noqa: PT028
+    jobs_input_file: None | Path | pd.DataFrame = None,  # noqa: PT028
+    error_tol_scaling: float = 1,  # noqa: PT028
+    ground_truth_n_periods: int = 101,  # noqa: PT028
     *,
-    show_plots: bool = False,
-    run_tests: bool = True,
-    return_statistics: bool = False,
+    show_plots: bool = False,  # noqa: PT028
+    run_tests: bool = True,  # noqa: PT028
+    return_statistics: bool = False,  # noqa: PT028
 ) -> dict[str, dict[str, float]] | None:
     """System test of MarginalCDFExtrapolation by running increasingly realistic varients to checking consistency.
 
@@ -929,7 +929,7 @@ if __name__ == "__main__":
         )
         all_statistics.append(statistics)
 
-    df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PD901, PGH003
+    df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PGH003
     df.head()  # type: ignore  # noqa: PGH003
 
     # %%

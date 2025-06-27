@@ -250,11 +250,11 @@ class TestICDF1D:
         assert actual_q.item() == pytest.approx(q, abs=maximum_timestep_error)
 
     @pytest.mark.integration
-    def test_icdf_1d_approximate_mixture_step_function(self, *, visualise: bool = False):
-        """Tests persormance on a challening Approximate Mixture distributiion.
+    def test_icdf_1d_approximate_mixture_step_function(self, *, visualise: bool = False):  # noqa: PT028
+        """Tests performance on a challenging Approximate Mixture distribution.
 
-        This is case 2.2 in test rational. This is a challening distribution that is effectly a step function.
-        the desired quantil is effectively on the "corner" of one of the steps.
+        This is case 2.2 in test rational. This is a challenging distribution that is effectively a step function.
+        the desired quantile is effectively on the "corner" of one of the steps.
         """
         q_timestep = 0.9999960436883025  # equivalent to q_to_qtimestep(0.5, 20 * 365 * 24)
         maximum_timestep_error = acceptable_timestep_error(0.5, 20 * 365 * 24, atol=0.01)
@@ -277,7 +277,7 @@ class TestICDF1D:
         x_brute_force = torch.tensor(10.010648506485065, dtype=torch.float64)
         actual_x = icdf_1d(dist, q_timestep, maximum_timestep_error, bounds=(0, 20))
         # The actual value has some allowable error which means it does not have to be the brute force result exactly.
-        # The below threshold is choosen arbitraily, the extent of the approximation is tested in the following assert/
+        # The below threshold is chosen arbitrarily, the extent of the approximation is tested in the following assert/
         torch.testing.assert_close(actual_x, x_brute_force, rtol=0, atol=1e-6)
 
         # check the error
@@ -286,11 +286,11 @@ class TestICDF1D:
 
     @pytest.mark.integration
     def test_icdf_1d_approximate_mixture_demo_problem_params(self):
-        """Tests persormance on a challening Approximate Mixture distributiion.
+        """Tests performance on a challenging Approximate Mixture distribution.
 
         This is case 2.3 in test rational.
 
-        NOTE: This is a good usecase for exploring the impacts of float32 as it appear to change the result
+        NOTE: This is a good use case for exploring the impacts of float32 as it appear to change the result
         significantly.
         """
         # define the required accuracy
@@ -309,7 +309,7 @@ class TestICDF1D:
 
         x_brute_force = torch.tensor(61.025285285285285, dtype=torch.float64)
         # The actual value has some allowable error which means it does not have to be the brute force result exactly.
-        # The below threshold is choosen arbitraily, the extent of the approximation is tested in the following assert/
+        # The below threshold is chosen arbitrarily, the extent of the approximation is tested in the following assert/
         torch.testing.assert_close(actual_x, x_brute_force, rtol=0, atol=1e-5)
 
         # check the error
