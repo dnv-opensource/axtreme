@@ -249,14 +249,14 @@ search_space = SearchSpace(
 )
 
 # %% [markdown]
-# ### Pick a distibution that you belive captures the noise behaviour of your simulator
+# ### Pick a distribution that you believe captures the noise behaviour of your simulator
 
 # %%
 dist = gumbel_r
 
 
 # %%
-# Pick a number of simuations per point. Number of simulations per point for each point added to the experiment.
+# Pick a number of simulations per point. Number of simulations per point for each point added to the experiment.
 # Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
 # the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
 # debugging and testing purposes.
@@ -312,7 +312,7 @@ _ = plt.legend()
 plt.show()
 
 # %% [markdown]
-# The surrogate also contains uncertainty about its estimate. Lets plot the other distributions that the surrogate
+# The surrogate also contains uncertainty about its estimate. Let's plot the other distributions that the surrogate
 # believes are possible.
 
 # %%
@@ -344,8 +344,8 @@ plt.show()
 # %% [markdown]
 # ## Estimate the QoI:
 # Now that we have a surrogate model, we can use it to estimate the QoI. The uncertainty in our surrogate model should
-# be reflected in our QoI estimate. Lets demonstrate how the estimate changes as we add more data to the surrogate model
-# and it becomes more certain.
+# be reflected in our QoI estimate. Let's demonstrate how the estimate changes as we add more data to the surrogate
+# model, and it becomes more certain.
 #
 # In the following we make use of an existing QoI Estimator. `axtreme` provides a number of QoIEstimators for common
 # tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found in
@@ -353,7 +353,7 @@ plt.show()
 #
 # In the following we demonstrate how the QoI estimate becomes more certain as the surrogate gets more training data.
 #
-# > NOTE: Training a Gp with `Models.BOTORCH_MODULAR` has inherit randomness that can't be turned off(e.g with
+# > NOTE: Training a Gp with `Models.BOTORCH_MODULAR` has inherited randomness that can't be turned off(e.g. with
 # `torch.manual_seed`). As a result there is slight randomness in the result even though all other seeds are set.
 
 # %%
@@ -435,7 +435,7 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
 # We then run DoE using our custom acquisition function (QoILookAhead), and compare results.
 
 # %% [markdown]
-# ### Helper for runnig experiments
+# ### Helper for running experiments
 
 
 # %%
@@ -483,7 +483,7 @@ warm_up_runs = 3
 
 # %% [markdown]
 # ### Sobol model
-# Surrogate trained without and a acquisition function as a comparative baseline.
+# Surrogate trained without and an acquisition function as a comparative baseline.
 
 # %%
 # Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
@@ -497,7 +497,7 @@ exp_sobol = make_exp()
 # Add the QoI metric to the experiment
 _ = exp_sobol.add_tracking_metric(QOI_METRIC)
 
-# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+# This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
 
 
@@ -584,7 +584,7 @@ x1 = torch.linspace(0, 1, point_per_dim)
 x2 = torch.linspace(0, 1, point_per_dim)
 grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
 grid = torch.stack([grid_x1, grid_x2], dim=-1)
-# make turn into a shape that can be processsed by the acquisition function
+# make turn into a shape that can be processed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, qoi_estimator)
 scores = acqusition(x_candidates)
@@ -681,7 +681,7 @@ exp_look_ahead = make_exp()
 # Add the QoI metric to the experiment
 _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 
-# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+# This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
 run_trials(
