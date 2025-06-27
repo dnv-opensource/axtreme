@@ -48,7 +48,6 @@ from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment, plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
 from axtreme.qoi import MarginalCDFExtrapolation
-from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.simulator import utils as sim_utils
 from axtreme.utils import population_estimators, transforms
@@ -220,8 +219,7 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # - Decide on the search space to use.
 # - Pick a distribution that you believe captures the noise behaviour of your simulator.
 #
-# These decisions are straight forward for this toy example. Advice on how to choose these parameters in more real world
-# problems are provided in other tutorials (TODO(sw 2024-11-21): include these tutorials).
+# These decisions are straight forward for this toy example.
 
 # %% [markdown]
 # ### Make our simulator conform to the required interface
@@ -251,14 +249,14 @@ search_space = SearchSpace(
 )
 
 # %% [markdown]
-# ### Pick a distibution that you belive captures the noise behaviour of your simulator
+# ### Pick a distribution that you believe captures the noise behaviour of your simulator
 
 # %%
 dist = gumbel_r
 
 
 # %%
-# Pick a number of simuations per point. Number of simulations per point for each point added to the experiment.
+# Pick a number of simulations per point. Number of simulations per point for each point added to the experiment.
 # Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
 # the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
 # debugging and testing purposes.
@@ -314,7 +312,7 @@ _ = plt.legend()
 plt.show()
 
 # %% [markdown]
-# The surrogate also contains uncertainty about its estimate. Lets plot the other distributions that the surrogate
+# The surrogate also contains uncertainty about its estimate. Let's plot the other distributions that the surrogate
 # believes are possible.
 
 # %%
@@ -346,16 +344,16 @@ plt.show()
 # %% [markdown]
 # ## Estimate the QoI:
 # Now that we have a surrogate model, we can use it to estimate the QoI. The uncertainty in our surrogate model should
-# be reflected in our QoI estimate. Lets demonstrate how the estimate changes as we add more data to the surrogate model
-# and it becomes more certain.
+# be reflected in our QoI estimate. Let's demonstrate how the estimate changes as we add more data to the surrogate
+# model, and it becomes more certain.
 #
 # In the following we make use of an existing QoI Estimator. `axtreme` provides a number of QoIEstimators for common
-# tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found
-# (TODO(sw 2024-11-22): link to tutorial on how to create a custom QoIEstimator).
+# tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found in
+# tutorials/qoi_estimator.ipynb.
 #
 # In the following we demonstrate how the QoI estimate becomes more certain as the surrogate gets more training data.
 #
-# > NOTE: Training a Gp with `Models.BOTORCH_MODULAR` has inherit randomness that can't be turned off(e.g with
+# > NOTE: Training a Gp with `Models.BOTORCH_MODULAR` has inherited randomness that can't be turned off(e.g. with
 # `torch.manual_seed`). As a result there is slight randomness in the result even though all other seeds are set.
 
 # %%
@@ -406,34 +404,12 @@ for points in n_training_points:
     # reseed the dataloader each time so the dame dataset is used.
     results.append(qoi_estimator(model))
 
-
-# %%
-def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor | NDArray[Any]) -> tuple[torch.Tensor, torch.Tensor]:
-    """TODO: clean this up or delete.
-
-    Args:
-        estimator: the QoI function that produced the estimate
-        estimates: (*b, n_estimator)
-
-    Returns:
-        tensor1: the mean of the estimates, with shape *b
-        tensor1: the variance of the estimates, with shape *b
-
-    """
-    if not isinstance(estimates, torch.Tensor):
-        estimates = torch.tensor(estimates)
-
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-
-    return mean, var
-
-
 # %%
 _, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
-    mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))  # type: ignore[assignment]
+    mean = qoi_estimator.posterior_sampler.mean(torch.tensor(estimate), -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+    var = qoi_estimator.posterior_sampler.var(torch.tensor(estimate), -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
@@ -459,7 +435,7 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
 # We then run DoE using our custom acquisition function (QoILookAhead), and compare results.
 
 # %% [markdown]
-# ### Helper for runnig experiments
+# ### Helper for running experiments
 
 
 # %%
@@ -507,7 +483,7 @@ warm_up_runs = 3
 
 # %% [markdown]
 # ### Sobol model
-# Surrogate trained without and a acquisition function as a comparative baseline.
+# Surrogate trained without and an acquisition function as a comparative baseline.
 
 # %%
 # Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
@@ -521,7 +497,7 @@ exp_sobol = make_exp()
 # Add the QoI metric to the experiment
 _ = exp_sobol.add_tracking_metric(QOI_METRIC)
 
-# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+# This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
 
 
@@ -608,7 +584,7 @@ x1 = torch.linspace(0, 1, point_per_dim)
 x2 = torch.linspace(0, 1, point_per_dim)
 grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
 grid = torch.stack([grid_x1, grid_x2], dim=-1)
-# make turn into a shape that can be processsed by the acquisition function
+# make turn into a shape that can be processed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, qoi_estimator)
 scores = acqusition(x_candidates)
@@ -652,12 +628,6 @@ acqf_class = QoILookAhead
 
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
     # Fist building model to get the transforms
-    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
-    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
-    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
-    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
-    # transform.py. Was not able to figure out how to fix this in the time I had.
-    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
     model_bridge_only_model = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
@@ -711,7 +681,7 @@ exp_look_ahead = make_exp()
 # Add the QoI metric to the experiment
 _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 
-# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+# This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
 run_trials(
