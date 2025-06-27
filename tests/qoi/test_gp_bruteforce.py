@@ -463,7 +463,7 @@ def test_posterior_samples_are_equivalent_when_batched(
     sampler: PosteriorSampler,
     model_singletaskgp_d1_t1: SingleTaskGP,
     *,
-    visual_inspect: bool = False,
+    visual_inspect: bool = False,  # noqa: PT028
 ):
     """Tests if posterior samplers are invariant to batching on input data as is required for GPBruteForce.
 

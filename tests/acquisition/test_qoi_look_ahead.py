@@ -330,13 +330,13 @@ def test_forward_grad():
 
 
 @pytest.mark.integration
-# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
+# This warning is due to train_y not being standardised. Standardisation can improve quality of fit.
 # This is not important for this test.
 @pytest.mark.filterwarnings(
     "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
 )
-def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
-    """Assuming the requirement detailed in the the class docs are met, the acquisition fucntion produced should be
+def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):  # noqa: PT028
+    """Assuming the requirement detailed in the class docs are met, the acquisition function produced should be
     smooth.
     """
 
@@ -354,7 +354,7 @@ def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
 
         Only cares about the variance at `x=.5` The var method is then just a pass through of the value returned by x.
 
-        The output doesn't truely conform with the QoI interface, but is suffecient for this test.
+        The output doesn't truly conform with the QoI interface, but is sufficient for this test.
         """
 
         def __call__(self, model: Model) -> torch.Tensor:
@@ -380,14 +380,14 @@ def test_acquisition_function_is_smooth(*, visual_inspect: bool = False):
     _ = is_smooth_1d(x.flatten(), scores.flatten())
 
 
-# This warning is due to train_y not being standardised. Standarisation can improve quality of fit.
-# This is not imporant for this test.
+# This warning is due to train_y not being standardised. Standardisation can improve quality of fit.
+# This is not important for this test.
 @pytest.mark.filterwarnings(
     "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
 )
 @pytest.mark.integration
 # TODO(sw 2024-11-27): This should be updated to use the default params registered in qoi_look_ahead.py
-def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
+def test_optimise_dumb_qoi(*, visual_inspect: bool = False):  # noqa: PT028
     """Make a QoI that only cares about reducing the variance as a single point.
 
     Check that the optimisation can find that point.
@@ -397,8 +397,8 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):
 
     Note:
         We could also test more complicated surfaces and show they work. Testing if optimiser setting work on a
-        realistic problem surface is consider system testing. Testing if optimiation setting work on arbitrary
-        problem surface should be in unittests of the optimiser (with arbirary functions) rather than here.
+        realistic problem surface is consider system testing. Testing if optimisation setting work on arbitrary
+        problem surface should be in unittests of the optimiser (with arbitrary functions) rather than here.
     """
     train_x = torch.tensor([[0.1], [0.9]])
     train_y = torch.zeros_like(train_x)

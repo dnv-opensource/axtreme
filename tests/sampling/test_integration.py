@@ -40,11 +40,11 @@ def test_sampler_integration(
     expected_value: torch.Tensor,
     model_singletaskgp_d1_t1: SingleTaskGP,
     *,
-    visual_inspect: bool = False,
+    visual_inspect: bool = False,  # noqa: PT028
 ):
     """One of the most useful ways to inspect the performance of a sampler is to visually inspect it.
 
-    This test confirms the output matches the visual inspecation (expected_value come from the viual inspection.
+    This test confirms the output matches the visual inspection (expected_value come from the visual inspection.
 
     Args:
         sampler: _description_
@@ -53,7 +53,7 @@ def test_sampler_integration(
         visual_inspect: _description_. Defaults to False.
 
     Todo:
-        - A posterior could be passed directly here instead of the model. model has been use so different vidualisations
+        - A posterior could be passed directly here instead of the model. model has been use so different visualisations
           can easily be made.
     """
     model = model_singletaskgp_d1_t1

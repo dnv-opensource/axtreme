@@ -11,7 +11,9 @@ right level of granuality can be achieved.
 from collections.abc import Callable
 from typing import Any, TypeAlias, TypeVar, Union
 
+import numpy as np
 import torch
+from botorch.models import SingleTaskGP
 
 T = TypeVar("T")
 # Nested dict where keys are alsways strings
@@ -147,8 +149,6 @@ def unpack_object_str_content(
 
 def default_config() -> dict[type, Callable[[Any], NestedDict]]:
     """Default/handy processing configurations."""
-    import numpy as np
-    from botorch.models import SingleTaskGP
 
     def process_single_task_gp(x: SingleTaskGP) -> dict[str, Any]:
         return {
