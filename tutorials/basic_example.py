@@ -48,7 +48,6 @@ from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment, plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
 from axtreme.qoi import MarginalCDFExtrapolation
-from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.simulator import utils as sim_utils
 from axtreme.utils import population_estimators, transforms
@@ -220,8 +219,7 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # - Decide on the search space to use.
 # - Pick a distribution that you believe captures the noise behaviour of your simulator.
 #
-# These decisions are straight forward for this toy example. Advice on how to choose these parameters in more real world
-# problems are provided in other tutorials (TODO(sw 2024-11-21): include these tutorials).
+# These decisions are straight forward for this toy example.
 
 # %% [markdown]
 # ### Make our simulator conform to the required interface
@@ -350,8 +348,8 @@ plt.show()
 # and it becomes more certain.
 #
 # In the following we make use of an existing QoI Estimator. `axtreme` provides a number of QoIEstimators for common
-# tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found
-# (TODO(sw 2024-11-22): link to tutorial on how to create a custom QoIEstimator).
+# tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found in
+# tutorials/qoi_estimator.ipynb.
 #
 # In the following we demonstrate how the QoI estimate becomes more certain as the surrogate gets more training data.
 #
@@ -406,34 +404,12 @@ for points in n_training_points:
     # reseed the dataloader each time so the dame dataset is used.
     results.append(qoi_estimator(model))
 
-
-# %%
-def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor | NDArray[Any]) -> tuple[torch.Tensor, torch.Tensor]:
-    """TODO: clean this up or delete.
-
-    Args:
-        estimator: the QoI function that produced the estimate
-        estimates: (*b, n_estimator)
-
-    Returns:
-        tensor1: the mean of the estimates, with shape *b
-        tensor1: the variance of the estimates, with shape *b
-
-    """
-    if not isinstance(estimates, torch.Tensor):
-        estimates = torch.tensor(estimates)
-
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-
-    return mean, var
-
-
 # %%
 _, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
-    mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))  # type: ignore[assignment]
+    mean = qoi_estimator.posterior_sampler.mean(torch.tensor(estimate), -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+    var = qoi_estimator.posterior_sampler.var(torch.tensor(estimate), -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
@@ -652,12 +628,6 @@ acqf_class = QoILookAhead
 
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
     # Fist building model to get the transforms
-    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
-    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
-    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
-    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
-    # transform.py. Was not able to figure out how to fix this in the time I had.
-    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
     model_bridge_only_model = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
