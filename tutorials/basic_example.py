@@ -223,22 +223,18 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 fig_combined = go.Figure()
 
 # Add environment data traces
-fig_env = histogram_surface3d(env_data)
-_ = [
-    fig_combined.add_trace(trace.update(colorscale="Blues", name="Environment Data", showscale=False))  # type: ignore  # noqa: PGH003
-    for trace in fig_env.data
-]
+fig_env = histogram_surface3d(
+    env_data, surface3d_kwargs={"colorscale": "Blues", "name": "Environment Data", "showscale": False}
+)
+_ = fig_combined.add_trace(fig_env.data[0])
 
 # Add extreme responses traces
-fig_extreme = histogram_surface3d(precalced_erd_x.numpy())
-_ = [
-    fig_combined.add_trace(trace.update(colorscale="Reds", name="Extreme Responses", showscale=False))  # type: ignore  # noqa: PGH003
-    for trace in fig_extreme.data
-]
+fig_extreme = histogram_surface3d(
+    precalced_erd_x.numpy(), surface3d_kwargs={"colorscale": "Reds", "name": "Extreme Responses", "showscale": False}
+)
+_ = fig_combined.add_trace(fig_extreme.data[0])
 
 _ = fig_combined.update_layout(title_text="Environment Data(blue) vs Extreme Responses(red)")
-
-
 fig_combined.show()
 
 
@@ -584,7 +580,8 @@ def run_trials(
         warm_up_runs: Number of warm-up runs to perform before starting the DoE.
         doe_runs: Number of DoE runs to perform.
         stopping_criteria: Optional function that takes an experiment and returns True if a given
-        stopping criteria is met.
+        stopping criteria is met. If this stopping criteria is not met after `doe_runs` iterations, the function will
+            return the number of iterations run.
 
     """
     # Warm-up phase
@@ -611,7 +608,9 @@ def run_trials(
     return doe_runs + warm_up_runs
 
 
-def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 1) -> bool:
+# TODO(hsb: 2025-06-30): set some good default sem_threshold for the stopping criteria once the new basic example
+# is implemented.
+def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 1.5) -> bool:
     """Stopping criteria based on standard error of the mean (SEM) of QoI metric.
 
     Args:
@@ -630,8 +629,6 @@ def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 1) -> b
 
     # Get the latest QoI metric result
     latest_qoi = qoi_metrics.iloc[-1]
-    # DEBUG
-    print(f"Latest QoI metric: {latest_qoi['mean']:.4f} with SEM: {latest_qoi['sem']:.4f}")
 
     if pd.notna(latest_qoi["sem"]) and latest_qoi["sem"] <= sem_threshold:
         print(f"SEM threshold met: {latest_qoi['sem']:.4f} <= {sem_threshold}")
@@ -892,68 +889,6 @@ surface_final_trial.show()
 # %%
 ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
-_ = ax.axhline(float(brute_force_qoi_estimate), c="black", label="brute_force_value")
-_ = ax.set_xlabel("Number of DOE iterations")
-_ = ax.set_ylabel("Response")
-_ = ax.legend()
-
-
-# %% [markdown]
-### Find the DOE iteration at which the QoI converged to a given percentage of the brute force estimate.
-# Here you can see the benefit of using the custom acquisition function. The look-ahead experiment reaches the same
-# uncertainty in the QoI estimate with fewer iterations than the Sobol experiment.
-# This is because the look-ahead acquisition function selects points that
-# are expected to reduce uncertainty in the QoI estimate more effectively than random sampling.
-
-
-# %%
-def find_convergence_trial(experiment: Experiment, uncertainty_threshold_percent: float = 10.0) -> int:
-    """Find the trial index when uncertainty falls below threshold percentage of brute force QoI."""
-    metrics = experiment.fetch_data()
-    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
-
-    if len(qoi_metrics) == 0:
-        print("No QoIMetric data found in the experiment.")
-        return 0
-
-    threshold = abs(brute_force_qoi_estimate) * (uncertainty_threshold_percent / 100.0)
-
-    for _, row in qoi_metrics.iterrows():
-        if pd.notna(row["sem"]) and (1.96 * row["sem"]) <= threshold:
-            return int(row["trial_index"])
-    print(f"No convergence trial found for uncertainty threshold {uncertainty_threshold_percent}% of brute force QoI.")
-    return 0
-
-
-# Find trial where the uncertainty is below a given percentage of the brute force estimate.
-uncertainty_threshold_percent = 10.0
-sobol_trial = find_convergence_trial(exp_sobol, uncertainty_threshold_percent)
-lookahead_trial = find_convergence_trial(exp_look_ahead, uncertainty_threshold_percent)
-print(f"Sobol reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {sobol_trial}")
-print(f"Look-ahead reached uncertainty threshold {uncertainty_threshold_percent}% at trial: {lookahead_trial}")
-
-# %%
-# PLot the surfaces of the Sobol and Look-ahead experiments when both experiments have the same uncertainty in
-# the QoI estimate. As one can observe, fewer points are added to the GP in Look-ahead experiment in order to reach
-# the same uncertainty in the QoI estimate.
-# %%
-surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol, sobol_trial, {"loc": _true_loc_func, "scale": _true_scale_func}
-)
-surface_final_trial.show()
-
-# %%
-surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, lookahead_trial, {"loc": _true_loc_func, "scale": _true_scale_func}
-)
-surface_final_trial.show()
-
-# %%
-# plot results of the two experiments when convergence is achieved.
-ax = plot_qoi_estimates_from_experiment(exp_sobol, name="Sobol", trial_index=sobol_trial)
-ax = plot_qoi_estimates_from_experiment(
-    exp_look_ahead, ax=ax, color="green", name="look ahead", trial_index=lookahead_trial
-)
 _ = ax.axhline(float(brute_force_qoi_estimate), c="black", label="brute_force_value")
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
