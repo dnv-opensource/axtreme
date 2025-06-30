@@ -493,15 +493,15 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
 # ### Helper for runnig experiments
 
 
-# %%
 def run_trials(
     experiment: Experiment,
     warm_up_generator: Callable[[Experiment], GeneratorRun],
     doe_generator: Callable[[Experiment], GeneratorRun],
     warm_up_runs: int = 3,
     doe_runs: int = 15,
-) -> None:
-    """Helper function for running  trials for an experiment and returning the QOI results using QoI metric.
+    stopping_criteria: Callable[[Experiment], bool] | None = None,
+) -> int:
+    """Helper function for running trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
         experiment: Experiment to perform DOE on.
@@ -509,8 +509,11 @@ def run_trials(
         doe_generator: The generator being used to perform the DoE.
         warm_up_runs: Number of warm-up runs to perform before starting the DoE.
         doe_runs: Number of DoE runs to perform.
+        stopping_criteria: Optional function that takes an experiment and returns True if a given
+        stopping criteria is met.
 
     """
+    # Warm-up phase
     for i in range(doe_runs + 1):
         if i == 0:
             for _ in range(warm_up_runs):
@@ -526,15 +529,50 @@ def run_trials(
             _ = trial.mark_completed()
         print(f"iter {i} done")
 
-    return
+        # Check stopping criteria after each DoE iteration
+        if stopping_criteria is not None and stopping_criteria(experiment):
+            print(f"Stopping criteria met after {i} DoE iterations")
+            return i
+
+    return doe_runs + warm_up_runs
+
+
+def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 1) -> bool:
+    """Stopping criteria based on standard error of the mean (SEM) of QoI metric.
+
+    Args:
+        experiment: The experiment to check
+        sem_threshold: Threshold for SEM below which to stop
+
+    Returns:
+        True if stopping criteria is met (SEM below threshold), False otherwise
+    """
+    metrics = experiment.fetch_data()
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+
+    if len(qoi_metrics) == 0:
+        print("No QoIMetric data found in the experiment.")
+        return False
+
+    # Get the latest QoI metric result
+    latest_qoi = qoi_metrics.iloc[-1]
+    # DEBUG
+    print(f"Latest QoI metric: {latest_qoi['mean']:.4f} with SEM: {latest_qoi['sem']:.4f}")
+
+    if pd.notna(latest_qoi["sem"]) and latest_qoi["sem"] <= sem_threshold:
+        print(f"SEM threshold met: {latest_qoi['sem']:.4f} <= {sem_threshold}")
+        return True
+
+    return False
 
 
 # %% [markdown]
 # How many iterations to run in the following DOEs
 
 # %%
-n_iter = 20  # 40
+n_iter = 40
 warm_up_runs = 3
+
 
 # %% [markdown]
 # ### Sobol model
@@ -573,12 +611,19 @@ def create_sobol_generator(sobol: ModelBridge) -> Callable[[Experiment], Generat
 
 sobol_generator_run = create_sobol_generator(sobol)
 
-run_trials(
+
+# %% [markdown]
+## Run Experiment until a given stopping criteria is met.
+# This is optional, but can be useful if you have a specific stopping criteria in mind.
+
+
+last_itr = run_trials(
     experiment=exp_sobol,
     warm_up_generator=sobol_generator_run,
     doe_generator=sobol_generator_run,
     warm_up_runs=warm_up_runs,
     doe_runs=n_iter,
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on SEM
 )
 
 # %%
@@ -588,9 +633,10 @@ surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 surface_warm_up.show()
 surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+    exp_sobol, last_itr, {"loc": _true_loc_func, "scale": _true_scale_func}
 )
 surface_final_trial.show()
+
 
 # %% [markdown]
 # ### Custom acquisition function:
@@ -745,12 +791,13 @@ _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
-run_trials(
+last_itr = run_trials(
     experiment=exp_look_ahead,
     warm_up_generator=create_sobol_generator(sobol),
     doe_generator=look_ahead_generator_run,
     warm_up_runs=warm_up_runs,
     doe_runs=n_iter,
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on SEM
 )
 
 # %%
@@ -760,7 +807,7 @@ surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 surface_warm_up.show()
 surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+    exp_look_ahead, last_itr, {"loc": _true_loc_func, "scale": _true_scale_func}
 )
 surface_final_trial.show()
 
