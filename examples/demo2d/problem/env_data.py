@@ -25,7 +25,7 @@ def generate_and_save_data(n_samples: int = 1_000_000, seed: int = 42) -> None:
     with torch.random.fork_rng():
         _ = torch.manual_seed(seed)
         # Generate samples until we have enough valid ones
-        valid_samples: list[np.ndarray] = []
+        valid_samples: list[np.ndarray] = []  # type: ignore  # noqa: PGH003
         batch_size = n_samples
 
         while len(valid_samples) < n_samples:
