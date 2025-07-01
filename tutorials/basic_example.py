@@ -68,9 +68,9 @@ device = "cpu"
 # %%
 root_dir = Path("../")
 sys.path.append(str(root_dir))
-from examples.demo2d.problem.brute_force import collect_or_calculate_results
-from examples.demo2d.problem.env_data import collect_data
-from examples.demo2d.problem.simulator import (
+from examples.basic_example_usecase.problem.brute_force import collect_or_calculate_results
+from examples.basic_example_usecase.problem.env_data import collect_data
+from examples.basic_example_usecase.problem.simulator import (
     DummySimulatorSeeded,
     _true_loc_func,
     _true_scale_func,
