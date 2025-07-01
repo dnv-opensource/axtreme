@@ -8,6 +8,7 @@ import torch
 from botorch.test_functions import BraninCurrin
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
+from torch.distributions import Categorical, MixtureSameFamily, MultivariateNormal
 
 from axtreme.simulator.base import Simulator
 
@@ -17,13 +18,29 @@ _branin_currin = BraninCurrin(negate=False).to(dtype=torch.double)
 
 
 # %%
-# These are helpers for our dummy simulator, and would not be available in a real problme
+# These are helpers for our dummy simulator, and would not be available in a real problem
 def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
-    return ((_branin_currin(torch.tensor(x)) / 20)[..., 0]).numpy()
+    # For this toy example we use a Mixture distribution of a MultivariateNormal distribution
+    dist1_mean, dist1_cov = torch.tensor([0.8, 0.8]), torch.tensor([[0.03, 0], [0, 0.03]])
+    dist2_mean, dist2_cov = torch.tensor([0.2, 0.8]), torch.tensor([[0.04, 0.01], [0.01, 0.04]])
+    dist3_mean, dist3_cov = torch.tensor([0.5, 0.2]), torch.tensor([[0.06, 0], [0, 0.06]])
+
+    locs = torch.stack([dist1_mean, dist2_mean, dist3_mean])
+    covs = torch.stack([dist1_cov, dist2_cov, dist3_cov])
+    component_dist = MultivariateNormal(loc=locs, covariance_matrix=covs)
+
+    mix = Categorical(
+        torch.ones(
+            3,
+        )
+    )
+    gmm = MixtureSameFamily(mix, component_dist)
+    return np.exp(gmm.log_prob(torch.tensor(x)).numpy())
 
 
 def _true_scale_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
-    return ((_branin_currin(1 - torch.tensor(x)) * 0.6)[..., 1]).numpy()
+    # For this toy example we use a constant scale for simplicity
+    return np.ones(x.shape[0]) * 0.1
 
 
 def dummy_simulator_function(x: NDArray[np.float64]) -> NDArray[np.float64]:
