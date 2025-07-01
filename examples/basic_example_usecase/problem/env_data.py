@@ -16,7 +16,6 @@ def generate_and_save_data(n_samples: int = 1_000_000, seed: int = 42) -> None:
         n_samples: Number of samples to generate (default: 1 000 000).
         seed: Random seed for reproducibility (default: 42).
     """
-    # Define mean and covariance (using the distribution from junk.py)
     mean = torch.tensor([0.4, 0.4])
     cov = torch.tensor([[0.2, 0], [0, 0.2]])
 
@@ -26,11 +25,9 @@ def generate_and_save_data(n_samples: int = 1_000_000, seed: int = 42) -> None:
         _ = torch.manual_seed(seed)
         # Generate samples until we have enough valid ones
         valid_samples: list[np.ndarray] = []  # type: ignore  # noqa: PGH003
-        batch_size = n_samples
 
         while len(valid_samples) < n_samples:
-            # Generate batch of samples
-            samples_tensor = env_mvn.sample(torch.Size([batch_size]))
+            samples_tensor = env_mvn.sample(torch.Size([n_samples]))
             samples_np = samples_tensor.numpy()
 
             # Filter samples to [0, 1] range
