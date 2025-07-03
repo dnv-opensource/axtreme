@@ -672,7 +672,7 @@ sobol_generator_run = create_sobol_generator(sobol)
 # This is optional, but can be useful if you have a specific stopping criteria in mind.
 
 
-last_itr = run_trials(
+last_itr_sobol = run_trials(
     experiment=exp_sobol,
     warm_up_generator=sobol_generator_run,
     doe_generator=sobol_generator_run,
@@ -688,7 +688,7 @@ surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 surface_warm_up.show()
 surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol, last_itr, {"loc": _true_loc_func, "scale": _true_scale_func}
+    exp_sobol, last_itr_sobol, {"loc": _true_loc_func, "scale": _true_scale_func}
 )
 surface_final_trial.show()
 
@@ -840,7 +840,7 @@ _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 # This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
-last_itr = run_trials(
+last_itr_look_ahead = run_trials(
     experiment=exp_look_ahead,
     warm_up_generator=create_sobol_generator(sobol),
     doe_generator=look_ahead_generator_run,
@@ -856,7 +856,7 @@ surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 surface_warm_up.show()
 surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, last_itr, {"loc": _true_loc_func, "scale": _true_scale_func}
+    exp_look_ahead, last_itr_look_ahead, {"loc": _true_loc_func, "scale": _true_scale_func}
 )
 surface_final_trial.show()
 
@@ -871,6 +871,18 @@ _ = ax.axhline(float(brute_force_qoi_estimate), c="black", label="brute_force_va
 _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
+
+
+# %%
+# Plot of the surfaces of the two experiments after at the same accuracy
+final_surface_sobol = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, last_itr_sobol, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+final_surface_sobol.show()
+final_surface_look_ahead = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, last_itr_look_ahead, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+final_surface_look_ahead.show()
 
 
 # %%
