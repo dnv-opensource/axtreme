@@ -1,10 +1,16 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sized
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
+import numpy as np
 import pytest
+import torch
+from torch.utils.data import DataLoader
 
+from axtreme.data import BatchInvariantSampler2d, MinimalDataset, SizableSequentialSampler
 from axtreme.eval.object_logging import NestedDict, unpack_object, unpack_object_str_content
+from axtreme.qoi import GPBruteForce
+from axtreme.sampling import NormalIndependentSampler
 
 
 @dataclass
@@ -118,17 +124,6 @@ def test_unpack_object_str_content(l1: Level1):
 @pytest.mark.integration
 def test_unpack_object_integration():
     """This is mainly to document/demonstrate its functionality on more complicated objects."""
-
-    from collections.abc import Sized
-    from typing import cast
-
-    import numpy as np
-    import torch
-    from torch.utils.data import DataLoader
-
-    from axtreme.data import BatchInvariantSampler2d, MinimalDataset, SizableSequentialSampler
-    from axtreme.qoi import GPBruteForce
-    from axtreme.sampling import NormalIndependentSampler
 
     torch.set_default_dtype(torch.float64)
 

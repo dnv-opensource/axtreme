@@ -22,6 +22,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+import git
 import numpy as np
 import pandas as pd
 import pytest
@@ -122,7 +123,6 @@ def collect_statistics(df: pd.DataFrame, true_value: float) -> dict[str, float]:
 
 def get_id() -> str:
     """Produces and id which can be used to label related objects when saving."""
-    import git
 
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
