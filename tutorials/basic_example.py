@@ -591,8 +591,8 @@ def run_trials(
     return doe_runs + warm_up_runs
 
 
-def confidence_bound_stopping_criteria(experiment: Experiment, uncertainty_threshold_percent: float = 2.0) -> bool:
-    """Stopping criteria based on 90 % confidence bound of standard error of the mean (SEM) of QoI metric.
+def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 0.02) -> bool:
+    """Stopping criteria based on standard error of the mean (SEM) of QoI metric of the GP.
 
     Args:
         experiment: The experiment to check
@@ -611,10 +611,8 @@ def confidence_bound_stopping_criteria(experiment: Experiment, uncertainty_thres
     # Get the latest QoI metric result
     latest_qoi = qoi_metrics.iloc[-1]
 
-    threshold = abs(brute_force_qoi_estimate) * (uncertainty_threshold_percent / 100.0)
-
-    if pd.notna(latest_qoi["sem"]) and (1.96 * latest_qoi["sem"]) <= threshold:
-        print(f"SEM threshold met: {latest_qoi['sem']:.4f} <= {threshold}")
+    if pd.notna(latest_qoi["sem"]) and latest_qoi["sem"] <= sem_threshold:
+        print(f"SEM threshold met: {latest_qoi['sem']:.4f} <= {sem_threshold}")
         return True
 
     return False
@@ -678,7 +676,7 @@ last_itr_sobol = run_trials(
     doe_generator=sobol_generator_run,
     warm_up_runs=warm_up_runs,
     doe_runs=n_iter_sobol,
-    stopping_criteria=confidence_bound_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
 )
 
 # %%
@@ -846,7 +844,7 @@ last_itr_look_ahead = run_trials(
     doe_generator=look_ahead_generator_run,
     warm_up_runs=warm_up_runs,
     doe_runs=n_iter_doe,
-    stopping_criteria=confidence_bound_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
 )
 
 # %%
