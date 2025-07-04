@@ -67,6 +67,6 @@ def collect_data() -> pd.DataFrame:
 
 # %%
 if __name__ == "__main__":
-    generate_and_save_data(n_samples=10_000_000, seed=42)
+    generate_and_save_data(n_samples=50_000, seed=42)
 
 # %%

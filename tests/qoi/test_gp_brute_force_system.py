@@ -142,15 +142,15 @@ def output_dir():
 @pytest.mark.non_deterministic
 def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     output_dir: None | Path,
-    n_periods: int = 101,  # noqa: PT028
-    n_posterior_samples: int = 50,  # noqa: PT028
-    n_qoi_runs: int = 50,  # noqa: PT028
-    jobs_input_file: None | Path | pd.DataFrame = None,  # noqa: PT028
-    error_tol_scaling: float = 1,  # noqa: PT028
+    n_periods: int = 101,
+    n_posterior_samples: int = 50,
+    n_qoi_runs: int = 50,
+    jobs_input_file: None | Path | pd.DataFrame = None,
+    error_tol_scaling: float = 1,
     *,
-    show_plots: bool = False,  # noqa: PT028
-    run_tests: bool = True,  # noqa: PT028
-    return_statistics: bool = False,  # noqa: PT028
+    show_plots: bool = False,
+    run_tests: bool = True,
+    return_statistics: bool = False,
 ) -> dict[str, dict[str, float]] | None:
     """System test of QOI_brute_force by running increasingly realistic version of the QoI and checking consistency.
 
@@ -210,11 +210,13 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0913, PLR0912, PLR0915
     Use comparable budgets allows apples-to-apples comparison of the confidence and variance of different methods.
     """
     # bookkeeping parameters
-    jobs_output_file = output_dir / "qoi_job_results.json" if output_dir else None
-
-    # Problem constants # TODO(sw): come back with a cleaner way to do this
+    jobs_output_file = (
+        output_dir / "qoi_job_results.json" if output_dir else None
+    )  # Problem constants # TODO(sw): come back with a cleaner way to do this
     brute_force_qoi: float = float(
-        brute_force.collect_or_calculate_results(period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000).median()
+        brute_force.collect_or_calculate_results(period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000)[
+            0
+        ].median()
     )
 
     _data = env_data.collect_data()
@@ -754,7 +756,7 @@ def ground_truth_estimate(
             - samples: The samples produced by the QoIeEstimator for that run.
             - name: Name of the estimator. This is used to group these results together.
     """
-    brute_force_erd_samples = brute_force.collect_or_calculate_results(
+    brute_force_erd_samples, _ = brute_force.collect_or_calculate_results(
         period_length=N_ENV_SAMPLES_PER_PERIOD, num_estimates=300_000
     )
 
@@ -863,34 +865,34 @@ if __name__ == "__main__":
         )
         all_statistics.append(statistics)
 
-    df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PGH003
-    df.head()  # type: ignore  # noqa: PGH003
+    statistics_df = pd.json_normalize(all_statistics, max_level=1)  # type: ignore  # noqa: PGH003
+    statistics_df.head()  # type: ignore  # noqa: PGH003
 
     # %% Get the statistic for each group.
     # fmt: off
     # do the statistics for the different tests
     # Ground truth
-    print("best_guess_z: ",df["ground_truth.best_guess_z"].abs().max())
+    print("best_guess_z: ",statistics_df["ground_truth.best_guess_z"].abs().max())
 
     # %%
     #  qoi_no_gp
-    print("best_guess_z: ",df["qoi_no_gp.best_guess_z"].abs().max())
+    print("best_guess_z: ",statistics_df["qoi_no_gp.best_guess_z"].abs().max())
 
-    print("best_guess_std\n",(df["qoi_no_gp.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))
-    print("var_mean\n",(df["qoi_no_gp.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"]))
-    print("var_std\n",(df["qoi_no_gp.var_std"] / df["ground_truth.var_std"]).agg(["min","max"]))
+    print("best_guess_std\n",(statistics_df["qoi_no_gp.best_guess_std"] / statistics_df["ground_truth.best_guess_std"]).agg(["min","max"]))# noqa: E501
+    print("var_mean\n",(statistics_df["qoi_no_gp.var_mean"] / statistics_df["ground_truth.var_mean"]).agg(["min","max"]))# noqa: E501
+    print("var_std\n",(statistics_df["qoi_no_gp.var_std"] / statistics_df["ground_truth.var_std"]).agg(["min","max"]))
 
 
     # %% qoi_gp_deterministic
-    print("best_guess_z: ", df["qoi_gp_deterministic.best_guess_z"].abs().max())
+    print("best_guess_z: ", statistics_df["qoi_gp_deterministic.best_guess_z"].abs().max())
 
 
     # %% qoi_gp_low_uncertainty
-    print("best_guess_z: ", df["qoi_gp_low_uncertainty.best_guess_z"].abs().max())
+    print("best_guess_z: ", statistics_df["qoi_gp_low_uncertainty.best_guess_z"].abs().max())
 
-    print("best_guess_std\n",(df["qoi_gp_low_uncertainty.best_guess_std"] / df["ground_truth.best_guess_std"]).agg(["min","max"]))  # noqa: E501
-    print("var_mean\n",(df["qoi_gp_low_uncertainty.var_mean"] / df["ground_truth.var_mean"]).agg(["min","max"]))
-    print("var_std\n",(df["qoi_gp_low_uncertainty.var_std"] / df["ground_truth.var_std"]).agg(["min","max"]))
+    print("best_guess_std\n",(statistics_df["qoi_gp_low_uncertainty.best_guess_std"] / statistics_df["ground_truth.best_guess_std"]).agg(["min","max"]))  # noqa: E501
+    print("var_mean\n",(statistics_df["qoi_gp_low_uncertainty.var_mean"] / statistics_df["ground_truth.var_mean"]).agg(["min","max"]))# noqa: E501
+    print("var_std\n",(statistics_df["qoi_gp_low_uncertainty.var_std"] / statistics_df["ground_truth.var_std"]).agg(["min","max"]))# noqa: E501
 
     # fmt:on
     # %%
