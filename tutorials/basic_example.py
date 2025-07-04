@@ -591,21 +591,22 @@ def run_trials(
     return doe_runs + warm_up_runs
 
 
-def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 0.02) -> bool:
+def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 0.02, metric_name: str = "QoIMetric") -> bool:
     """Stopping criteria based on standard error of the mean (SEM) of QoI metric of the GP.
 
     Args:
         experiment: The experiment to check
-        uncertainty_threshold_percent: percent relative to the brute force estimate of the QoI threshold for stopping.
+        sem_threshold: SEM threshold for stopping criteria
+        metric_name: Name of the metric to check for stopping criteria
 
     Returns:
         True if stopping criteria is met (SEM below threshold), False otherwise
     """
     metrics = experiment.fetch_data()
-    qoi_metrics = metrics.df[metrics.df["metric_name"] == "QoIMetric"]
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == metric_name]
 
     if len(qoi_metrics) == 0:
-        print("No QoIMetric data found in the experiment.")
+        print(f"No {metric_name} data found in the experiment.")
         return False
 
     # Get the latest QoI metric result
