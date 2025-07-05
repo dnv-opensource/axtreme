@@ -1,0 +1,22 @@
+axtreme.acquisition.optimal\_qoi\_look\_ahead
+=============================================
+
+.. automodule:: axtreme.acquisition.optimal_qoi_look_ahead
+   :members:
+   :exclude-members: OptimalQoILookAhead,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      construct_inputs_optimal_qoi_look_ahead
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      OptimalQoILookAhead
+   
