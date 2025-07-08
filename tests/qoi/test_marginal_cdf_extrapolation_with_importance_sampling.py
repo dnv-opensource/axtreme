@@ -52,3 +52,34 @@ def test_parameter_estimates_consistency_of_weights(gp_passthrough_1p: GenericDe
     # input samples but their order should be the same as well
     assert torch.equal(torch.flatten(importance_samples), posterior_samples[..., 0][0])
     assert torch.equal(torch.flatten(importance_weights), torch.flatten(importance_weights_qoi))
+
+
+def test_qoi_runs_with_importance_sampling(gp_passthrough_1p: GenericDeterministicModel):
+    """
+    Run a minimal version of the qoi using a deterministic model and a short period_len to test that it successfully
+    runs with importance sampling.
+
+    Notes:
+    -   The difference to test_parameter_estimates_consistency_of_weights is that the model is passed directly
+        to the QoI estimator not qoi_estimator._parameter_estimates.
+    """
+    # Define simple importance samples and weights
+    importance_samples = torch.Tensor([[1], [2], [3], [4]])
+    importance_weights = torch.Tensor([0.1, 0.2, 0.3, 0.4])
+
+    # Wrap them in a dataloader
+    importance_dataset = ImportanceAddedWrapper(MinimalDataset(importance_samples), MinimalDataset(importance_weights))
+    dataloader = DataLoader(importance_dataset, batch_size=10)
+
+    # Run the method
+    qoi_estimator = MarginalCDFExtrapolation(
+        env_iterable=dataloader,
+        period_len=10,
+        posterior_sampler=IndexSampler(torch.Size([1])),  # draw 1 posterior samples to simplify comparison
+        quantile=torch.tensor(0.5, dtype=torch.float64),
+        quantile_accuracy=torch.tensor(0.1, dtype=torch.float64),
+        dtype=torch.float64,
+    )
+
+    # This only tests if the functions runs successfully and does not concern itself with the output
+    _ = qoi_estimator(gp_passthrough_1p)
