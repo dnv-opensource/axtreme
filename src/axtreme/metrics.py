@@ -119,7 +119,7 @@ class QoIMetric(Metric):
         name: str,
         qoi_estimator: QoIEstimator,
         minimum_data_points: int = 5,
-        lower_is_better: bool | None = None,
+        lower_is_better: bool | None = None,  # noqa: FBT001
         properties: dict[str, Any] | None = None,
         *,
         attach_transforms: bool = False,

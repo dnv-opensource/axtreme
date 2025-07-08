@@ -26,19 +26,22 @@ from axtreme.utils.population_estimators import estimate_pdf_value_from_sample, 
         (Gumbel(30, 6)),
     ],
 )
-def test_sample_mean_se(true_dist: Distribution, n_samples_per_est: int = 20, n_ests: int = 5000):
+def test_sample_mean_se(true_dist: Distribution):
     """Checks if the distribution returned by sample_mean_se is reasonable.
 
-    The consifidence bounds returned by this method are frequently used. We want to check that they are well calibrated.
+    The confidence bounds returned by this method are frequently used. We want to check that they are well calibrated.
     If we obtain at 95% confidence from a sample, 95% of the time the true mean should fall within these bounds. Higher
     or lower percentage represent miscallibrate.
 
-    NOTE: sample_mean_se is primarily used as a diagnoistic, so we are willing to accept some error in the results.
+    NOTE: sample_mean_se is primarily used as a diagnostic, so we are willing to accept some error in the results.
 
     Args:
-        true_dist: The true ditribution from which to generate samples from. The method has no restriction of the type
+        true_dist: The true distribution from which to generate samples from. The method has no restriction of the type
           of sample distribution.
     """
+    n_samples_per_est = 20
+    n_ests = 5000
+
     true_mean = true_dist.mean
 
     samples = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
@@ -73,19 +76,21 @@ def test_sample_mean_se(true_dist: Distribution, n_samples_per_est: int = 20, n_
         (Gumbel(30, 6)),
     ],
 )
-def test_sample_median_se(true_dist: Distribution, n_samples_per_est: int = 50, n_ests: int = 5000):
+def test_sample_median_se(true_dist: Distribution):
     """Checks if the distribution returned by sample_median_se is reasonable.
 
-    The consifidence bounds returned by this method are frequently used. We want to check that they are well calibrated.
+    The confidence bounds returned by this method are frequently used. We want to check that they are well calibrated.
     If we obtain at 95% confidence from a sample, 95% of the time the true mean should fall within these bounds. Higher
     or lower percentage represent miscallibrate.
 
-    NOTE: sample_median_se is primarily used as a diagnoistic, so we are willing to accept some error in the results.
+    NOTE: sample_median_se is primarily used as a diagnostic, so we are willing to accept some error in the results.
 
     Args:
-        true_dist: The true ditribution from which to generate samples from. The method has no restriction of the type
+        true_dist: The true distribution from which to generate samples from. The method has no restriction of the type
           of sample distribution.
     """
+    n_samples_per_est = 50
+    n_ests = 5000
     true_median = true_dist.icdf(tensor(0.5))
 
     samples: Tensor = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
@@ -117,12 +122,13 @@ def test_sample_median_se(true_dist: Distribution, n_samples_per_est: int = 50, 
         (Gumbel(30, 6)),
     ],
 )
-def test_estimate_pdf_value_from_sample_at_median(true_dist: Distribution, n_ests: int = 5000):
-    """This tests for degredation in the performance on estimate_pdf_value_from_sample_at_median.
+def test_estimate_pdf_value_from_sample_at_median(true_dist: Distribution):
+    """This tests for degradation in the performance on estimate_pdf_value_from_sample_at_median.
 
-    The bounds required depened on `n_samples_per_est`. `visualise_performance_of_estimate_pdf_value_from_sample` can be
+    The bounds required depend on `n_samples_per_est`. `visualise_performance_of_estimate_pdf_value_from_sample` can be
     used to determine them.
     """
+    n_ests = 5000
     n_samples_per_est = 50
 
     q: float = 0.5
@@ -137,8 +143,8 @@ def test_estimate_pdf_value_from_sample_at_median(true_dist: Distribution, n_est
     results = torch.tensor(pdf_ests)
 
     assert float(results.mean()) == pytest.approx(true_pdf_value, rel=0.2)
-    coeffeceint_of_variation = results.std() / results.mean()
-    assert coeffeceint_of_variation < 0.2
+    coefficient_of_variation = results.std() / results.mean()
+    assert coefficient_of_variation < 0.2
 
 
 def visualise_performance_of_estimate_pdf_value_from_sample():

@@ -19,10 +19,12 @@ import sys
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
+import plotly.io as pio
 import scipy
 import torch
 from ax import (
@@ -33,6 +35,7 @@ from ax.core import GeneratorRun, ObservationFeatures, ParameterType, RangeParam
 from ax.modelbridge import ModelBridge
 from ax.modelbridge.registry import Models
 from botorch.optim import optimize_acqf
+from matplotlib.axes import Axes
 from numpy.typing import NDArray
 from plotly.subplots import make_subplots
 from scipy.stats import gumbel_r
@@ -48,10 +51,12 @@ from axtreme.plotting.doe import plot_qoi_estimates_from_experiment
 from axtreme.plotting.gp_fit import plot_gp_fits_2d_surface_from_experiment, plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
 from axtreme.qoi import MarginalCDFExtrapolation
-from axtreme.qoi.qoi_estimator import QoIEstimator
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.simulator import utils as sim_utils
 from axtreme.utils import population_estimators, transforms
+
+# Set a useful default view angle for #D plots
+pio.templates["plotly"].layout.scene.camera.eye = {"x": 0.6, "y": -1.75, "z": 0.8}  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
 
 torch.set_default_dtype(torch.float64)
 device = "cpu"
@@ -69,9 +74,9 @@ device = "cpu"
 # %%
 root_dir = Path("../")
 sys.path.append(str(root_dir))
-from examples.demo2d.problem.brute_force import collect_or_calculate_results
-from examples.demo2d.problem.env_data import collect_data
-from examples.demo2d.problem.simulator import (
+from examples.basic_example_usecase.problem.brute_force import collect_or_calculate_results
+from examples.basic_example_usecase.problem.env_data import collect_data
+from examples.basic_example_usecase.problem.simulator import (
     DummySimulatorSeeded,
     _true_loc_func,
     _true_scale_func,
@@ -92,7 +97,7 @@ from examples.demo2d.problem.simulator import (
 
 # %%
 # plot it
-fig = make_subplots(
+fig_true_sim = make_subplots(
     rows=1,
     cols=3,
     specs=[[{"type": "surface"}, {"type": "surface"}, {"type": "surface"}]],
@@ -108,8 +113,12 @@ plot_search_space = SearchSpace(
 )
 
 # plot the underling location and scale function
-_ = fig.add_trace(plot_surface_over_2d_search_space(plot_search_space, funcs=[_true_loc_func]).data[0], row=1, col=1)
-_ = fig.add_trace(plot_surface_over_2d_search_space(plot_search_space, funcs=[_true_scale_func]).data[0], row=1, col=2)
+_ = fig_true_sim.add_trace(
+    plot_surface_over_2d_search_space(plot_search_space, funcs=[_true_loc_func]).data[0], row=1, col=1
+)
+_ = fig_true_sim.add_trace(
+    plot_surface_over_2d_search_space(plot_search_space, funcs=[_true_scale_func]).data[0], row=1, col=2
+)
 
 
 # Plot the response surface at different quantiles
@@ -121,12 +130,13 @@ quantile_plotters: list[Callable[[np.ndarray[Any, np.dtype[np.float64]]], np.nda
     partial(gumbel_helper, q=q) for q in [0.1, 0.5, 0.9]
 ]
 response_distribution = plot_surface_over_2d_search_space(plot_search_space, funcs=quantile_plotters)
-_ = [fig.add_trace(data, row=1, col=3) for data in response_distribution.data]
+_ = [fig_true_sim.add_trace(data, row=1, col=3) for data in response_distribution.data]
 
 # label the plot
-_ = fig.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "response"}})
-_ = fig.update_traces(showscale=False)
-fig.show()
+_ = fig_true_sim.update_scenes({"xaxis": {"title": "x1"}, "yaxis": {"title": "x2"}, "zaxis": {"title": "response"}})
+_ = fig_true_sim.update_traces(showscale=False)
+fig_true_sim.show()
+
 
 # %% [markdown]
 # ### Environment
@@ -144,6 +154,7 @@ fig = histogram_surface3d(env_data)
 _ = fig.update_layout(title_text="Environment distribution estimate from samples")
 _ = fig.update_layout(scene_aspectmode="cube")
 fig.show()
+
 
 # %% [markdown]
 # ### Define the problem
@@ -196,9 +207,105 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # %%
 # For this specific problem we have precalculated a large number of brute force ERD samples.
 # This allows up to treat the brute_force_qoi_estimate as a point for the purpose of this tutorial.
-precalced_erd_samples = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+precalced_erd_samples, precalced_erd_x = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
 brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
+
+# %% [markdown]
+## Brute Force Extreme Response Locations
+# Additionally, we have precalculated the location of the extreme responses. For this toy problem this can be useful
+# in order to understand both the problem and how `axtreme` works to solve such problems.
+# Below we plot the extreme response locations.
+
+# %%
+# Create combined histogram of environment data and extreme responses
+fig_combined = go.Figure()
+
+# Add environment data traces
+fig_env = histogram_surface3d(
+    env_data, surface3d_kwargs={"colorscale": "Blues", "name": "Environment Data", "showscale": False}
+)
+_ = fig_combined.add_trace(fig_env.data[0])
+
+# Add extreme responses traces
+fig_extreme = histogram_surface3d(
+    precalced_erd_x.numpy(), surface3d_kwargs={"colorscale": "Reds", "name": "Extreme Responses", "showscale": False}
+)
+_ = fig_combined.add_trace(fig_extreme.data[0])
+
+_ = fig_combined.update_layout(title_text="Environment Data(blue) vs Extreme Responses(red)")
+fig_combined.show()
+
+
+# %% Plot extreme response location on simulator location and scale surfaces
+# Helper to Plot the extreme response locations on the underlying location and scale that control the simulator.
+class Histogram2DLookup:
+    """
+    A helper which learns a histogram from a 2d dataset, and allows you to query the histogram value at a point.
+    """
+
+    def __init__(
+        self,
+        data: NDArray[Any],
+        x_bounds: tuple[float, float] = (0.0, 1.0),
+        y_bounds: tuple[float, float] = (0.0, 1.0),
+        bins: int = 50,
+    ) -> None:
+        """
+        Args;
+            data: (n,2) array of points
+            x_bounds: (min, max) bounds for the first column of data
+            y_bounds: (min, max) bounds for the second column of data
+            bins: number of bins each dimension should be split into.
+        """
+        # Creates a 2d matrix counting the occurances that fall in that bin
+        self.hist, self.x_edges, self.y_edges = np.histogram2d(
+            data[:, 0],
+            data[:, 1],
+            bins=bins,
+            range=[x_bounds, y_bounds],
+        )
+        self.x_bin_width = self.x_edges[1] - self.x_edges[0]
+        self.y_bin_width = self.y_edges[1] - self.y_edges[0]
+
+    def __call__(self, x: NDArray[Any], y: NDArray[Any]) -> NDArray[Any]:
+        """For x and y points, return the value of the histogram at that point.
+
+        Args:
+            x: (*,n) array of x points (can be a meshgrid)
+            y: (*,n) array of x points (can be a meshgrid)
+
+        Returns:
+            results: (*,n) array of histogram values at the points (x,y).
+        """
+        # for each input point, find the index of the bin it falls in
+        x_index = ((x - self.x_edges[0]) // self.x_bin_width).astype(int)
+        y_index = ((y - self.y_edges[0]) // self.y_bin_width).astype(int)
+
+        results = np.zeros_like(x)
+
+        # find indexes in the valid bin range
+        valid_x = (x_index >= 0) & (x_index < self.hist.shape[0])
+        valid_y = (y_index >= 0) & (y_index < self.hist.shape[1])
+
+        # where both co-ordinates are valid update. Extract only valid results from histogram
+        results[valid_x & valid_y] = self.hist[x_index[valid_x], y_index[valid_y]]
+
+        return results
+
+
+extreme_response_hist = Histogram2DLookup(precalced_erd_x.numpy())
+
+for trace in fig_true_sim.data:
+    trace = cast("go.Surface", trace)
+    x1 = trace["x"]
+    x2 = trace["y"]
+    x1_grid, x2_grid = np.meshgrid(x1, x2)
+    z = extreme_response_hist(x1_grid, x2_grid)
+    _ = trace.update(surfacecolor=z, colorscale="Inferno")
+
+fig_true_sim.show()
+
 
 # %% [markdown]
 # # Using `axtreme` to solve the problem
@@ -220,8 +327,7 @@ print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 # - Decide on the search space to use.
 # - Pick a distribution that you believe captures the noise behaviour of your simulator.
 #
-# These decisions are straight forward for this toy example. Advice on how to choose these parameters in more real world
-# problems are provided in other tutorials (TODO(sw 2024-11-21): include these tutorials).
+# These decisions are straight forward for this toy example.
 
 # %% [markdown]
 # ### Make our simulator conform to the required interface
@@ -251,11 +357,18 @@ search_space = SearchSpace(
 )
 
 # %% [markdown]
-# ### Pick a distibution that you belive captures the noise behaviour of your simulator
+# ### Pick a distribution that you believe captures the noise behaviour of your simulator
 
 # %%
 dist = gumbel_r
 
+
+# %%
+# Pick a number of simulations per point. Number of simulations per point for each point added to the experiment.
+# Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
+# the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
+# debugging and testing purposes.
+N_SIMULATIONS_PER_POINT = 200
 # %% [markdown]
 # ## Automatically set up you experiment
 # Use the sim, search_space, and dist defined above to set up the `ax` `Experiment`.
@@ -264,7 +377,7 @@ dist = gumbel_r
 # %%
 def make_exp() -> Experiment:
     """Helper to ensure we always create an experiment with the same settings (so results are comparable)."""
-    return make_experiment(sim, search_space, dist, n_simulations_per_point=200)
+    return make_experiment(sim, search_space, dist, n_simulations_per_point=N_SIMULATIONS_PER_POINT)
 
 
 exp = make_exp()
@@ -307,7 +420,7 @@ _ = plt.legend()
 plt.show()
 
 # %% [markdown]
-# The surrogate also contains uncertainty about its estimate. Lets plot the other distributions that the surrogate
+# The surrogate also contains uncertainty about its estimate. Let's plot the other distributions that the surrogate
 # believes are possible.
 
 # %%
@@ -339,16 +452,16 @@ plt.show()
 # %% [markdown]
 # ## Estimate the QoI:
 # Now that we have a surrogate model, we can use it to estimate the QoI. The uncertainty in our surrogate model should
-# be reflected in our QoI estimate. Lets demonstrate how the estimate changes as we add more data to the surrogate model
-# and it becomes more certain.
+# be reflected in our QoI estimate. Let's demonstrate how the estimate changes as we add more data to the surrogate
+# model, and it becomes more certain.
 #
 # In the following we make use of an existing QoI Estimator. `axtreme` provides a number of QoIEstimators for common
-# tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found
-# (TODO(sw 2024-11-22): link to tutorial on how to create a custom QoIEstimator).
+# tasks, but users can also create custom QoIEstimator for their specific problems. Details can be found in
+# tutorials/qoi_estimator.ipynb.
 #
 # In the following we demonstrate how the QoI estimate becomes more certain as the surrogate gets more training data.
 #
-# > NOTE: Training a Gp with `Models.BOTORCH_MODULAR` has inherit randomness that can't be turned off(e.g with
+# > NOTE: Training a Gp with `Models.BOTORCH_MODULAR` has inherited randomness that can't be turned off(e.g. with
 # `torch.manual_seed`). As a result there is slight randomness in the result even though all other seeds are set.
 
 # %%
@@ -399,34 +512,12 @@ for points in n_training_points:
     # reseed the dataloader each time so the dame dataset is used.
     results.append(qoi_estimator(model))
 
-
-# %%
-def get_mean_var(estimator: QoIEstimator, estimates: torch.Tensor | NDArray[Any]) -> tuple[torch.Tensor, torch.Tensor]:
-    """TODO: clean this up or delete.
-
-    Args:
-        estimator: the QoI function that produced the estimate
-        estimates: (*b, n_estimator)
-
-    Returns:
-        tensor1: the mean of the estimates, with shape *b
-        tensor1: the variance of the estimates, with shape *b
-
-    """
-    if not isinstance(estimates, torch.Tensor):
-        estimates = torch.tensor(estimates)
-
-    mean = estimator.posterior_sampler.mean(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-    var = estimator.posterior_sampler.var(estimates, -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-
-    return mean, var
-
-
 # %%
 _, axes = plt.subplots(nrows=len(n_training_points), sharex=True, figsize=(6, 6 * len(n_training_points)))
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
-    mean, var = get_mean_var(qoi_estimator, torch.tensor(estimate))  # type: ignore[assignment]
+    mean = qoi_estimator.posterior_sampler.mean(torch.tensor(estimate), -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+    var = qoi_estimator.posterior_sampler.var(torch.tensor(estimate), -1)  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
     qoi_dist = Normal(mean, var**0.5)
     _ = population_estimators.plot_dist(qoi_dist, ax=ax, c="tab:blue", label="QOI estimate")
 
@@ -452,18 +543,18 @@ for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True)
 # We then run DoE using our custom acquisition function (QoILookAhead), and compare results.
 
 # %% [markdown]
-# ### Helper for runnig experiments
+# ### Helper for running experiments
 
 
-# %%
 def run_trials(
     experiment: Experiment,
     warm_up_generator: Callable[[Experiment], GeneratorRun],
     doe_generator: Callable[[Experiment], GeneratorRun],
     warm_up_runs: int = 3,
     doe_runs: int = 15,
-) -> None:
-    """Helper function for running  trials for an experiment and returning the QOI results using QoI metric.
+    stopping_criteria: Callable[[Experiment], bool] | None = None,
+) -> int:
+    """Helper function for running trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
         experiment: Experiment to perform DOE on.
@@ -471,8 +562,12 @@ def run_trials(
         doe_generator: The generator being used to perform the DoE.
         warm_up_runs: Number of warm-up runs to perform before starting the DoE.
         doe_runs: Number of DoE runs to perform.
+        stopping_criteria: Optional function that takes an experiment and returns True if a given
+        stopping criteria is met. If this stopping criteria is not met after `doe_runs` iterations, the function will
+            return the number of iterations run.
 
     """
+    # Warm-up phase
     for i in range(doe_runs + 1):
         if i == 0:
             for _ in range(warm_up_runs):
@@ -488,19 +583,54 @@ def run_trials(
             _ = trial.mark_completed()
         print(f"iter {i} done")
 
-    return
+        # Check stopping criteria after each DoE iteration
+        if stopping_criteria is not None and stopping_criteria(experiment):
+            print(f"Stopping criteria met after {i} DoE iterations")
+            return i
+
+    return doe_runs + warm_up_runs
+
+
+def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 0.02, metric_name: str = "QoIMetric") -> bool:
+    """Stopping criteria based on standard error of the mean (SEM) of QoI metric of the GP.
+
+    Args:
+        experiment: The experiment to check
+        sem_threshold: SEM threshold for stopping criteria
+        metric_name: Name of the metric to check for stopping criteria
+
+    Returns:
+        True if stopping criteria is met (SEM below threshold), False otherwise
+    """
+    metrics = experiment.fetch_data()
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == metric_name]
+
+    if len(qoi_metrics) == 0:
+        print(f"No {metric_name} data found in the experiment.")
+        return False
+
+    # Get the latest QoI metric result
+    latest_qoi = qoi_metrics.iloc[-1]
+
+    if pd.notna(latest_qoi["sem"]) and latest_qoi["sem"] <= sem_threshold:
+        print(f"SEM threshold met: {latest_qoi['sem']:.4f} <= {sem_threshold}")
+        return True
+
+    return False
 
 
 # %% [markdown]
 # How many iterations to run in the following DOEs
 
 # %%
-n_iter = 40
+n_iter_sobol = 100
+n_iter_doe = 40
 warm_up_runs = 3
+
 
 # %% [markdown]
 # ### Sobol model
-# Surrogate trained without and a acquisition function as a comparative baseline.
+# Surrogate trained without and an acquisition function as a comparative baseline.
 
 # %%
 # Create QoI tracking metric for tracking of the QoI estimate over the course of the experiment.
@@ -514,7 +644,7 @@ exp_sobol = make_exp()
 # Add the QoI metric to the experiment
 _ = exp_sobol.add_tracking_metric(QOI_METRIC)
 
-# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+# This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=5)
 
 
@@ -535,12 +665,19 @@ def create_sobol_generator(sobol: ModelBridge) -> Callable[[Experiment], Generat
 
 sobol_generator_run = create_sobol_generator(sobol)
 
-run_trials(
+
+# %% [markdown]
+## Run Experiment until a given stopping criteria is met.
+# This is optional, but can be useful if you have a specific stopping criteria in mind.
+
+
+last_itr_sobol = run_trials(
     experiment=exp_sobol,
     warm_up_generator=sobol_generator_run,
     doe_generator=sobol_generator_run,
     warm_up_runs=warm_up_runs,
-    doe_runs=n_iter,
+    doe_runs=n_iter_sobol,
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
 )
 
 # %%
@@ -550,9 +687,10 @@ surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 surface_warm_up.show()
 surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_sobol, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+    exp_sobol, last_itr_sobol, {"loc": _true_loc_func, "scale": _true_scale_func}
 )
 surface_final_trial.show()
+
 
 # %% [markdown]
 # ### Custom acquisition function:
@@ -601,7 +739,7 @@ x1 = torch.linspace(0, 1, point_per_dim)
 x2 = torch.linspace(0, 1, point_per_dim)
 grid_x1, grid_x2 = torch.meshgrid(x1, x2, indexing="xy")
 grid = torch.stack([grid_x1, grid_x2], dim=-1)
-# make turn into a shape that can be processsed by the acquisition function
+# make turn into a shape that can be processed by the acquisition function
 x_candidates = grid.reshape(-1, 1, 2)
 acqusition = QoILookAhead(model, qoi_estimator)
 scores = acqusition(x_candidates)
@@ -618,7 +756,7 @@ _ = ax.set_zlabel("score")  # type: ignore[attr-defined]
 _ = ax.set_title("Score surface plot")
 print("max_score ", scores.max())
 
-# %%
+
 # %% perform a round of optimisation using the under the hood optimiser
 candidate, result = optimize_acqf(
     acqusition,
@@ -645,12 +783,6 @@ acqf_class = QoILookAhead
 
 def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
     # Fist building model to get the transforms
-    # TODO (se -2024-11-20): This refits hyperparameter each time, we don't want to do this.
-    # TODO(@henrikstoklandberg 2025-04-29): Ticket "Transforms to work with QoI metric" adress this issue.
-    # The problem is that transform.Ymean.keys is dict_keys(['loc', 'scale', 'QoIMetric'])
-    # after the QoI metric is inculuded in the experiment. Then you get a error from line 249 in
-    # transform.py. Was not able to figure out how to fix this in the time I had.
-    # Ideally we should find a way to only use data=experiment.fetch_data() in the model_bridge_only_model.
     model_bridge_only_model = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),  # type: ignore  # noqa: PGH003
@@ -704,15 +836,16 @@ exp_look_ahead = make_exp()
 # Add the QoI metric to the experiment
 _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 
-# This needs to be instantiated outside of the loop so the internal state of the generator persists.
+# This needs to be instantiated outside the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
-run_trials(
+last_itr_look_ahead = run_trials(
     experiment=exp_look_ahead,
     warm_up_generator=create_sobol_generator(sobol),
     doe_generator=look_ahead_generator_run,
     warm_up_runs=warm_up_runs,
-    doe_runs=n_iter,
+    doe_runs=n_iter_doe,
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
 )
 
 # %%
@@ -722,7 +855,7 @@ surface_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 surface_warm_up.show()
 surface_final_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, n_iter, {"loc": _true_loc_func, "scale": _true_scale_func}
+    exp_look_ahead, last_itr_look_ahead, {"loc": _true_loc_func, "scale": _true_scale_func}
 )
 surface_final_trial.show()
 
@@ -738,4 +871,72 @@ _ = ax.set_xlabel("Number of DOE iterations")
 _ = ax.set_ylabel("Response")
 _ = ax.legend()
 
+
+# %%
+# Plot of the surfaces of the two experiments after at the same accuracy
+final_surface_sobol = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, last_itr_sobol, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+final_surface_sobol.show()
+final_surface_look_ahead = plot_gp_fits_2d_surface_from_experiment(
+    exp_look_ahead, last_itr_look_ahead, {"loc": _true_loc_func, "scale": _true_scale_func}
+)
+final_surface_look_ahead.show()
+
+
+# %%
+## Analysis of Sobol vs LookAhead point selection
+# Below is a comparison of the points selected by the Sobol and LookAhead acquisition functions with overlays
+# of the environment data and the extreme responses. This allows us to visually assess how well the points cover
+# the search space and how they relate to the density of the environment data and extreme responses.
+
+
+def plot_2dtrials(exp: Experiment, ax: Axes | None = None, colour: str = "blue", label: str | None = None) -> Axes:
+    """Plot the points and number the datapoints added over DOE."""
+    if ax is None:
+        _, ax = plt.subplots(figsize=(8, 6))
+
+    trials = []
+    trial_indices = []
+
+    for trial_idx, trial in exp.trials.items():
+        if trial.arm:  # type: ignore  # noqa: PGH003
+            params = trial.arm.parameters.values()  # type: ignore  # noqa: PGH003
+            trials.append(list(params))
+            trial_indices.append(trial_idx)
+
+    points = np.array(trials)
+    _ = ax.scatter(points[:, 0], points[:, 1], alpha=0.8, s=30, label=label, c=colour)
+
+    for i, (x, y) in enumerate(points):
+        _ = ax.annotate(
+            str(trial_indices[i]), (x, y), xytext=(2, 2), textcoords="offset points", fontsize=8, color=colour
+        )
+
+    return ax
+
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+# label all the plots
+for ax in axes:
+    ax.set_xlabel("x1")
+    ax.set_ylabel("x2")
+    _ = plot_2dtrials(exp_sobol, colour="blue", ax=ax, label="Sobol")
+    _ = plot_2dtrials(exp_look_ahead, colour="forestgreen", ax=ax, label="LookAhead")
+    ax.legend()
+
+# Add plot specific info
+axes[0].set_title("Points vs Env Density")
+axes[0].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds", zorder=-1)
+
+axes[1].set_title("Points vs Extreme Response Density")
+axes[1].hist2d(precalced_erd_x[:, 0], precalced_erd_x[:, 1], bins=30, alpha=0.6, cmap="Purples", zorder=-1)
+
+axes[2].set_title("Points vs Env and Extreme response density")
+axes[2].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds", zorder=-1)
+axes[2].hist2d(precalced_erd_x[:, 0], precalced_erd_x[:, 1], bins=30, alpha=0.5, cmap="Purples", zorder=-1)
+
+plt.tight_layout()
+plt.show()
 # %%

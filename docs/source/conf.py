@@ -1,4 +1,4 @@
-# ruff: noqa
+# noqa: INP001, D100
 # mypy: ignore-errors
 
 # Configuration file for the Sphinx documentation builder.
@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path("../../src").absolute()))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "axtreme"
-copyright = "2024, DNV AS. All rights reserved."
+copyright = "2024, DNV AS. All rights reserved."  # noqa: A001
 author = "Sebastian Winter, Kristoffer Skare, Magnus Kristiansen"
 
 # The full version, including alpha/beta/rc tags
