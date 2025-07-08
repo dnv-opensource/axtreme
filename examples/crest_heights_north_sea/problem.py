@@ -93,9 +93,11 @@ period_length = year_return_value * n_sea_states_in_year
 # %%
 # Number of simulations per point for each point added to the experiment.
 # Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run
-# the experiment. Additionally, axtreme is meant to use few simulations per point, but high values can be useful for
-# debugging and testing purposes.
-N_SIMULATIONS_PER_POINT = 30
+# the experiment. Additionally, axtreme is meant to use in order to reduce the need to run
+# computationally expensive simulators, so few simulations per point is preferred in real scenarios.
+# However high number of simulations per point can be useful for debugging and testing purposes, as it will efectivly
+# reduce the uncertainty in the GP, at the cost of increased runtime.
+N_SIMULATIONS_PER_POINT = 20
 
 
 # %%
