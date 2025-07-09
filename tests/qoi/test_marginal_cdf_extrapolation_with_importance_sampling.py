@@ -21,8 +21,9 @@ def test_parameter_estimates_consistency_of_weights(gp_passthrough_1p: GenericDe
     weights are still connected to the correct samples when using MarginalCDFExtrapolation._parameter_estimates.
 
     Notes:
-    -   gp_passthrough_1p is defined in conftest.py and is a simple deterministic GP that contains 1 unique
-        posterior sample
+    -   gp_passthrough_1p is defined in conftest.py. It creates a deterministic GP which always produces identical
+        posterior samples. The output location is a direct pass through of the given input data, and the scale is set
+        to 1e-6.
     -   _parameter_estimates needs the importance dataset with specific dimensions by using ImportanceAddedWrapper and
         DataLoader the correct format is ensured and in addition it can be tested that these two functions do not change
         the relation between samples and weights.
@@ -31,9 +32,13 @@ def test_parameter_estimates_consistency_of_weights(gp_passthrough_1p: GenericDe
     importance_samples = torch.Tensor([[1], [2], [3], [4]])
     importance_weights = torch.Tensor([0.1, 0.2, 0.3, 0.4])
 
-    # Wrap them in a dataloader
+    # Wrap them together
     importance_dataset = ImportanceAddedWrapper(MinimalDataset(importance_samples), MinimalDataset(importance_weights))
-    dataloader = DataLoader(importance_dataset, batch_size=10)
+
+    # The batch size should be smaller than the number of input samples to ensure that the importance_dataset gets
+    # split up into smaller batches. By doing this we can test that the batching in _parameter_estimates does not mess
+    # up the relation between samples and weights.
+    dataloader = DataLoader(importance_dataset, batch_size=2)
 
     # Run the method
     qoi_estimator = MarginalCDFExtrapolation(
