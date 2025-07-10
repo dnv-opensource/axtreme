@@ -85,7 +85,7 @@ def run_multiple_seeded_experiments(
         sobol = Models.SOBOL(search_space=exp_sobol.search_space, seed=seed)
         sobol_generator_run = create_sobol_generator(sobol)
 
-        run_trials(
+        _ = run_trials(
             experiment=exp_sobol,
             warm_up_generator=sobol_generator_run,
             doe_generator=sobol_generator_run,
@@ -100,7 +100,7 @@ def run_multiple_seeded_experiments(
         _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
         sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=seed)
 
-        run_trials(
+        _ = run_trials(
             experiment=exp_look_ahead,
             warm_up_generator=create_sobol_generator(sobol),
             doe_generator=look_ahead_generator_run,

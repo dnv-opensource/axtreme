@@ -21,6 +21,7 @@ and analysis on how different seeds affect the DOE results.
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import torch
 from ax import (
     Experiment,
@@ -72,14 +73,14 @@ large_dataset_mean = QOI_ESTIMATOR.mean(ests)
 large_dataset_var = QOI_ESTIMATOR.var(ests)
 
 
-# %%
 def run_trials(
     experiment: Experiment,
     warm_up_generator: Callable[[Experiment], GeneratorRun],
     doe_generator: Callable[[Experiment], GeneratorRun],
     warm_up_runs: int = 3,
     doe_runs: int = 15,
-) -> None:
+    stopping_criteria: Callable[[Experiment], bool] | None = None,
+) -> int:
     """Helper function for running trials for an experiment and returning the QOI results using QoI metric.
 
     Args:
@@ -88,8 +89,12 @@ def run_trials(
         doe_generator: The generator being used to perform the DoE.
         warm_up_runs: Number of warm-up runs to perform before starting the DoE.
         doe_runs: Number of DoE runs to perform.
+        stopping_criteria: Optional function that takes an experiment and returns True if a given
+        stopping criteria is met. If this stopping criteria is not met after `doe_runs` iterations, the function will
+            return the number of iterations run.
 
     """
+    # Warm-up phase
     for i in range(doe_runs + 1):
         if i == 0:
             for _ in range(warm_up_runs):
@@ -105,12 +110,48 @@ def run_trials(
             _ = trial.mark_completed()
         print(f"iter {i} done")
 
+        # Check stopping criteria after each DoE iteration
+        if stopping_criteria is not None and stopping_criteria(experiment):
+            print(f"Stopping criteria met after {i} DoE iterations")
+            return i
+
+    return doe_runs + warm_up_runs
+
+
+def sem_stopping_criteria(experiment: Experiment, sem_threshold: float = 0.145, metric_name: str = "QoIMetric") -> bool:
+    """Stopping criteria based on standard error of the mean (SEM) of QoI metric of the GP.
+
+    Args:
+        experiment: The experiment to check
+        sem_threshold: SEM threshold for stopping criteria
+        metric_name: Name of the metric to check for stopping criteria
+
+    Returns:
+        True if stopping criteria is met (SEM below threshold), False otherwise
+    """
+    metrics = experiment.fetch_data()
+    qoi_metrics = metrics.df[metrics.df["metric_name"] == metric_name]
+
+    if len(qoi_metrics) == 0:
+        print(f"No {metric_name} data found in the experiment.")
+        return False
+
+    # Get the latest QoI metric result
+    latest_qoi = qoi_metrics.iloc[-1]
+
+    if pd.notna(latest_qoi["sem"]) and latest_qoi["sem"] <= sem_threshold:
+        print(f"SEM threshold met: {latest_qoi['sem']:.4f} <= {sem_threshold}")
+        return True
+
+    return False
+
 
 # %% [markdown]
 # How many iterations to run in the following DOEs
 
 # %%
-n_iter = 30
+n_iter_sobol = 100
+n_iter_doe = 30
 warm_up_runs = 8
 
 # %% [markdown]
@@ -150,12 +191,14 @@ def create_sobol_generator(sobol: ModelBridge) -> Callable[[Experiment], Generat
 
 sobol_generator_run = create_sobol_generator(sobol)
 
-run_trials(
+
+last_itr_sobol = run_trials(
     experiment=exp_sobol,
     warm_up_generator=sobol_generator_run,
     doe_generator=sobol_generator_run,
     warm_up_runs=warm_up_runs,
-    doe_runs=n_iter,
+    doe_runs=n_iter_sobol,
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
 )
 
 
@@ -172,7 +215,9 @@ fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
     exp_sobol, warm_up_runs, metrics=true_loc_scale_function_estimates
 )
 fig_trial_warm_up.show()
-fig_last_trial = plot_gp_fits_2d_surface_from_experiment(exp_sobol, n_iter, metrics=true_loc_scale_function_estimates)
+fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
+    exp_sobol, last_itr_sobol, metrics=true_loc_scale_function_estimates
+)
 fig_last_trial.show()
 
 # %%
@@ -340,12 +385,13 @@ _ = exp_look_ahead.add_tracking_metric(QOI_METRIC)
 # This needs to be instantiated outside of the loop so the internal state of the generator persists.
 sobol = Models.SOBOL(search_space=exp_look_ahead.search_space, seed=5)
 
-run_trials(
+last_itr_look_ahead = run_trials(
     experiment=exp_look_ahead,
     warm_up_generator=create_sobol_generator(sobol),
     doe_generator=look_ahead_generator_run,
     warm_up_runs=warm_up_runs,
-    doe_runs=n_iter,
+    doe_runs=n_iter_doe,
+    stopping_criteria=sem_stopping_criteria,  # Optional: use a stopping criteria based on confidence bound
 )
 
 # %%
@@ -355,7 +401,7 @@ fig_trial_warm_up = plot_gp_fits_2d_surface_from_experiment(
 )
 fig_trial_warm_up.show()
 fig_last_trial = plot_gp_fits_2d_surface_from_experiment(
-    exp_look_ahead, n_iter, metrics=true_loc_scale_function_estimates
+    exp_look_ahead, last_itr_look_ahead, metrics=true_loc_scale_function_estimates
 )
 fig_last_trial.show()
 
@@ -371,13 +417,6 @@ fig_last_trial.write_html("results/doe/plots/doe_gp_vs_true_functions.html")
 # %%
 # For a more sophisticated stopping criteria experiment, see doe_dev.py as of 2025-06-10.
 _, ax = plt.subplots()
-_ = ax.axhline(
-    large_dataset_mean + 1.96 * large_dataset_var**0.5,
-    c="sandybrown",
-    label=f"Stopping criteria\n({large_dataset_points} Sobol points)",
-)
-_ = ax.axhline(large_dataset_mean - 1.96 * large_dataset_var**0.5, c="sandybrown")
-_ = ax.axhline(large_dataset_mean, c="sandybrown", linestyle="--", label="Sobol mean")
 ax = plot_qoi_estimates_from_experiment(exp_sobol, ax=ax, name="Sobol")
 ax = plot_qoi_estimates_from_experiment(exp_look_ahead, ax=ax, color="green", name="look ahead")
 _ = ax.axhline(brute_force_qoi, c="black", label="brute_force_value")
