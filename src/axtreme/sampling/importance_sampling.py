@@ -1,4 +1,4 @@
-"""This module provides methods for importance sampling.
+"""This module provides methods to create importance samples and weights if the env data distribution is known.
 
 Importance sampling focuses computational effort on regions of interest. This is especially useful when only a small
 part of the environment data contributes meaningfully to the quantity of interest (QoI).
@@ -6,8 +6,6 @@ part of the environment data contributes meaningfully to the quantity of interes
 In this file the following is included:
 - Create importance sample and weights for a given importance distribution.
 - Create importance sample and weights for a uniform region.
-
-TODO(sw 25-05-26): This should be moved to src/axtreme/sampling once sufficiently tested.
 """
 
 from collections.abc import Callable
@@ -103,6 +101,11 @@ def importance_sampling_distribution_uniform_region(
             Importance sampling weights for each sample. Shape (n_samples,)
 
     Details:
+        The mathematical justification for this algorithm is given in
+        "Efficient Long-Term Structural Reliability Estimation with Non-Gaussian
+        Stochastic Models: A Design of Experiments Approach.” arXiv, March 3, 2025.
+        https://doi.org/10.48550/arXiv.2503.01566."
+
         The algorithm works as follows:
         1. For a chosen `threshold` c for the real environment distribution.
 
@@ -151,8 +154,6 @@ def importance_sampling_distribution_uniform_region(
             - It will produce an approximate result if r(x_i) != 0.
                 - This is a reasonable approximation if p(x_i) is considered to be close enough to 0.
 
-    Todo: TODO
-    - (sw 2024_09_17): Reference the paper here (or preprint) once its published Issue #177.
 
     """
     uniform_dist = torch.distributions.Uniform(region[0], region[1])
