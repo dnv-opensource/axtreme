@@ -17,9 +17,12 @@ from typing import Any
 
 import numpy as np
 import torch
-from importance_sampling import importance_sampling_distribution_uniform_region  # type: ignore[import-not-found]
 from matplotlib import pyplot as plt
 from usecase.env_data import env_pdf  # type: ignore[import-not-found]
+
+from axtreme.sampling.importance_sampling import (
+    importance_sampling_distribution_uniform_region,  # type: ignore[import-not-found]
+)
 
 torch.set_default_dtype(torch.float64)
 
