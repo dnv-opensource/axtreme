@@ -20,8 +20,8 @@ import torch
 from matplotlib import pyplot as plt
 from usecase.env_data import env_pdf  # type: ignore[import-not-found]
 
-from axtreme.sampling.importance_sampling import (
-    importance_sampling_distribution_uniform_region,  # type: ignore[import-not-found]
+from axtreme.sampling.importance_sampling import (  # type: ignore[import-not-found]
+    importance_sampling_distribution_uniform_region,
 )
 
 torch.set_default_dtype(torch.float64)
