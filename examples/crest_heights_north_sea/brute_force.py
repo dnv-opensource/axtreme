@@ -23,7 +23,7 @@ import seaborn as sns
 import torch
 import tqdm
 from numpy.typing import NDArray
-from simulator import max_crest_height_simulator_function  # type: ignore[import]
+from simulator import max_crest_height_simulator_function
 from torch import Tensor
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
