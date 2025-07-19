@@ -1,0 +1,17 @@
+axtreme.qoi.qoi\_estimator
+==========================
+
+.. automodule:: axtreme.qoi.qoi_estimator
+   :members:
+   :exclude-members: QoIEstimator,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      QoIEstimator
+   

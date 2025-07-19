@@ -1,0 +1,17 @@
+﻿axtreme.metrics
+===============
+
+.. automodule:: axtreme.metrics
+   :members:
+   :exclude-members: LocalMetadataMetric,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      LocalMetadataMetric
+   
