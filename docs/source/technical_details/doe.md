@@ -8,7 +8,7 @@ Design of Experiments (DOE) is a core component of the Axtreme framework that in
 
 ### Why DOE?
 
-Running simulations is computationally expensive, so we want to be strategic about which points to evaluate. The key insight is that **the data point that most reduces uncertainty in our QoI calculation is not necessarily where the surrogate model has the greatest uncertainty**. Small model inaccuracies in regions important to the QoI calculation can have a far greater impact than large inaccuracies elsewhere.
+Running simulations is computationally expensive, so we want to be strategic about which points to evaluate. The key insight is that **the data point that most reduces uncertainty in our QoI calculation is not necessarily where the surrogate model has the greatest uncertainty**. Small model inaccuracies in regions important to the QoI calculation can have a greater impact than large inaccuracies elsewhere.
 
 ### The Problem DOE Solves
 
@@ -28,7 +28,7 @@ DOE provides the greatest advantage over traditional sampling methods for specif
 - **Expensive simulations**: Problems where each simulation run is computationally costly. When simulation budget is limited, every evaluation must count. DOE maximizes information gain per simulation run.
 - **Complex simulators**: Problems where the underlying response of the simulator is complex. Responses create complex regions where small changes in inputs lead to large changes in outputs. DOE can adaptively focus on these critical regions.
 - **Sparse Signal Problems**: Problems where the QoI is sensitive to only a small subset of the parameter space. When the "interesting" regions are sparse, random sampling wastes effort on uninformative regions. DOE can identify and focus on the relevant areas.
-- **Limited Prior Knowledge**: Problems where you have little understanding of the underlying physics or relationships. DOE can adaptively learn about the system structure during the sampling process, gradually building understanding of where important behavior occurs.
+- **Limited Prior Knowledge**: Problems where you have limited understanding of the underlying physics or relationships. DOE can adaptively learn about the system structure during the sampling process, gradually building understanding of where important behavior occurs.
 
 **DOE May Not Help When:**
 - Simple, linear relationships
@@ -106,19 +106,21 @@ Track the uncertainty in QoI estimates over iterations to assess convergence.
 - More consistent SEM reduction compared to random methods
 - Smoother convergence curve without large fluctuations
 
+It's important to note that monitoring QoI convergence and SEM reduction is valuable also for problems where no brute force solution is available for comparison. In such cases, you can still assess DOE performance by comparing the rate of convergence and final uncertainty levels between DOE and baseline methods like Sobol sampling. The SEM provides a direct measure of estimation uncertainty that doesn't require knowledge of the true value, making it useful for real-world applications. While comparing against known brute force solutions provides clearer validation and is helpful for learning and understanding DOE behavior, the convergence patterns and uncertainty reduction trends remain the important indicators of DOE effectiveness in practical applications.
+
 #### 3. Point Selection Quality
 
-Visualize where DOE selects points to understand if it's focusing on important regions.
+Visualize where DOE selects points to understand if it's focusing on important regions, as demonstrated in [Figure 3](#fig-point-selection).
 
-![point_selection](img/doe/point_selection.png)
+![point_selection](img/doe/point_selection.png){#fig-point-selection}
 *Figure 3: Point selection in search space of the DOE(Green) and Sobol(Blue) over environement and exptreme response distribution heatmaps. Here one can observe that the DOE focuses on the specific region where the extreme responses occur, while Sobol selects points more uniformaly.*
 
-One can also look at the point selection on the GP surface for more insight into how the GP fits the function the GP is approximating. The key difference between DOE and Sobol becomes apparent when examining how each approach affects the GP's ability to model the underlying function. DOE strategically selects points to achieve high accuracy in regions that are critical for QoI estimation, even if this means accepting lower accuracy in less important areas of the search space. In contrast, Sobol sampling distributes points uniformly across the entire domain, resulting in a GP that fits the underlying function more evenly across the whole search space but requires significantly more points to achieve the same level of QoI accuracy.
+One can also look at the point selection on the GP surface for more insight into how the GP fits the function the GP is approximating. The key difference between DOE ([Figure 4b](#fig-doe-gp-surface)) and Sobol ([Figure 4a](#fig-sobol-gp-surface)) becomes apparent when examining how each approach affects the GP's ability to model the underlying function. DOE strategically selects points to achieve high accuracy in regions that are critical for QoI estimation, even if this means accepting lower accuracy in less important areas of the search space. In contrast, Sobol sampling distributes points uniformly across the entire domain, resulting in a GP that fits the underlying function more evenly across the whole search space but requires significantly more points to achieve the same level of QoI accuracy.
 
-![sobol_gp_surface](img/doe/sobol_gp_surface.png)
-*Figure 4a: GP surface fitted using Sobol sampling showing uniform point distribution and consistent model accuracy across the entire search space. However many simulations are needed to achive this accuracy.*
+![sobol_gp_surface](img/doe/sobol_gp_surface.png){#fig-sobol-gp-surface}
+*Figure 4a: GP surface fitted using Sobol sampling showing uniform point distribution and consistent model accuracy across the entire search space. However many simulations are needed to achive this accuracy. The red surface represents the true underlyning function the GP is approximating, green surface is the GP mena prediction of the underlyning function across the search space, the blue surfaces is the upper and lower confidence bounds of the GP and the red points is the simulation points added to the GP with red vertical error bars representing the observation noise of these simulated points.*
 
-![doe_gp_surface_doe](img/doe/doe_gp_surface.png)
+![doe_gp_surface](img/doe/doe_gp_surface.png){#fig-doe-gp-surface}
 *Figure 4b: GP surface fitted using DOE showing concentrated point selection in regions important for QoI calculation. The model achieves high accuracy in critical areas while maintaining lower accuracy elsewhere.*
 
 This visualization technique is valuable because it can be applied even without prior knowledge of the underlying true function. By examining where DOE concentrates its point selection compared to uniform Sobol sampling, researchers can identify which regions of the parameter space contribute most significantly to QoI accuracy. This spatial analysis reveals whether the DOE algorithm is successfully identifying and focusing on specific regions or patterns that are most relevant for the QoI, providing insight into both the DOE behavior and the underlying problem structure.
@@ -168,15 +170,12 @@ Understanding and properly tuning DOE parameters is crucial for optimal performa
 - **Budget constraints**: If you have limited computational budget, use higher thresholds to ensure convergence within available resources
 - **Monitor actual SEM values**: Start with default and adjust based on observed convergence patterns
 
+#### 4. Number of Simulations per Point (`N_SIMULATIONS_PER_POINT`)
+- **Purpose**: Number of simulations per point for each point added to the experiment.
+- **Why it matters**: Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run the experiment.
+- **Tuning**: This will always be a compromise between computational cost and QoI accuracy. Ideally you want as few simulations as possible (with a expensive simulator), but simulationsly you want a accurate GP. Increase if GP estimates are noisy or unstable, decrease if computation time is prohibitive. Although high values might not be possible in practical applications, it can be usefull for debugging and testing purposes, reducing this source of uncertainty.
 
-### Environment-Specific Parameters
-
-**Number of Environment Samples (`n_env_samples`)**:
-- **Purpose**: Total samples used for QoI calculation from environment data
-- **Why it matters**: More samples improve QoI calculation accuracy but increase computational cost per iteration
-- **Tuning**: This will always be a compromise between computational cost and QoI accuracy. Ideally you want as few enviroment samples as possible (with a expensive simulator), but simulationsly you want a stable QoI estimate. Increase if QoI estimates are noisy or unstable, decrease if computation time is prohibitive
-
-**Random Seed (`seed`)**:
+#### 5.Random Seed (`seed`)
 - **Purpose**: Controls reproducibility of environment sampling
 - **Why it matters**: Fixed seeds enable reproducible results; varying seeds assess robustness
 - **Tuning**: Fix for development and debugging, vary for robustness assessment and final evaluation
