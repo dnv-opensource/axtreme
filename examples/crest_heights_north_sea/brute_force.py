@@ -10,6 +10,7 @@ This file does the following:
 - estimate uncertainty in the brute force estimate
 """
 
+# pyright: reportUnnecessaryTypeIgnoreComment=false
 # %%
 import json
 from dataclasses import asdict, dataclass
@@ -23,7 +24,9 @@ import seaborn as sns
 import torch
 import tqdm
 from numpy.typing import NDArray
-from simulator import max_crest_height_simulator_function  # type: ignore[import]
+from simulator import (  # type: ignore[import-not-found] # Not worth resolving, this is an example so errors should be contained and obvious.
+    max_crest_height_simulator_function,
+)
 from torch import Tensor
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 

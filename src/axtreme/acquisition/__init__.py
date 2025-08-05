@@ -1,2 +1,1 @@
 from axtreme.acquisition.qoi_look_ahead import QoILookAhead
-from axtreme.acquisition.optimal_qoi_look_ahead import OptimalQoILookAhead
