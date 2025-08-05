@@ -58,7 +58,7 @@ def test_parameter_estimates_consistency_of_weights(gp_passthrough_1p: GenericDe
     # Run the method
     qoi_estimator = MarginalCDFExtrapolation(
         env_iterable=env_and_importance_data,
-        period_len=int(float("nan")),  # not used in this test
+        period_len=99999,  # not used in this test
         posterior_sampler=IndexSampler(torch.Size([1])),  # draw 1 posterior sample to simplify comparison
         quantile=torch.tensor(float("nan"), dtype=torch.float64),  # not used in this test
         quantile_accuracy=torch.tensor(float("nan"), dtype=torch.float64),  # not used in this test
