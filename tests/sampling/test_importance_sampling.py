@@ -69,5 +69,6 @@ def test_importance_sampling_distribution_uniform_region():
             num_samples_total=num_samples_total,
         )
 
-    assert torch.equal(samples, torch.Tensor([2.5, 3.0]))
-    assert torch.equal(weights, torch.Tensor([2.5 * 4 / 3, 3.0 * 4 / 3]))
+    assert samples.shape == torch.Size([6])
+    assert torch.equal(samples, torch.Tensor([2.5, 3.0, 2.5, 3.0, 2.5, 3.0]))
+    assert torch.equal(weights, torch.Tensor([2.5 * 4, 3.0 * 4, 2.5 * 4, 3.0 * 4, 2.5 * 4, 3.0 * 4]))
