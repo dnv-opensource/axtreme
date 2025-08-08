@@ -9,15 +9,23 @@ import torch
 from torch.distributions import MultivariateNormal
 
 
-def generate_and_save_data(n_samples: int = 10_000, seed: int = 42) -> None:
-    """Generate environment data using multivariate normal distribution and save to file.
+def define_mean_cov_for_env_distribution() -> tuple[torch.Tensor, torch.Tensor]:
+    """Define mean and covariance in one place."""
+    return torch.tensor([0.1, 0.1]), torch.tensor([[0.2, 0], [0, 0.2]])
+
+
+def generate_and_save_data(
+    n_samples: int = 10_000, seed: int = 42, value_range_start: float = 0, value_range_end: float = 1
+) -> None:
+    """Generate environment data using a multivariate normal distribution and save it to a file.
 
     Args:
-        n_samples: Number of samples to generate (default: 1 000 000).
+        n_samples: Number of samples to generate (default: 10 000).
         seed: Random seed for reproducibility (default: 42).
+        value_range_start: All env samples shall be larger or equal than this value (default: 0).
+        value_range_end: All env samples shall be smaller or equal than this value (default: 1)
     """
-    mean = torch.tensor([0.1, 0.1])
-    cov = torch.tensor([[0.2, 0], [0, 0.2]])
+    mean, cov = define_mean_cov_for_env_distribution()
 
     # Create distribution and sample
     env_mvn = MultivariateNormal(mean, covariance_matrix=cov)
@@ -30,8 +38,8 @@ def generate_and_save_data(n_samples: int = 10_000, seed: int = 42) -> None:
             samples_tensor = env_mvn.sample(torch.Size([n_samples]))
             samples_np = samples_tensor.numpy()
 
-            # Filter samples to [0, 1] range
-            mask = (samples_np >= 0) & (samples_np <= 10)
+            # Filter samples to [0, 2] range
+            mask = (samples_np >= value_range_start) & (samples_np <= value_range_end)
             valid_mask = mask.all(axis=1)
             batch_valid = samples_np[valid_mask]
 
@@ -65,8 +73,23 @@ def collect_data() -> pd.DataFrame:
     return pd.DataFrame(numpy_data, columns=["x1", "x2"])
 
 
+def calculate_environment_distribution(samples: torch.Tensor) -> torch.Tensor:
+    """Calculate the probability density function (pdf) for given samples.
+
+    Args:
+        samples: Samples for which the pdf should be calculated.
+    """
+    mean, cov = define_mean_cov_for_env_distribution()
+    distribution = MultivariateNormal(mean, covariance_matrix=cov)
+
+    # log_prob returns the log of the pdf evaluated at a value. Pytorch does not provide the pdf
+    # directly. Therefore, we need to use the exponential of the log pdf.
+    return torch.exp(distribution.log_prob(samples))
+
+
 # %%
 if __name__ == "__main__":
+    # %%
     generate_and_save_data(n_samples=50_000, seed=42)
 
 # %%
