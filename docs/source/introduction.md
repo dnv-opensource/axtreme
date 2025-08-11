@@ -2,7 +2,17 @@
 ## What is axtreme (Ax for Extremes):
 `axtreme` is a toolkit for estimating the long term behaviour (extremes) of expensive, stochastic, black box functions. It does this by creating uncertainty aware surrogate models of the black box function, propagating this uncertainty through to the behaviour being estimated (e.g produce estimates with confidence bounds), and using Active Learning (also know as Design of Experiments (DOE)) to iteratively improve the surrogate model and associated estimates.
 
-## What problems is it for?
+This following presentation gives an overview of the key concepts and benefits of `axtreme`. It was part of the Industrial AI for Safety-Critical Systems Seminar in June 2025 hosted by DNV.
+
+<iframe width="100%" height="600"
+        src="https://players.brightcove.net/5836955873001/U0es4DTHP_default/index.html?videoId=6374738718112&autoplay=false"
+        title="Bayesian Surrogate Modelling and Optimization of Extreme Response Calculation"
+        frameborder="0"
+        allow="picture-in-picture"
+        allowfullscreen>
+</iframe>
+
+## What problems is it for:
 While there are a broad range of applications, development has been motivated by challenges commonly found in Engineering. Specifically, Ultimate Limit State (ULS) calculations often require engineers to understand a structure/design's performance over many years of operation. The models engineers use (FEM etc.) are typically very accurate, but slow, making it challenging to use them over this time frame. An illustrative use case is provided in "Example usecase".
 
 ## Why use it:
