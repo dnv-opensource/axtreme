@@ -10,16 +10,11 @@ axtreme Documentation
    :maxdepth: 4
    :caption: Contents:
 
-   README
    introduction
    getting_started
    basic_concepts/basic_concepts
    usecase_offshorewind
-   api
-   technical_details/technical_details
-   glossary
-   CHANGELOG
-   STYLEGUIDE
+   developer_content
    LICENSE
 
 
