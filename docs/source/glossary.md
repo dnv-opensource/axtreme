@@ -29,9 +29,3 @@ See for example: (SingleTaskGP)[https://botorch.readthedocs.io/en/latest/_module
     - `n`: input points
     - `t`: target/output dimensionality
     - `d`: dimensionality of input points
-
-## TODO
-Glossary task to be added
-
-Explain how:
--  Multitask in gpytorch can be used with SingleTaskGP
