@@ -21,4 +21,4 @@ Within engineering, probabilistic approaches to these types of problems can offe
 axtreme itself is built on [Ax](https://ax.dev/docs/why-ax.html) and [Botorch](https://botorch.org/docs/introduction). This provides out of the box access to best practice Gaussian Processes (GP), experiment management, auto-differentiation and GPU acceleration.
 
 ## Target Audience
-`axtreme` is intended for users and engineers that are familiar with Python and Tensors. Familiarity with Bayesian Optimisation, Gaussian Processes and Acquisition functions is not assumed.
+`axtreme` is intended for users and engineers that are familiar with Python and Tensors. Familiarity with Bayesian Optimization, Gaussian Processes and Acquisition functions is not assumed.

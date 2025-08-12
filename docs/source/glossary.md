@@ -1,12 +1,12 @@
 # Glossary
 ## Key terms
-- **Extreme Response Distribution (ERD):** Distribution of the largest response experienced over a timeframe. e.g distribution of the largest response a wind turbine will experience in 20 years of operation.
-- **period**: A sample of the environment for the timeframe of interest. e.g 20 years worth of samples of the env dist.
+- **Extreme Response Distribution (ERD):** Distribution of the largest response experienced over a timeframe. e.g. distribution of the largest response a wind turbine will experience in 20 years of operation.
+- **period**: A sample of the environment for the timeframe of interest. e.g. 20 years worth of samples of the env dist.
     - `n_periods` The number of these periods.
     - `period_len`: the number of samples required to create the timeframe of interest.
-        - e.g timeframe is 1 year, and env samples are for 1 day, then `period_len=365.25`
+        - e.g. timeframe is 1 year, and env samples are for 1 day, then `period_len=365.25`
 - **problem space**: Refers to the input variables and responses before any transforms/standardization have occurred. For example `ax.ModelBridge` operates in the problem space because it takes raw/untransformed x value and produce raw/untransformed y values.
-- **model space**: Refers to the input variables and responses **after** transforms/standardization have occurred. Typically $x$ inputs are scaled to unit hypercube, and y values are standardised. For example `ax.Model` (found at `ModelBridge.model.surrogate.model`) operate in this space.
+- **model space**: Refers to the input variables and responses **after** transforms/standardization have occurred. Typically $x$ inputs are scaled to unit hypercube, and y values are standardized. For example `ax.Model` (found at `ModelBridge.model.surrogate.model`) operate in this space.
 
 ## Dimension notation
 The `ax` stack (`ax`,  `botorch`, `gpytorch`, `pytorch`) comprises of a number of libraries, each with their own notation. As `axtreme` interacts with different parts of this stack, it is useful to know the different conventions. `axtreme` uses `botorch` tensor notation unless otherwise specified.
@@ -20,8 +20,8 @@ See for example: (SingleTaskGP)[https://botorch.readthedocs.io/en/latest/_module
     - `m`: target/output dimensionality
     - `d`: dimensionality of input points
 - Optimization:
-    - `q`: number of candidate points optimised jointly
-    - `t`: number of points passed to optimise in parallel (not optimised jointly)
+    - `q`: number of candidate points optimized jointly
+    - `t`: number of points passed to optimize in parallel (not optimized jointly)
 
 ### gpytorch notation
 - Dimension convention:
