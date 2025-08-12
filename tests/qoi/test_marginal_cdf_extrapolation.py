@@ -217,7 +217,14 @@ class TestMarginalCDFExtrapolation:
 
         # As a deterministic GP is used the posterior samples should not only have the same values as the
         # input samples but their order should be the same as well
-        assert torch.equal(torch.tensor([1.0, 2.0, 3.0, 4.0]), posterior_samples[..., 0][0])
+        # For the deterministic GP gp_passthrough_1p the a dummy posterior mean function is used which sets `loc`
+        # equal to the `env_value` and `scale` to 1e-6.
+        expected_posterior = torch.tensor(
+            [[[1.0000e00, 1.0000e-06], [2.0000e00, 1.0000e-06], [3.0000e00, 1.0000e-06], [4.0000e00, 1.0000e-06]]]
+        )
+        assert torch.equal(expected_posterior, posterior_samples)
+
+        # The calculated importance weights should be the same as the input importance weights
         assert torch.equal(torch.tensor([0.1, 0.2, 0.3, 0.4]), torch.flatten(importance_weights_qoi))
 
     @pytest.mark.system
