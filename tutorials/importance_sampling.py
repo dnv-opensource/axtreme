@@ -1,6 +1,16 @@
 # %% [markdown]
 # # Importance sampling tutorial
 #
+# ## What you'll learn
+# - What importance sampling is and why it's useful
+# - How to set up importance sampling in `axtreme`
+# - How to choose optimal parameters for importance sampling
+# - How to evaluate if importance sampling is working
+#
+# ## Prerequisites
+# Basic understanding of `axtreme` (see `basic_example.py`)
+#
+# ## How importance sampling is used in `axtreme`
 # In `axtreme`, importance sampling is used to improve the estimation of the quantity of interest (QoI) when the
 # extreme response is concentrated in only part of the input space.
 #
@@ -20,7 +30,7 @@
 # A Design of Experiments Approach". arXiv. https://doi.org/10.48550/arXiv.2503.01566.
 #
 # This tutorial focuses on how to use importance sampling in `axtreme`, rather than explaining the underlying
-# mathematics in depth. To get an understanding of how `axtreme` works check out basic_example.py.
+# mathematics in depth.
 #
 # `axtreme` currently supports importance sampling when the environment distribution is known. If the distribution
 # is not known, it can be estimated, for example, via Kernel Density Estimation (KDE)—though that is outside the
@@ -36,7 +46,6 @@
 
 # %%
 import sys
-from functools import partial
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -56,7 +65,7 @@ from scipy.stats import gumbel_r
 from torch.utils.data import DataLoader
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
-from axtreme.eval.qoi_helpers import plot_col_histogram, plot_groups
+from axtreme.eval.qoi_helpers import plot_col_histogram
 from axtreme.eval.qoi_job import QoIJob
 from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
 from axtreme.plotting.histogram3d import histogram_surface3d
@@ -79,8 +88,8 @@ from examples.tutorials.importance_sampling.problem.simulator import DummySimula
 # ## Environment data
 
 # The environment data is given by a multivariate normal distribution with mean $\mu=[0.1, 0.1]$
-# and covariance $\Sigma=[[0.2, 0], [0, 0.2]]$. The data is limited to values between 0 and 1
-# to remove outliers.
+# and covariance $\Sigma=[[0.2, 0], [0, 0.2]]$. The data is limited to values between 0 and 2
+# to remove outliers. As can be seen in the following figure the environment data is concentrated in a small region.
 
 env_data = collect_data().to_numpy()
 
@@ -92,10 +101,11 @@ fig.show()
 
 # %% [markdown]
 # ## Brute force solution of the extreme response
-# The simulator used for this tutorial is Multivariate normal distribution with mean $\mu=[1,1]$ and covariance
-# $\Sigma=[[0.03, 0], [0, 0.03]]$.
+# The simulator used for this tutorial is a Gumble distribution with multivariate normal distribution with mean
+# $\mu=[1,1]$ and covariance $\Sigma=[[0.03, 0], [0, 0.03]]$ as location function and 0.1 as scale. It is defined in
+# `examples/tutorials/importance_sampling/problem/simulator.py`.
 #
-# To have a value to judge the accuracy of the QoI estimate derived by axtreme the true solution is
+# To have a value to judge the accuracy of the QoI estimate derived by `axtreme` the true solution is
 # estimated using a brute force approach. This is generally not possible in a real use case but allows
 # us to better demonstrate the effect of importance sampling in this tutorial.
 
@@ -104,7 +114,7 @@ fig.show()
 N_ENV_SAMPLES_PER_PERIOD = 1000
 
 # Calculate ERD samples and their location using a brute force approach
-precalced_erd_samples, precalced_erd_x = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 400_000)
+precalced_erd_samples, precalced_erd_x = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 200_000)
 brute_force_qoi_estimate = np.median(precalced_erd_samples)
 print(f"Brute force estimate of our QOI is {brute_force_qoi_estimate}")
 
@@ -149,23 +159,26 @@ fig_combined.show()
 # 2. region: The bounds of the region to generate samples from.
 # 3. threshold: Environment regions with pdf values less than this threshold will not be included in the importance
 #   samples.
-# 4. num_samples_total: Total number of samples to draw uniformly before filtering. The actual number of returned
-#   samples may be smaller depending on how many pass the threshold filter.
+# 4. num_samples_total: Total number of samples to draw.
 
 # We now want to explore how these parameters can be chosen and their impact.
 
 # ### How to choose the region
-# The simulator used for this tutorial is Multivariate normal distribution with mean $\mu=[1,1]$ and covariance
-# $\Sigma=[[0.03, 0], [0, 0.03]]$. Therefore, we expect the extreme responses to be centered mainly around
-# $(x_1,x_2)=(1,1)$. This can be verified by looking at the figure of the brute force estimate of the extreme
-# response locations.
+# The simulator used for this tutorial has a location function which is a multivariate normal distribution with mean
+# $\mu=[1,1]$ and covariance $\Sigma=[[0.03, 0], [0, 0.03]]$ and only small values for the scale. Therefore, we expect
+# the extreme responses to be centred mainly around $(x_1,x_2)=(1,1)$. This can be verified by looking at the figure of
+# the brute force estimate of the extreme response locations.
+#
+# The following plots show the effect of the region size. We choose three different regions:
+# - $x_1, x_2 \in [0, 10]$,
+# - $x_1, x_2 \in [0, 1]$,
+# - $x_1, x_2 \in [0, 1.5]$.
 
 # %%
-# We are showing the effect of the region size for three different ones
 regions = {
     "too large": torch.tensor([[0.0, 0.0], [10.0, 10.0]]),
     "too small": torch.tensor([[0.0, 0.0], [1.0, 1.0]]),
-    "good fit": torch.tensor([[0.0, 0.0], [2.0, 2.0]]),
+    "good fit": torch.tensor([[0.0, 0.0], [1.5, 1.5]]),
 }
 
 importance_samples_all_regions = []
@@ -179,7 +192,7 @@ for ax, title, region in zip(axes, regions.keys(), regions.values(), strict=Fals
         env_distribution_pdf=calculate_environment_distribution,
         region=region,
         threshold=1e-3,
-        num_samples_total=10_000,
+        num_samples_total=50_000,
     )
     importance_samples_all_regions.append(importance_samples)
     importance_weights_all_regions.append(importance_weights)
@@ -194,8 +207,8 @@ for ax, title, region in zip(axes, regions.keys(), regions.values(), strict=Fals
 fig.tight_layout()
 
 # %% [markdown]
-# From the first plot we can clearly see that when the region is chosen to be too large only very few samples cover the
-# important region. The second plot shows that if the region is chosen too small important areas of the environment
+# From the first plot we can clearly see that the region is too large as only very few samples cover the
+# important region. The second plot shows that the region is too small important areas of the environment
 # space are missed. This can lead to a wrong estimation of the QoI. In the third plot all extreme responses are covered
 # by the importance samples while still maintaining a significant amount of coverage. In a real use case the ER
 # locations are often not known. In that case domain knowledge can be used to choose the region. If in doubt
@@ -210,7 +223,9 @@ fig.tight_layout()
 # ignored based on the probability of the environment data being lower than this threshold. More details are given in
 # the paper by Winter et.al.
 #
-# The following figure shows the density of the environment data estimated based on the available env_data.
+# The following figure shows the pdf of the environment data estimated based on the available env data. The
+# locations of the extreme responses are plotted in orange.
+
 xmin, xmax, ymin, ymax = 0, 2, 0, 2
 xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
 positions = np.vstack([xx.ravel(), yy.ravel()])
@@ -250,7 +265,7 @@ for ax, title, threshold in zip(axes, thresholds.keys(), thresholds.values(), st
         env_distribution_pdf=calculate_environment_distribution,
         region=regions["good fit"],
         threshold=threshold,
-        num_samples_total=10_000,
+        num_samples_total=50_000,
     )
     importance_samples_all_thresholds.append(importance_samples)
     importance_weights_all_thresholds.append(importance_weights)
@@ -276,8 +291,9 @@ best_importance_samples = importance_samples_all_thresholds[2]
 best_importance_weights = importance_weights_all_thresholds[2]
 
 # %% [markdown]
-# The following plots shows the importance samples and colored according to their corresponding weight for the best
-# threshold and region chosen by the analysis above.
+# The following plots shows the importance samples and coloured according to their corresponding weight for the best
+# threshold and region chosen by the analysis above. The weights are the largest where the most environment data is
+# available.
 
 sc = plt.scatter(
     best_importance_samples[:, 0],
@@ -292,10 +308,10 @@ _ = plt.xlabel("x1")
 _ = plt.ylabel("x2")
 
 # %% [markdown]
-# ## Using the importance samples in axtreme
+# ## Using importance samples in `axtreme`
 # Now that we have the importance samples and weights we can use them in `axtreme` to estimate the QoI.
-# The importance samples and weights are wrapped in an `ImportanceAddedWrapper`. This wrapper allows us to use the
-# importance samples and weights in the QoI estimation.
+# The importance samples and weights are wrapped in an `ImportanceAddedWrapper`. This wrapper brings the
+# importance samples and weights into the correct format to be used in the QoI estimation.
 
 importance_dataset = ImportanceAddedWrapper(
     MinimalDataset(best_importance_samples), MinimalDataset(best_importance_weights)
@@ -307,12 +323,12 @@ torch.save(best_importance_samples, f"{file_path}/importance_samples.pt")
 torch.save(best_importance_weights, f"{file_path}/importance_weights.pt")
 
 # %% [markdown]
-# ### Setting up parameters/ functions required for axtreme
+# ## Setting up parameters/ functions required for `axtreme`
 
 search_space = SearchSpace(
     parameters=[
-        RangeParameter(name="x1", parameter_type=ParameterType.FLOAT, lower=0, upper=1),
-        RangeParameter(name="x2", parameter_type=ParameterType.FLOAT, lower=0, upper=1),
+        RangeParameter(name="x1", parameter_type=ParameterType.FLOAT, lower=0, upper=2),
+        RangeParameter(name="x2", parameter_type=ParameterType.FLOAT, lower=0, upper=2),
     ]
 )
 
@@ -321,7 +337,8 @@ dist = gumbel_r
 # Pick a number of GP simulations per point
 N_SIMULATIONS_PER_POINT = 30
 
-# Use seeded simulator to avoid introducing additional uncertainty through a stochastic simulator
+# Use seeded simulator to avoid introducing additional uncertainty through a stochastic simulator.
+# As mentioned before a Gumble distribution is used as the simulator.
 sim = DummySimulatorSeeded()
 
 
@@ -346,7 +363,13 @@ input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_ou
 )
 
 # %% [markdown]
-# ### Run the QoI estimation with and without importance sampling
+# ## QoI estimation with and without importance sampling
+# Now we can estimate the QoI using the importance samples and weights. We compare the results to the QoI estimate
+# using the full environment data.
+#
+# The QoI is estimated for different dataset sizes to show how the QoI estimate improves with more data available for
+# the estimation.
+# The QoI estimate is run 200 times for each dataset size to get a clear picture of the uncertainty of the QoI estimate.
 
 qoi_jobs = []
 datasets = {"full": env_data, "importance_sample": importance_dataset}
@@ -354,14 +377,14 @@ for dataset_name, dataset in datasets.items():
     # TODO (ak:25-08-07): verify that this is the correct interpretation if num_samples
 
     # To calculate the QoI not the whole environment data is used but only a subset of it. The size of this subset is
-    # given by `dataset_size`. We expect the QoI estimate to be mor accurate and have less variability for a larger
+    # given by `dataset_size`. We expect the QoI estimate to be more accurate and have less variability for a larger
     # dataset size.
-    for dataset_size in [100, 200, 1000, 8000]:
+    for dataset_size in [1_000, 5_000, 10_000]:
         # We run the QoI estimation 200 times for the same parameters to give a clear picture of the uncertainty
         # of the QoI estimate.
         for i in range(200):
             sampler = FixedRandomSampler(dataset, num_samples=dataset_size, seed=i, replacement=True)
-            dataloader = DataLoader(dataset, sampler=sampler, batch_size=100)
+            dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 
             posterior_sampler = UTSampler()
 
@@ -393,7 +416,8 @@ qoi_results = [job(output_file=jobs_output_file) for job in qoi_jobs]
 
 df_jobs = pd.json_normalize([item.to_dict() for item in qoi_results], max_level=1)
 df_jobs.columns = df_jobs.columns.str.removeprefix("tags.")
-df_jobs.head()
+
+df_jobs.head()  # pyright: ignore[reportUnusedCallResult]
 
 
 # %% [markdown]
@@ -412,11 +436,18 @@ def plot_best_guess(df: pd.DataFrame, ax: Axes, brute_force: float | None = None
     ax_twin = ax.twinx()
     samples = torch.tensor(df.loc[:, "mean"].to_numpy())
     sample_mean_se_dist = population_estimators.sample_mean_se(samples)
-    _ = population_estimators.plot_dist(sample_mean_se_dist, ax=ax_twin, c="red", label="dist mean 99.7% conf interval")
-    _ = ax_twin.legend()
+    _ = population_estimators.plot_dist(
+        sample_mean_se_dist, ax=ax_twin, c="red", label="dist mean 99.7%\n conf interval"
+    )
+    # Get handles/labels from both axes
+    handles1, labels1 = ax.get_legend_handles_labels()
+    handles2, labels2 = ax_twin.get_legend_handles_labels()
+
+    # Combine and put legend on the main axis
+    _ = ax.legend(handles1 + handles2, labels1 + labels2)
 
 
-def plot_qoi_as_normal(
+def plot_qoi_distribution(
     df: pd.DataFrame,
     ax: Axes,
     n_plots: int = 10,
@@ -424,7 +455,7 @@ def plot_qoi_as_normal(
     var_col: str = "var",
     brute_force: float | None = None,
 ) -> None:
-    """Quick and dirty function for plotting the QoI output distribution (here assumed normal).
+    """Function for plotting the QoI output distribution (here assumed normal).
 
     Note: this is particularly suitable when UTtransform is used as the posterior samples.
     For other posterior samplers, plot_histogram is more expressive.
@@ -456,15 +487,57 @@ def plot_qoi_as_normal(
     _ = ax.legend()
 
 
-# %% Plot all of the groups
-df_grouped = df_jobs.groupby(["dataset_name", "dataset_size"])
-_ = plot_groups(
-    df_grouped,
-    plotting_funcs=[
-        partial(plot_qoi_as_normal, brute_force=float(brute_force_qoi_estimate)),
-        partial(plot_best_guess, brute_force=float(brute_force_qoi_estimate)),
-        partial(plot_col_histogram, col_name="var"),
-    ],
-)
+# %% [markdown]
+# The following figure shows QoI estimates comparing regular sampling vs importance sampling across dataset sizes:
+#
+# **Layout:**
+# - Each row represents a different dataset size (1000, 5000, 10000 samples) and type
+#   (full dataset vs importance sampled).
+# - Results from 200 simulation runs are shown
+# - Columns:
+#   1. QoI estimate distributions
+#   2. Histogram of QoI means(blue) with sample mean distribution (red)
+#   3. Histogram of QoI variances
+fig, ax = plt.subplots(nrows=6, ncols=3, figsize=(15, 20), sharex="col")
+ax = ax.ravel()
+ax_idx = 0
+for dataset_size in [1_000, 5_000, 10_000]:
+    for dataset_name in ["full", "importance_sample"]:
+        current_df = df_jobs.query(f"dataset_name == '{dataset_name}' and dataset_size == {dataset_size}")
+        plot_qoi_distribution(
+            current_df,
+            ax=ax[ax_idx],
+            n_plots=10,
+            mean_col="mean",
+            var_col="var",
+            brute_force=float(brute_force_qoi_estimate),
+        )
+        plot_best_guess(current_df, ax=ax[ax_idx + 1], brute_force=float(brute_force_qoi_estimate))
+        _ = plot_col_histogram(current_df, ax=ax[ax_idx + 2], col_name="var")
+        _ = ax[ax_idx + 2].set_xlabel("var(QoI value)")
+        ax[ax_idx].annotate(
+            f"dataset: {dataset_name.replace('_', ' ')}\n size: {dataset_size}",
+            xy=(0, 0.5),
+            xytext=(-ax[ax_idx].yaxis.labelpad - 5, 0),
+            xycoords=ax[ax_idx].yaxis.label,
+            textcoords="offset points",
+            size="large",
+            ha="right",
+            va="center",
+        )
+        ax_idx += 3
+fig.tight_layout()
+fig.subplots_adjust(left=0.15)
+
+# %% [markdown]
+# These plots clearly show that the QoI estimation with importance sampling has significantly less variability than
+# the QoI estimation without importance sampling. In fact, the QoI variance with importance sampling and 1000 samples is
+# comparable to the QoI variance without importance sampling and 5,000 samples. The same can be observed for the
+# standard deviation of the means.
+# For 10,000 samples the QoI estimate means with importance sampling nearly converge to a point estimate while for the
+# regular sampling the means are still spread out with a standard deviation of around 0.1 (last two plots in middle
+# column).
+# This shows that importance sampling can significantly reduce the number of samples
+# needed to achieve a certain level of accuracy in the QoI estimate.
 
 # %%

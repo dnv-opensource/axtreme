@@ -15,7 +15,7 @@ def define_mean_cov_for_env_distribution() -> tuple[torch.Tensor, torch.Tensor]:
 
 
 def generate_and_save_data(
-    n_samples: int = 10_000, seed: int = 42, value_range_start: float = 0, value_range_end: float = 1
+    n_samples: int = 10_000, seed: int = 42, value_range_start: float = 0, value_range_end: float = 2
 ) -> None:
     """Generate environment data using a multivariate normal distribution and save it to a file.
 
