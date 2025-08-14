@@ -52,8 +52,9 @@
 
 # %%
 import sys
-import typing
+from collections.abc import Sized
 from pathlib import Path
+from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -69,7 +70,7 @@ from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
 from matplotlib.axes import Axes
 from scipy.stats import gumbel_r
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.eval.qoi_helpers import plot_col_histogram
@@ -379,7 +380,7 @@ input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_ou
 # The QoI estimate is run 200 times for each dataset size to get a clear picture of the uncertainty of the QoI estimate.
 
 qoi_jobs = []
-datasets = {"full": env_data, "importance_sample": importance_dataset}
+datasets = {"full": MinimalDataset(env_data), "importance_sample": importance_dataset}
 for dataset_name, dataset in datasets.items():
     # TODO (ak:25-08-07): verify that this is the correct interpretation if num_samples
 
@@ -390,10 +391,8 @@ for dataset_name, dataset in datasets.items():
         # We run the QoI estimation 200 times for the same parameters to give a clear picture of the uncertainty
         # of the QoI estimate.
         for i in range(200):
-            sampler = FixedRandomSampler(
-                typing.cast("Dataset", dataset), num_samples=dataset_size, seed=i, replacement=True
-            )
-            dataloader: DataLoader = DataLoader(typing.cast("Dataset", dataset), sampler=sampler, batch_size=256)
+            sampler = FixedRandomSampler(cast("Sized", dataset), num_samples=dataset_size, seed=i, replacement=True)
+            dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 
             posterior_sampler = UTSampler()
 
