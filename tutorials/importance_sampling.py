@@ -5,7 +5,13 @@
 # - What importance sampling is and why it's useful
 # - How to set up importance sampling in `axtreme`
 # - How to choose optimal parameters for importance sampling
-# - How to evaluate if importance sampling is working
+# - How to evaluate if importance sampling is having the desired effect
+#
+# In this tutorial the importance samples are generated from a uniform distribution in a region of interest. If the
+# importance sample distribution is known, it can be used to generate the samples and weights directly using the
+# function `importance_sampling_from_distribution`. This is not covered in this tutorial but once the importance samples
+# and weights are generated, the rest of the tutorial is still applicable starting from the section
+# "Using importance samples in `axtreme`".
 #
 # ## Prerequisites
 # Basic understanding of `axtreme` (see `basic_example.py`)
@@ -15,9 +21,9 @@
 # extreme response is concentrated in only part of the input space.
 #
 # Traditional sampling strategies like Sobol sampling aim to cover the entire search space uniformly. This works
-# well when the phenomenon of interest is spread out. However, when the extreme response we're modeling
+# well when the phenomenon of interest is spread out. However, when the extreme response we're modelling
 # occurs in a small, specific region, uniform sampling becomes inefficient. In such cases, importance
-# sampling allows us to focus more training points in the relevant region, improving accuracy and reducing
+# sampling allows us to focus more training points in the relevant region and thereby to reduce
 # uncertainty in the QoI estimate.
 #
 # In practical terms, this means that we may need fewer expensive model evaluations to get a good (i.e. with low
@@ -155,7 +161,7 @@ fig_combined.show()
 # To create the importance samples and weights using a uniform region the following parameters need to be set:
 # 1. env_distribution_pdf: The pdf function of the real environment. This can either be a known function or
 #   for example be estimated based on the environment data using KDE (kernel density estimation). For this example it is
-#   known and defined in the function calculate_environment_distribution
+#   known and defined in the function calculate_environment_distribution.
 # 2. region: The bounds of the region to generate samples from.
 # 3. threshold: Environment regions with pdf values less than this threshold will not be included in the importance
 #   samples.
@@ -323,7 +329,7 @@ torch.save(best_importance_samples, f"{file_path}/importance_samples.pt")
 torch.save(best_importance_weights, f"{file_path}/importance_weights.pt")
 
 # %% [markdown]
-# ## Setting up parameters/ functions required for `axtreme`
+# ### Setting up parameters/ functions required for `axtreme`
 
 search_space = SearchSpace(
     parameters=[
@@ -363,7 +369,7 @@ input_transform, outcome_transform = transforms.ax_to_botorch_transform_input_ou
 )
 
 # %% [markdown]
-# ## QoI estimation with and without importance sampling
+# ### QoI estimation with and without importance sampling
 # Now we can estimate the QoI using the importance samples and weights. We compare the results to the QoI estimate
 # using the full environment data.
 #
@@ -421,9 +427,11 @@ df_jobs.head()  # pyright: ignore[reportUnusedCallResult]
 
 
 # %% [markdown]
-# ### Plotting the results
+# #### Plotting the results
 # The following plots show the QoI estimate for the different dataset sizes with and without importance sampling.
-#
+
+
+# %%
 #  The following functions are helpers to simplify plotting
 def plot_best_guess(df: pd.DataFrame, ax: Axes, brute_force: float | None = None) -> None:
     """Plots `plot_col_histogram` with the mean and standard error of this estimate added.
@@ -496,7 +504,7 @@ def plot_qoi_distribution(
 # - Results from 200 simulation runs are shown
 # - Columns:
 #   1. QoI estimate distributions
-#   2. Histogram of QoI means(blue) with sample mean distribution (red)
+#   2. Histogram of QoI means (blue) with sample mean distribution (red)
 #   3. Histogram of QoI variances
 fig, ax = plt.subplots(nrows=6, ncols=3, figsize=(15, 20), sharex="col")
 ax = ax.ravel()
@@ -531,8 +539,8 @@ fig.subplots_adjust(left=0.15)
 
 # %% [markdown]
 # These plots clearly show that the QoI estimation with importance sampling has significantly less variability than
-# the QoI estimation without importance sampling. In fact, the QoI variance with importance sampling and 1000 samples is
-# comparable to the QoI variance without importance sampling and 5,000 samples. The same can be observed for the
+# the QoI estimation without importance sampling. In fact, the QoI variance with importance sampling and 1,000 samples
+# is comparable to the QoI variance without importance sampling and 5,000 samples. The same can be observed for the
 # standard deviation of the means.
 # For 10,000 samples the QoI estimate means with importance sampling nearly converge to a point estimate while for the
 # regular sampling the means are still spread out with a standard deviation of around 0.1 (last two plots in middle
