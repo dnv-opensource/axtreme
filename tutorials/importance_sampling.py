@@ -52,6 +52,7 @@
 
 # %%
 import sys
+import typing
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -68,7 +69,7 @@ from ax.core import ParameterType, RangeParameter
 from ax.modelbridge.registry import Models
 from matplotlib.axes import Axes
 from scipy.stats import gumbel_r
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.eval.qoi_helpers import plot_col_histogram
@@ -389,8 +390,10 @@ for dataset_name, dataset in datasets.items():
         # We run the QoI estimation 200 times for the same parameters to give a clear picture of the uncertainty
         # of the QoI estimate.
         for i in range(200):
-            sampler = FixedRandomSampler(dataset, num_samples=dataset_size, seed=i, replacement=True)
-            dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
+            sampler = FixedRandomSampler(
+                typing.cast("Dataset", dataset), num_samples=dataset_size, seed=i, replacement=True
+            )
+            dataloader: DataLoader = DataLoader(typing.cast("Dataset", dataset), sampler=sampler, batch_size=256)
 
             posterior_sampler = UTSampler()
 
@@ -521,7 +524,7 @@ for dataset_size in [1_000, 5_000, 10_000]:
             brute_force=float(brute_force_qoi_estimate),
         )
         plot_best_guess(current_df, ax=ax[ax_idx + 1], brute_force=float(brute_force_qoi_estimate))
-        _ = plot_col_histogram(current_df, ax=ax[ax_idx + 2], col_name="var")
+        plot_col_histogram(current_df, ax=ax[ax_idx + 2], col_name="var")
         _ = ax[ax_idx + 2].set_xlabel("var(QoI value)")
         ax[ax_idx].annotate(
             f"dataset: {dataset_name.replace('_', ' ')}\n size: {dataset_size}",
