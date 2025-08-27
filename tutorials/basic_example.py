@@ -468,7 +468,7 @@ plt.show()
 # A note on DataLoaders:
 # We make use of Dataloader to manage providing data to the QoI. Env samples are only used in the QoI, so your env data
 # can be in whatever format is supported by the QoI.
-n_env_samples = 1_000
+n_env_samples = 4_000
 dataset = MinimalDataset(env_data)
 sampler = FixedRandomSampler(dataset, num_samples=n_env_samples, seed=10, replacement=True)
 dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)

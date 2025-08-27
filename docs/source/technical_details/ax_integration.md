@@ -7,3 +7,6 @@
 The following shows a conceptual overview of the key `ax` components involved.
 
 ![axtreme_ax_component_diagram](img/ax_integration/ax_component_diagram.png)
+
+
+This page provides more information about the `ax` `Experiment` and its components: [https://ax.dev/docs/experiment/](https://ax.dev/docs/experiment/).

@@ -4,7 +4,7 @@ on: workflow_call
 
 env:
   DEFAULT_BRANCH: 'release'
-  #SPHINXOPTS: '-W --keep-going -T'
+  SPHINXOPTS: '-W --keep-going -T'
   # ^-- If these SPHINXOPTS are enabled, then be strict about the builds and fail on any warnings
 
 jobs:
