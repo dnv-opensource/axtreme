@@ -225,7 +225,7 @@ class TestMarginalCDFExtrapolation:
         assert torch.equal(expected_posterior, posterior_samples)
 
         # The calculated importance weights should be the same as the input importance weights
-        assert torch.equal(torch.tensor([0.1, 0.2, 0.3, 0.4]), torch.flatten(importance_weights_qoi))
+        assert torch.equal(torch.tensor([[0.1, 0.2, 0.3, 0.4]]), importance_weights_qoi)
 
     @pytest.mark.system
     @pytest.mark.non_deterministic
