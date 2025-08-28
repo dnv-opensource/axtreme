@@ -83,12 +83,11 @@ The `QoILookAhead` acquisition function works by:
 
 Monitor how quickly the QoI estimate converges to the brute force value by plotting QoI estimates over iterations.
 
-![qoi_convergence](img/DoE/qoi_convergence.png)
+![qoi_convergence](img/doe/qoi_convergence.png)
 *Figure 1: Comparison of QoI convergence between DoE (green) and Sobol sampling (blue) approaches. The black line shows the brute force QoI value. DoE typically converges faster.*
 
 This figure compares how two sampling methods, Sobol (blue) and Look-ahead DoE (green), estimate a Quantity of Interest as they accumulate simulation data. The solid lines show mean QoI estimates, while shaded regions represent 90% confidence intervals. DoE (green) reduces the uncertainty more effectively compared to Sobol (blue). The black dashed line shows the "brute force" QoI value calculated with exhaustive sampling, and the red band indicates ±0.5% error tolerance. Vertical dashed lines show SEM threshold corresponding to the 90 % confidence interval. Each method stops after meeting both the error and SEM tolerances, DoE at ~600 simulation runs (trial 20) versus Sobol at ~2000 runs (trial 67).
 
-Neither method exactly matches the reference because they use limited sampling with statistical uncertainty, while the brute force solution uses exhaustive evaluation. Both achieve acceptable accuracy within the error and cofidence interval tolerance band.
 
 While Sobol's final estimate appears slightly closer to the reference line, this visual impression can be slightly misleading as the simulation stops when both acceptable error and confidence interval tolerance is achieved. The DoE is able to reach both these stoping criterias with ~70% fewer simulation runs compared to Sobol. Here, simulation runs refers to individual evaluations of the expensive simulator. However it is important to note that the stopping criterias can be configured and changed by the user for differnet problems.
 
@@ -105,7 +104,7 @@ where $\sigma$ is the standard deviation of the QoI estimate and $n$ is the effe
 
 Track the uncertainty in QoI estimates over iterations to assess convergence.
 
-![sem_convergence](img/DoE/sem_convergence.png)
+![sem_convergence](img/doe/sem_convergence.png)
 *Figure 2: Standard Error of the Mean (SEM) over iterations for both DoE and Sobol approaches. DoE typically achieves target SEM thresholds with fewer iterations and shows more consistent reduction.*
 
 **What to look for:**
@@ -119,15 +118,15 @@ It's important to note that monitoring QoI convergence and SEM reduction is valu
 
 Visualize where DoE selects points to understand if it's focusing on important regions, as demonstrated in Figure 3.
 
-![point_selection](img/DoE/point_selection.png)
+![point_selection](img/doe/point_selection.png)
 *Figure 3: Point selection in search space of the DoE (Red) and Sobol (Blue) over environement and exptreme response distribution heatmaps. Here one can observe that the DoE focuses on the specific region where the extreme responses occur, while Sobol selects points more uniformly in the search space.*
 
-One can also look at the point selection on the GP surface for more insight into how the GP fits the function the GP is approximating. The key difference between DoE ([Figure 4b](#fig-DoE-gp-surface)) and Sobol ([Figure 4a](#fig-sobol-gp-surface)) becomes apparent when examining how each approach affects the GP's ability to model the underlying function. DoE strategically selects points to achieve high accuracy in regions that are critical for QoI estimation, even if this means accepting lower accuracy in less important areas of the search space. In contrast, Sobol sampling distributes points uniformly across the entire domain, resulting in a GP that fits the underlying function more evenly across the whole search space but requires significantly more points to achieve the same level of QoI accuracy.
+One can also look at the point selection on the GP surface for more insight into how the GP fits the function the GP is approximating. The key difference between DoE ([Figure 4b](#fig-doe-gp-surface)) and Sobol ([Figure 4a](#fig-sobol-gp-surface)) becomes apparent when examining how each approach affects the GP's ability to model the underlying function. DoE strategically selects points to achieve high accuracy in regions that are critical for QoI estimation, even if this means accepting lower accuracy in less important areas of the search space. In contrast, Sobol sampling distributes points uniformly across the entire domain, resulting in a GP that fits the underlying function more evenly across the whole search space but requires significantly more points to achieve the same level of QoI accuracy.
 
-![sobol_gp_surface](img/DoE/sobol_gp_surface.png){#fig-sobol-gp-surface}
+![sobol_gp_surface](img/doe/sobol_gp_surface.png){#fig-sobol-gp-surface}
 *Figure 4a: GP surface fitted using Sobol sampling showing uniform point distribution and consistent model accuracy across the entire search space. However many simulations are needed to achive this accuracy. The red surface represents the true underlyning function the GP is approximating, green surface is the GP mean prediction of the underlyning function across the search space, the blue surfaces is the upper and lower confidence bounds of the GP and the red points is the simulation points added to the GP with red vertical error bars representing the observation noise of these simulated points.*
 
-![DoE_gp_surface](img/DoE/DoE_gp_surface.png){#fig-DoE-gp-surface}
+![DoE_gp_surface](img/doe/doe_gp_surface.png){#fig-doe-gp-surface}
 *Figure 4b: GP surface fitted using DoE showing concentrated point selection in regions important for QoI calculation. The model achieves high accuracy in critical areas while maintaining lower accuracy elsewhere.*
 
 This visualization technique is valuable because it can be applied even without prior knowledge of the underlying true function. By examining where DoE concentrates its point selection compared to uniform Sobol sampling, researchers can identify which regions of the parameter space contribute most significantly to QoI accuracy. This spatial analysis reveals whether the DoE algorithm is successfully identifying and focusing on specific regions or patterns that are most relevant for the QoI, providing insight into both the DoE behavior and the underlying problem structure.
