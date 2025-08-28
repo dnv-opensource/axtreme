@@ -120,7 +120,7 @@ It's important to note that monitoring QoI convergence and SEM reduction is valu
 Visualize where DoE selects points to understand if it's focusing on important regions, as demonstrated in Figure 3.
 
 ![point_selection](img/DoE/point_selection.png)
-*Figure 3: Point selection in search space of the DoE (Green) and Sobol (Blue) over environement and exptreme response distribution heatmaps. Here one can observe that the DoE focuses on the specific region where the extreme responses occur, while Sobol selects points more uniformly.*
+*Figure 3: Point selection in search space of the DoE (Red) and Sobol (Blue) over environement and exptreme response distribution heatmaps. Here one can observe that the DoE focuses on the specific region where the extreme responses occur, while Sobol selects points more uniformly in the search space.*
 
 One can also look at the point selection on the GP surface for more insight into how the GP fits the function the GP is approximating. The key difference between DoE ([Figure 4b](#fig-DoE-gp-surface)) and Sobol ([Figure 4a](#fig-sobol-gp-surface)) becomes apparent when examining how each approach affects the GP's ability to model the underlying function. DoE strategically selects points to achieve high accuracy in regions that are critical for QoI estimation, even if this means accepting lower accuracy in less important areas of the search space. In contrast, Sobol sampling distributes points uniformly across the entire domain, resulting in a GP that fits the underlying function more evenly across the whole search space but requires significantly more points to achieve the same level of QoI accuracy.
 
