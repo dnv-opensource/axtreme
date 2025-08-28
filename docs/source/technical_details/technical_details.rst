@@ -8,4 +8,5 @@ The following contains in depth information about specific components of `axtrem
 
    ax_integration
    gpbruteforce
+   doe
 
