@@ -103,6 +103,12 @@ def importance_sampling_distribution_uniform_region(
             Importance sampling weights for each sample. Shape (n_samples,)
 
     Details:
+        The mathematical justification for this algorithm is given in
+
+        "Efficient Long-Term Structural Reliability Estimation with Non-Gaussian
+        Stochastic Models: A Design of Experiments Approach.” arXiv, March 3, 2025.
+        https://doi.org/10.48550/arXiv.2503.01566."
+
         The algorithm works as follows:
         1. For a chosen `threshold` c for the real environment distribution.
 
@@ -152,7 +158,7 @@ def importance_sampling_distribution_uniform_region(
                 - This is a reasonable approximation if p(x_i) is considered to be close enough to 0.
 
     Todo: TODO
-    - (sw 2024_09_17): Reference the paper here (or preprint) once its published Issue #177.
+    - (ak 2025-07-09): add seeded option for testing purposes
 
     """
     uniform_dist = torch.distributions.Uniform(region[0], region[1])
