@@ -155,46 +155,88 @@ def importance_sampling_distribution_uniform_region(
 
 
     """
+    # Calculate the volume of the hyper rectangle that contains the samples
+    volume = torch.prod(region[1] - region[0])
+
+    def _calculate_samples_in_region_above_threshold(n_samples: int) -> tuple[int, torch.Tensor, torch.Tensor]:
+        # Generate samples from the uniform distribution over the region
+        uniform_dist = torch.distributions.Uniform(region[0], region[1])
+        samples = uniform_dist.sample(torch.Size([n_samples]))
+        num_samples_region = samples.shape[0]
+
+        # Calculate the probability density of the samples in the whole region
+        env_pdf = env_distribution_pdf(samples)
+
+        # Find the samples that are in F (i.e. where pdf > threshold)
+        mask = env_pdf > threshold
+        samples_in_f = samples[mask]
+        num_samples_in_f = samples_in_f.shape[0]
+
+        # Calculate the importance sampling pdf (h_x)
+        importance_pdf = (1 / volume) * (num_samples_region / num_samples_in_f)
+
+        return num_samples_in_f, samples_in_f, importance_pdf
+
+    n_importance_samples_total, importance_samples, h_x = _calculate_samples_in_region_above_threshold(
+        num_samples_total
+    )
+
+    # Generate more importance samples if there are not enough
+    while n_importance_samples_total < num_samples_total:
+        n_importance_samples, importance_samples_i, h_x_i = _calculate_samples_in_region_above_threshold(
+            num_samples_total - n_importance_samples_total
+        )
+        n_importance_samples_total += n_importance_samples
+
+        # If we need to do resampling h_x is a joint pdf of the iterations. Each iteration is treated as an
+        # independent experiment with h_x_i as the pdf, i.e., h_x = h_x_1*...*h_x_n.
+        h_x *= h_x_i
+
+        # Add additional importance samples
+        importance_samples = torch.cat((importance_samples, importance_samples_i))
+
+    # Calculate the probability density of all samples combined
+    pdf = env_distribution_pdf(importance_samples)
+
+    # Find the samples that are above the threshold
+    mask = pdf > threshold
+
+    # Calculate the importance sampling weights
+    weights = pdf[mask] / h_x
+
+    return importance_samples, weights
+
+
+def temp(
+    env_distribution_pdf: Callable[[torch.Tensor], torch.Tensor],
+    region: torch.Tensor | tuple[torch.Tensor, torch.Tensor],
+    threshold: float,
+    num_samples_total: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
     uniform_dist = torch.distributions.Uniform(region[0], region[1])
 
-    def _calculate_samples_in_region_above_threshold(n_samples: int) -> torch.Tensor:
-        """Helper function to generate samples."""
-        # Generate samples from the uniform distribution over the region
-        samples = uniform_dist.sample(torch.Size([n_samples]))
+    # Generate samples from the uniform distribution over the region
+    samples = uniform_dist.sample(torch.Size([num_samples_total]))
 
-        # Calculate the probability density of the samples
-        pdf = env_distribution_pdf(samples)
+    # Calculate the probability density of the samples
+    pdf = env_distribution_pdf(samples)
 
-        # Find the samples that are above the threshold
-        mask = pdf > threshold
-        samples = samples[mask]
-
-        return samples
-
-    filtered_samples = _calculate_samples_in_region_above_threshold(num_samples_total)
-    num_samples = filtered_samples.shape[0]
-
-    # Ensure that enough samples are calculated as some are discarded due to the threshold
-    while num_samples < num_samples_total:
-        # Calculate remaining samples
-        n_missing_samples = num_samples_total - num_samples
-        additional_samples = _calculate_samples_in_region_above_threshold(n_missing_samples)
-
-        filtered_samples = torch.cat((filtered_samples, additional_samples))
-        num_samples = filtered_samples.shape[0]
+    # Find the samples that are above the threshold
+    mask = pdf > threshold
+    samples = samples[mask]
 
     # Calculate the volume of the hyper rectangle that contains the samples
     volume = torch.prod(region[1] - region[0])
 
+    # The number of samples that are above the threshold
+    num_samples = samples.shape[0]
+
     # Calculate the importance sampling distribution
     # The importance sampling distribution is estimated to be
-    # h_x(x) = 1/volume(region)
-    h_x = 1 / volume
+    # h_x(x) = num_samples_total/(volume(region) * num_samples)
+    h_x = num_samples_total / (volume * num_samples)
 
     # Calculate the importance sampling weights
-    # pdf and mask need to be calculated for all samples
-    pdf = env_distribution_pdf(filtered_samples)
-    mask = pdf > threshold
     weights = pdf[mask] / h_x
 
-    return filtered_samples, weights
+    return samples, weights

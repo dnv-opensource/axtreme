@@ -18,6 +18,7 @@ import torch
 from axtreme.sampling.importance_sampling import (
     importance_sampling_distribution_uniform_region,
     importance_sampling_from_distribution,
+    temp,
 )
 
 
@@ -62,6 +63,12 @@ def test_importance_sampling_distribution_uniform_region():
     # returns the predefined fixed_samples during the with block. This is necessary as no seeding is implemented for
     # the function importance_sampling_distribution_uniform_region.
     with patch.object(torch.distributions.Uniform, "sample", return_value=fixed_samples):
+        s, w = temp(
+            env_distribution_pdf=_env_distribution_pdf,
+            region=region,
+            threshold=threshold,
+            num_samples_total=num_samples_total,
+        )
         samples, weights = importance_sampling_distribution_uniform_region(
             env_distribution_pdf=_env_distribution_pdf,
             region=region,
