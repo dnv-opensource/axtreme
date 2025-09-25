@@ -8,9 +8,9 @@ axtreme can be installed using pip:
 
 ::
 
-    pip install dnv-axtreme
+    pip install axtreme
 
 Or directly from the source code:
 ::
 
-    pip install git+https://github.com/dnv-innersource/TDR_axtreme.git
+    pip install git+https://github.com/dnv-opensource/axtreme.git

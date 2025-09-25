@@ -1,4 +1,4 @@
-"""Additional Metric implemenations."""
+"""Additional Metric implementations."""
 
 import copy
 from typing import TYPE_CHECKING, Any
@@ -20,7 +20,7 @@ from typing import cast
 class LocalMetadataMetric(Metric):
     """This metric retrieves its results form the trial metadata.
 
-    The simple example run the simultion within this function call
+    The simple example run the simulation within this function call
     (e.g. `see <https://ax.dev/tutorials/gpei_hartmann_developer.html#8.-Defining-custom-metrics>`_)
     In general, this method should only 'fetch' the results from somewhere else where they have been run.
     For example, Runner deploys simulation of remote, this connects to remote and collects result.
@@ -119,9 +119,9 @@ class QoIMetric(Metric):
         name: str,
         qoi_estimator: QoIEstimator,
         minimum_data_points: int = 5,
-        lower_is_better: bool | None = None,  # noqa: FBT001
-        properties: dict[str, Any] | None = None,
         *,
+        lower_is_better: bool | None = None,
+        properties: dict[str, Any] | None = None,
         attach_transforms: bool = False,
     ) -> None:
         """Initialize the QoIMetric.
@@ -129,7 +129,7 @@ class QoIMetric(Metric):
         Args:
             name: The name of the metric.
             qoi_estimator: The QoI estimator to use to calculate the metric.
-            minimum_data_points: The minimum number of datapoints the experiment must have before the GP is trained and
+            minimum_data_points: The minimum number of data points the experiment must have before the GP is trained and
                 the QoI is actually run.
             lower_is_better: Flag for metrics which should be minimized. Typically we are not interested in
                 minimising/maximising QoIs so this values should be `None`.
@@ -156,10 +156,11 @@ class QoIMetric(Metric):
         Returns:
             The data returned is effect by the total amount of data available by this trial (e.g this trial and earlier
             trials).
+
             - available data < `minimum_data-points`: `mean` and `sem` are NaN.
             - available data >= `minimum_data-points`: `mean` is the mean QoIEstimate, `sem` is the standard error of
-                the measure deviation. The standard error corresponds to the standard deviation of the distribution as
-                each sample is a prediction of the measure (the QoI).
+              the measure deviation. The standard error corresponds to the standard deviation of the distribution as
+              each sample is a prediction of the measure (the QoI).
         """
         arm = _single_arm_trial(trial)
         exp = trial.experiment
