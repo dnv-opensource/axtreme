@@ -11,7 +11,7 @@ from torch.distributions import MultivariateNormal
 
 def define_mean_cov_for_env_distribution() -> tuple[torch.Tensor, torch.Tensor]:
     """Define mean and covariance in one place."""
-    return torch.tensor([0.1, 0.1]), torch.tensor([[0.2, 0], [0, 0.2]])
+    return torch.tensor([0.5, 0.5]), torch.tensor([[0.2, 0], [0, 0.2]])
 
 
 def generate_and_save_data(
