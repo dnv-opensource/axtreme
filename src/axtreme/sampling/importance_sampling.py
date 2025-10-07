@@ -12,7 +12,6 @@ In this file the following is included:
 from collections.abc import Callable
 
 import torch
-from torch.distributions.distribution import Distribution
 
 torch.set_default_dtype(torch.float64)
 
@@ -162,12 +161,10 @@ def importance_sampling_distribution_uniform_region(
     """
     uniform_dist = torch.distributions.Uniform(region[0], region[1])
 
-    def _create_samples_and_weights(
-        dist: Distribution, num_samples_to_create: int
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _create_samples_and_weights(num_samples_to_create: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Create samples and weights from a uniform distribution over a defined region."""
         # Generate samples from the uniform distribution over the region
-        samples = dist.sample(torch.Size([num_samples_to_create]))
+        samples = uniform_dist.sample(torch.Size([num_samples_to_create]))
 
         # Calculate the probability density of the samples
         pdf = env_distribution_pdf(samples)
@@ -200,7 +197,7 @@ def importance_sampling_distribution_uniform_region(
         # be inconsistent due to the definition of h_x. Hence, we need to create too many samples and then take only
         # the needed amount of samples. This is computationally inefficient but as _create_samples_and_weights runs fast
         # this is acceptable.
-        s, w = _create_samples_and_weights(uniform_dist, num_samples_total)
+        s, w = _create_samples_and_weights(num_samples_total)
         num_missing_samples = min(num_samples_total - len(samples), len(s))
         samples = torch.cat((samples, s[:num_missing_samples]))
         weights = torch.cat((weights, w[:num_missing_samples]))
