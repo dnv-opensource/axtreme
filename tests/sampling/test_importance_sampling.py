@@ -18,7 +18,6 @@ import torch
 from axtreme.sampling.importance_sampling import (
     importance_sampling_distribution_uniform_region,
     importance_sampling_from_distribution,
-    temp,
 )
 
 
@@ -43,8 +42,11 @@ def test_importance_sampling_from_distribution():
         num_samples=3,
     )
 
-    assert torch.equal(samples, torch.tensor([1.0, 2.0, 3.0]))
-    assert torch.equal(weights, torch.tensor([2.0 / 3.0, 3.0 / 4.0, 4.0 / 5.0]))
+    expected_samples = torch.tensor([1.0, 2.0, 3.0])
+    expected_weights = torch.tensor([2.0 / 3.0, 3.0 / 4.0, 4.0 / 5.0])
+
+    assert torch.equal(samples, expected_samples)
+    assert torch.equal(weights, expected_weights)
 
 
 def test_importance_sampling_distribution_uniform_region():
@@ -55,7 +57,7 @@ def test_importance_sampling_distribution_uniform_region():
 
     region = (torch.tensor([0.0]), torch.tensor([4.0]))
 
-    threshold = 2.0
+    threshold = 2
     num_samples_total = 6
     fixed_samples = torch.tensor([0.5, 1.0, 1.5, 2.0, 2.5, 3.0])
 
@@ -63,12 +65,6 @@ def test_importance_sampling_distribution_uniform_region():
     # returns the predefined fixed_samples during the with block. This is necessary as no seeding is implemented for
     # the function importance_sampling_distribution_uniform_region.
     with patch.object(torch.distributions.Uniform, "sample", return_value=fixed_samples):
-        s, w = temp(
-            env_distribution_pdf=_env_distribution_pdf,
-            region=region,
-            threshold=threshold,
-            num_samples_total=num_samples_total,
-        )
         samples, weights = importance_sampling_distribution_uniform_region(
             env_distribution_pdf=_env_distribution_pdf,
             region=region,
@@ -76,6 +72,8 @@ def test_importance_sampling_distribution_uniform_region():
             num_samples_total=num_samples_total,
         )
 
-    assert samples.shape == torch.Size([6])
-    assert torch.equal(samples, torch.Tensor([2.5, 3.0, 2.5, 3.0, 2.5, 3.0]))
-    assert torch.equal(weights, torch.Tensor([2.5 * 4, 3.0 * 4, 2.5 * 4, 3.0 * 4, 2.5 * 4, 3.0 * 4]))
+    expected_samples = torch.Tensor([2.5, 3.0, 2.5, 3.0, 2.5, 3.0])
+    expected_weights = (4 / 3) * expected_samples
+
+    assert torch.equal(samples, expected_samples)
+    torch.testing.assert_close(weights, expected_weights)

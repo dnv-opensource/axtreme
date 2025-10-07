@@ -468,7 +468,7 @@ plt.show()
 # A note on DataLoaders:
 # We make use of Dataloader to manage providing data to the QoI. Env samples are only used in the QoI, so your env data
 # can be in whatever format is supported by the QoI.
-n_env_samples = 1_000
+n_env_samples = 4_000
 dataset = MinimalDataset(env_data)
 sampler = FixedRandomSampler(dataset, num_samples=n_env_samples, seed=10, replacement=True)
 dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
@@ -891,7 +891,9 @@ final_surface_look_ahead.show()
 # the search space and how they relate to the density of the environment data and extreme responses.
 
 
-def plot_2dtrials(exp: Experiment, ax: Axes | None = None, colour: str = "blue", label: str | None = None) -> Axes:
+def plot_2dtrials(
+    exp: Experiment, ax: Axes | None = None, colour: str = "blue", marker: str = "o", label: str | None = None
+) -> Axes:
     """Plot the points and number the datapoints added over DOE."""
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 6))
@@ -906,7 +908,7 @@ def plot_2dtrials(exp: Experiment, ax: Axes | None = None, colour: str = "blue",
             trial_indices.append(trial_idx)
 
     points = np.array(trials)
-    _ = ax.scatter(points[:, 0], points[:, 1], alpha=0.8, s=30, label=label, c=colour)
+    _ = ax.scatter(points[:, 0], points[:, 1], alpha=0.8, s=50, label=label, c=colour, marker=marker)
 
     for i, (x, y) in enumerate(points):
         _ = ax.annotate(
@@ -918,24 +920,24 @@ def plot_2dtrials(exp: Experiment, ax: Axes | None = None, colour: str = "blue",
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
-# label all the plots
+axes[0].set_title("Points vs Env Density")
+axes[0].hist2d(env_data[:, 0], env_data[:, 1], bins=20, alpha=0.6, cmap="Greys", zorder=-1)
+
+axes[1].set_title("Points vs Extreme Response Density")
+axes[1].hist2d(precalced_erd_x[:, 0], precalced_erd_x[:, 1], bins=40, alpha=0.6, cmap="Purples", zorder=-1)
+
+axes[2].set_title("Points vs Env and Extreme response density")
+axes[2].hist2d(env_data[:, 0], env_data[:, 1], bins=20, alpha=0.6, cmap="Greys", zorder=-1)
+axes[2].hist2d(precalced_erd_x[:, 0], precalced_erd_x[:, 1], bins=40, alpha=0.5, cmap="Purples", zorder=-1)
+
 for ax in axes:
     ax.set_xlabel("x1")
     ax.set_ylabel("x2")
     _ = plot_2dtrials(exp_sobol, colour="blue", ax=ax, label="Sobol")
-    _ = plot_2dtrials(exp_look_ahead, colour="forestgreen", ax=ax, label="LookAhead")
+    _ = plot_2dtrials(exp_look_ahead, colour="red", ax=ax, label="LookAhead", marker="^")
     ax.legend()
+    ax.grid(visible=True)
 
-# Add plot specific info
-axes[0].set_title("Points vs Env Density")
-axes[0].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds", zorder=-1)
-
-axes[1].set_title("Points vs Extreme Response Density")
-axes[1].hist2d(precalced_erd_x[:, 0], precalced_erd_x[:, 1], bins=30, alpha=0.6, cmap="Purples", zorder=-1)
-
-axes[2].set_title("Points vs Env and Extreme response density")
-axes[2].hist2d(env_data[:, 0], env_data[:, 1], bins=30, alpha=0.6, cmap="Reds", zorder=-1)
-axes[2].hist2d(precalced_erd_x[:, 0], precalced_erd_x[:, 1], bins=30, alpha=0.5, cmap="Purples", zorder=-1)
 
 plt.tight_layout()
 plt.show()
