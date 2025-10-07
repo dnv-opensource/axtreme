@@ -144,8 +144,8 @@ def plot_qoi_as_normal(
         var_col: the name of the column containing the variance of the QoI estimate (should be of type float).
         brute_force: Represents the true value (e.g mean). Plots a vertical line if provided.
     """
-    mean = df.loc[:, mean_col].to_numpy()[:n_plots]
-    var = df.loc[:, var_col].to_numpy()[:n_plots]
+    mean = df.loc[:, mean_col].to_numpy(dtype=float)[:n_plots]
+    var = df.loc[:, var_col].to_numpy(dtype=float)[:n_plots]
 
     lower_bound = (mean - 4 * var**0.5).min()
     upper_bound = (mean + 4 * var**0.5).max()
