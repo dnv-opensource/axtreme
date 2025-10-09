@@ -6,20 +6,27 @@
 axtreme Documentation
 =====================
 
-.. toctree::
-   :maxdepth: 4
-   :caption: Contents:
+.. include:: introduction.md
+   :parser: myst_parser.sphinx_
 
-   introduction
+------------
+
+Content
+------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
    getting_started
    basic_concepts/basic_concepts
    usecase_offshorewind
    developer_content
    LICENSE
 
+------------
 
 Indices and tables
-==================
+------------------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
