@@ -1,4 +1,3 @@
-# Introduction
 ## What is axtreme (Ax for Extremes)
 `axtreme` is a toolkit for estimating the long term behaviour (extremes) of expensive, stochastic, black box functions. It does this by creating uncertainty aware surrogate models of the black box function, propagating this uncertainty through to the behaviour being estimated (e.g produce estimates with confidence bounds), and using Active Learning (also know as Design of Experiments (DOE)) to iteratively improve the surrogate model and associated estimates.
 
