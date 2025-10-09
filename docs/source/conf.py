@@ -63,7 +63,7 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 # Suppress warnings about missing top-level headers in markdown files
-# As introduction is referenced in index.rst it has not op level header
+# As introduction is referenced in index.rst it has no top level header
 # With the current setup of the build docs workflow the building fails
 # if there are warnings.
 suppress_warnings = ["myst.header"]
