@@ -3,7 +3,7 @@ name: Build and publish documentation
 on: workflow_call
 
 env:
-  DEFAULT_BRANCH: 'release'
+  DEFAULT_BRANCH: 'main'
   SPHINXOPTS: '-W --keep-going -T'
   # ^-- If these SPHINXOPTS are enabled, then be strict about the builds and fail on any warnings
 
@@ -70,10 +70,10 @@ jobs:
               fi
           done
 
-      # Copy documentation to _gh-pages/  (if push happened on release branch)
+      # Copy documentation to _gh-pages/  (if push happened on main branch)
       - name: Copy documentation to _gh-pages/
         if: |
-          contains(github.ref, env.DEFAULT_BRANCH)
+          github.ref == 'refs/heads/main'
         run: |
           set -x
           # Delete everything under _gh-pages/ that is from the
@@ -87,7 +87,7 @@ jobs:
       # ('/' gets replaced by '--')
       - name: Copy documentation to _gh-pages/branch/${{github.ref}}
         if: |
-          !contains(github.ref, env.DEFAULT_BRANCH)
+          !github.ref == 'refs/heads/main'
         run: |
           set -x
           #brname=$(git rev-parse --abbrev-ref HEAD)
