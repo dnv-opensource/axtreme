@@ -62,6 +62,11 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# Suppress warnings about missing top-level headers in markdown files
+# As introduction is referenced in index.rst it has not op level header
+# With the current setup of the build docs workflow the building fails
+# if there are warnings.
+suppress_warnings = ["myst.header"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
