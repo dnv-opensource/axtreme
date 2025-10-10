@@ -1,4 +1,5 @@
-"""This module provides methods for importance sampling.
+# %%
+"""This module provides methods to create importance samples and weights if the env data distribution is known.
 
 Importance sampling focuses computational effort on regions of interest. This is especially useful when only a small
 part of the environment data contributes meaningfully to the quantity of interest (QoI).
@@ -6,18 +7,17 @@ part of the environment data contributes meaningfully to the quantity of interes
 In this file the following is included:
 - Create importance sample and weights for a given importance distribution.
 - Create importance sample and weights for a uniform region.
-
-TODO(sw 25-05-26): This should be moved to src/axtreme/sampling once sufficiently tested.
 """
 
 from collections.abc import Callable
 
 import torch
+from torch.distributions.distribution import Distribution
 
 torch.set_default_dtype(torch.float64)
 
 
-# TODO(sw25-05-26): make he docstring here a bit clearer. Bit more explanation about the input functions.
+# TODO(sw25-05-26): make the docstring here a bit clearer. Bit more explanation about the input functions.
 # Maybe change the order
 def importance_sampling_from_distribution(
     env_distribution_pdf: Callable[[torch.Tensor], torch.Tensor],
@@ -59,8 +59,6 @@ def importance_sampling_from_distribution(
 
 
 # TODO(sw25-05-26): make the docstring here a bit clearer
-# num_samples_total; this should probably define the number of samples to return, and then continue generating them
-# we get enough. (This will also need to track some summary statistics)
 def importance_sampling_distribution_uniform_region(
     env_distribution_pdf: Callable[[torch.Tensor], torch.Tensor],
     region: torch.Tensor | tuple[torch.Tensor, torch.Tensor],
@@ -78,8 +76,8 @@ def importance_sampling_distribution_uniform_region(
 
     Args:
         env_distribution_pdf: The pdf function of the real environment distribution.
-            It should be callable with a tensor of shape (num_samples, d) and return a tensor of shape (num_samples,)
-            Where d is the size of the input space.
+            It should be callable with a tensor of shape (num_samples_total, d) and return a tensor of shape
+            (num_samples_total,). Where d is the size of the input space.
         region: The bounds of the region to generate samples from. Can be a tuple of two tensors or a single tensor.
 
         if a single tensor:
@@ -93,14 +91,13 @@ def importance_sampling_distribution_uniform_region(
 
         threshold: Environment regions with pdf values less than this threshold will not be explored by the importance
             samples. See `Details` for more information on how this threshold is used.
-        # TODO(ak-06-10): see comment above by Sebastian: num_samples_total should equal number of returned samples
-        num_samples_total: Total number of samples to draw uniformly before filtering. The actual number of
-                           returned samples may be smaller depending on how many pass the threshold filter.
+
+        num_samples_total: Total number of samples to return.
 
     Returns:
         A tuple (Tensor, Tensor) containing:
-            The filtered samples drawn from the uniform distribution. Shape (n_samples,d)
-            Importance sampling weights for each sample. Shape (n_samples,)
+            The filtered samples drawn from the uniform distribution. Shape (num_samples_total,d)
+            Importance sampling weights for each sample. Shape (num_samples_total,)
 
     Details:
         The mathematical justification for this algorithm is given in
@@ -118,10 +115,11 @@ def importance_sampling_distribution_uniform_region(
         2. Generate `num_samples_total` uniform samples from the region. The region must cover all of F.
 
            2.1 Discard any points not in F. `num_samples` is the number of points that are left after discarding.
+           2.2. If `num_samples` is less than `num_samples_total`, repeat step 2 until enough samples are generated.
 
         3. The PDF of the sampled points `h_x(x)` is a uniform distribution over the region F.
 
-           3.1 `h_x(x)` is estimated with `1/volume(region) * num_samples_total/num_samples`.
+           3.1 `h_x(x)` is estimated with `1/volume(region)`.
 
         4. The importance sampling weights are then calculated as w(x) = p(x)/h_x(x)
 
@@ -156,35 +154,50 @@ def importance_sampling_distribution_uniform_region(
                 - The point would add 0 to the non-importance weighted sum.
             - It will produce an approximate result if r(x_i) != 0.
                 - This is a reasonable approximation if p(x_i) is considered to be close enough to 0.
-
-    Todo: TODO
-    - (ak 2025-07-09): add seeded option for testing purposes
-
     """
     uniform_dist = torch.distributions.Uniform(region[0], region[1])
 
-    # Generate samples from the uniform distribution over the region
-    samples = uniform_dist.sample(torch.Size([num_samples_total]))
+    def _create_samples_and_weights(
+        dist: Distribution, num_samples_to_create: int
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Create samples and weights from a uniform distribution over a defined region."""
+        # Generate samples from the uniform distribution over the region
+        samples = dist.sample(torch.Size([num_samples_to_create]))
 
-    # Calculate the probability density of the samples
-    pdf = env_distribution_pdf(samples)
+        # Calculate the probability density of the samples
+        pdf = env_distribution_pdf(samples)
 
-    # Find the samples that are above the threshold
-    mask = pdf > threshold
-    samples = samples[mask]
+        # Find the samples that are above the threshold
+        mask = pdf > threshold
+        samples = samples[mask]
 
-    # Calculate the volume of the hyper rectangle that contains the samples
-    volume = torch.prod(region[1] - region[0])
+        # Calculate the volume of the hyper rectangle that contains the samples
+        volume = torch.prod(region[1] - region[0])
 
-    # The number of samples that are above the threshold
-    num_samples = samples.shape[0]
+        # The number of samples that are above the threshold
+        num_samples = samples.shape[0]
 
-    # Calculate the importance sampling distribution
-    # The importance sampling distribution is estimated to be
-    # h_x(x) = num_samples_total/(volume(region) * num_samples)
-    h_x = num_samples_total / (volume * num_samples)
+        # Calculate the importance sampling distribution
+        # The importance sampling distribution is estimated to be
+        # h_x(x) = num_samples_total/(volume(region) * num_samples)
+        h_x = num_samples_to_create / (volume * num_samples)
 
-    # Calculate the importance sampling weights
-    weights = pdf[mask] / h_x
+        # Calculate the importance sampling weights
+        weights = pdf[mask] / h_x
+
+        return samples, weights
+
+    # Keep creating importance samples and weights until there are num_samples_total of them
+    samples = torch.empty((0,))
+    weights = torch.empty((0,))
+    while len(samples) < num_samples_total:
+        # If we were to create num_samples_total-len(samples) samples starting in the second iteration the weights would
+        # be inconsistent due to the definition of h_x. Hence, we need to create too many samples and then take only
+        # the needed amount of samples. This is computationally inefficient but as _create_samples_and_weights runs fast
+        # this is acceptable.
+        s, w = _create_samples_and_weights(uniform_dist, num_samples_total)
+        num_missing_samples = min(num_samples_total - len(samples), len(s))
+        samples = torch.cat((samples, s[:num_missing_samples]))
+        weights = torch.cat((weights, w[:num_missing_samples]))
 
     return samples, weights
