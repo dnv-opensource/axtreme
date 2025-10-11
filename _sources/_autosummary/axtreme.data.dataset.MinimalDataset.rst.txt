@@ -1,0 +1,24 @@
+MinimalDataset
+==============
+
+.. currentmodule:: axtreme.data.dataset
+
+.. autoclass:: MinimalDataset
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~MinimalDataset.__init__
+   
+   
+
+
+   
+   
+   

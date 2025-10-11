@@ -1,0 +1,23 @@
+axtreme.qoi.marginal\_cdf\_extrapolation
+========================================
+
+.. automodule:: axtreme.qoi.marginal_cdf_extrapolation
+   :members:
+   :exclude-members: MarginalCDFExtrapolation,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      acceptable_timestep_error
+      q_to_qtimestep
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      MarginalCDFExtrapolation
+   

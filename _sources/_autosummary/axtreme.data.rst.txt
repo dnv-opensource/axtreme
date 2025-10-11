@@ -1,0 +1,21 @@
+﻿axtreme.data
+============
+
+.. automodule:: axtreme.data
+   :members:
+
+
+   
+.. rubric:: Modules
+.. autosummary::
+   :toctree:
+   :template: custom-module.rst
+   :recursive:
+
+   batch_invariant_sampler
+   dataset
+   fixed_random_sample
+   importance_dataset
+   multi_dim_batch_sampler
+   numpy_file_dataset
+   sizable_sequential_sample
