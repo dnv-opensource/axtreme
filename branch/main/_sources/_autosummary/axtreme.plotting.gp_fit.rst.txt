@@ -1,0 +1,17 @@
+axtreme.plotting.gp\_fit
+========================
+
+.. automodule:: axtreme.plotting.gp_fit
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      plot_1d_model
+      plot_gp_fits_2d_surface
+      plot_gp_fits_2d_surface_from_experiment
+      plot_surface_over_2d_search_space
+      scatter_plot_training
+   
