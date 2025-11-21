@@ -23,7 +23,7 @@ from axtreme.simulator import utils as sim_utils
 if __name__ == "__main__":
     import simulator  # type: ignore[import-not-found]
 else:
-    from . import simulator
+    from examples.basic_project_example import simulator
 
 # %%
 ### Pick the search space over which to create a surrogate
