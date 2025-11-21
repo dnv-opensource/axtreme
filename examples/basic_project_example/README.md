@@ -1,4 +1,4 @@
-# Example for how to set up a project for axtreme
+# Example for How to Set Up a Project for Axtreme
 
 This example demonstrates how to use the `axtreme` module. The simulator used here is intentionally simplified — the goal is to showcase the **workflow and capabilities of `axtreme`**.
 
@@ -24,3 +24,8 @@ More are given in [problem.py](problem.py).
 | | `importance_sampling.py`| Helper functions for computing the importance samples and weights.|
 | **QoI Analysis**       | `qoi_bias_var.py`             | Provides tools to analyze bias and variance of different the QoI estimator for different hyperparameters. Used to select hyperparameters for the final QoI estimator in `problem.py`. |
 | **Design of Experiments (DOE)** | `doe.py`            | Perform DoE, i.e. the process of adding optimal new env. data points to the surrogate model. |
+
+## Additional Information
+- For a detailed description of the different axtreme components check out tutorials/basic_example.py.
+
+<!-- (TODO: (ak 21.11.25): Add reference to minimal example once it is added) -->
