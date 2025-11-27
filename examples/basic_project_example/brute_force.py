@@ -2,10 +2,10 @@
 
 This helper file creates samples of the ERD for a given period length (by running this file). It saves those results so
 they can be immediately retrieved when users want to explore this use case. It also provides the helper
-`collect_or_calculate_results` which will collect preexisting results if they exist, and will otherwise calculate,
+`collect_or_calculate_results` which will collect pre-existing results if they exist, and will otherwise calculate,
 save and return results.
 
-Brute force values are available for this usecase because we create a mock simulator. For real world problems this is
+Brute force values are available for this use case because we create a mock simulator. For real world problems this is
 typically not possible.
 """
 
@@ -23,17 +23,13 @@ import torch
 import tqdm
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
+from simulator import _true_loc_func, _true_scale_func
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
 torch.set_default_dtype(torch.float64)
 
-# This allows us to run as interactive and as a module.
-if __name__ == "__main__":
-    from simulator import _true_loc_func, _true_scale_func  # type: ignore[import-not-found]
-else:
-    from .simulator import _true_loc_func, _true_scale_func
-# for typing
 _: Any
+
 
 # %%
 _results_dir: Path = Path(__file__).parent / "results" / "brute_force"
@@ -108,7 +104,7 @@ def collect_or_calculate_results(period_length: int, num_estimates: int = 2_000)
 
 
 def brute_force(period_length: int, num_estimates: int = 2_000) -> tuple[torch.Tensor, torch.Tensor]:
-    """Produces brute force samples of the Extreme Response Distibtuion.
+    """Produces brute force samples of the Extreme Response Distribution.
 
     Args:
         period_length: The number of samples the create a single period of the ERD
@@ -175,28 +171,23 @@ def _brute_force_calc(
     return maxs, maxs_location
 
 
-# %%
-# If want to run locally to start and save results.
+# %% If you want to run locally to start and save results.
 if __name__ == "__main__":
-    N_YEARS_IN_PERIOD = 20
-    N_SECONDS_IN_YEAR = 60 * 60 * 24 * 365
-    N_SECONDS_IN_TIME_STEP = 60 * 10  # 10 minutes
-
-    N_ENV_SAMPLES_PER_PERIOD = N_YEARS_IN_PERIOD * N_SECONDS_IN_YEAR // N_SECONDS_IN_TIME_STEP
-    N_ENV_SAMPLES_PER_PERIOD = 1000
-
-    samples, x_max = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+    # To prevent circular imports we redefine the period length here.
+    # This should match the value defined in problem.py
+    PERIOD_LENGTH = 10000
+    # %% Plot the brute force results distribution for the given period length
+    samples, x_max = collect_or_calculate_results(PERIOD_LENGTH, 100_000)
 
     _ = plt.hist(samples, bins=100, density=True)
     _ = plt.title(
-        f"Extreme response distribution\n"
-        f"(each result represents the largest value seen {N_ENV_SAMPLES_PER_PERIOD} length period)"
+        f"Extreme response distribution\n(each result represents the largest value seen {PERIOD_LENGTH} length period)"
     )
     _ = plt.xlabel("Response size")
     _ = plt.ylabel("Density")
     plt.grid(True)  # noqa: FBT003
     plt.savefig(
-        f"results/brute_force/erd_n_sample_per_period_{N_ENV_SAMPLES_PER_PERIOD}.png",
+        f"results/brute_force/erd_n_sample_per_period_{PERIOD_LENGTH}.png",
     )
     plt.show()
 
@@ -204,16 +195,12 @@ if __name__ == "__main__":
     plt.show()
 
     # %%
-    """Here we explore the noise in the brute force result as more samples are collected.
+    # Here we explore the noise in the brute force result as more samples are collected. We use different sample sizes
+    # to get a sense of how the noise in the estimate changes.
 
-    We use different samples sized to get a sense of how the noise in the estimate changes.
-
-    TODO(sw 2024-11-19): Will need to find a more scaleable approach when N_ENV_SAMPLES_PER_PERIOD increases.
-    `axtreme.utils.population_estimate` could be a good starting point.
-    """
     results = []
-    brute_force_samples = [1_000, 2_000, 4_000, 8_000, 16_000]
-    for n_samples in brute_force_samples:
+    brute_force_num_samples = [1_000, 2_000, 4_000, 8_000, 16_000]
+    for n_samples in brute_force_num_samples:
         medians_from_samples_size = []
         # How many times to calc the median
         for _ in range(200):
@@ -223,9 +210,10 @@ if __name__ == "__main__":
             medians_from_samples_size.append(sampled_tensor.median())
 
         results.append(torch.tensor(medians_from_samples_size))
-    # %%   plot all the results:
-    _, axes = plt.subplots(len(brute_force_samples), 1, figsize=(6, len(brute_force_samples * 4)), sharex=True)
-    for medians, sample_size, ax in zip(results, brute_force_samples, axes, strict=True):
+    # %%
+    # Plot the results
+    _, axes = plt.subplots(len(brute_force_num_samples), 1, figsize=(6, len(brute_force_num_samples * 4)), sharex=True)
+    for medians, sample_size, ax in zip(results, brute_force_num_samples, axes, strict=True):
         ax.hist(medians, density=True, bins=len(medians) // 15)
         ax.set_title(
             f"QOI calculated with {sample_size} erd samples\nmean (of medians)"

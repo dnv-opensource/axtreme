@@ -3,9 +3,9 @@
 # %%
 from typing import cast
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from botorch.test_functions import BraninCurrin
 from numpy.typing import NDArray
 from scipy.stats import gumbel_r
 from torch.distributions import Categorical, MixtureSameFamily, MultivariateNormal
@@ -13,8 +13,6 @@ from torch.distributions import Categorical, MixtureSameFamily, MultivariateNorm
 from axtreme.simulator.base import Simulator
 
 torch.set_default_dtype(torch.float64)
-
-_branin_currin = BraninCurrin(negate=False).to(dtype=torch.double)
 
 
 # %%
@@ -44,7 +42,7 @@ def _true_scale_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
 
 
 def dummy_simulator_function(x: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Generate a sample from a Gumbel distribution where the location and scale are function of X.
+    """Generate a sample from a Gumble distribution where the location and scale are function of X.
 
     Parameters:
         x: (n,2) array of points to simulate
@@ -65,7 +63,7 @@ class DummySimulatorSeeded(Simulator):
     """A seeded version of ``dummy_simulator_function`` conforming to the ``Simulator`` protocol.
 
     The each unique point in the x domain has a fixed seed used when generating samples. this can be
-    useful for reproducibility. Points still appear "semi" random, as points close together use completly different
+    useful for reproducibility. Points still appear "semi" random, as points close together use completely different
     seeds.
 
     Details:
@@ -85,7 +83,7 @@ class DummySimulatorSeeded(Simulator):
             An array of shape (n_points, n_simulations_per_point, n_output_dims) of the model evaluated at the input
             points.
         """
-        # for each unque x point create a unqiue seed
+        # for each unique x point create a unique seed
         seeds = [DummySimulatorSeeded._hash_function(*tuple(x_i)) for x_i in x]
         location = _true_loc_func(x)
         scale = _true_scale_func(x)
@@ -110,29 +108,27 @@ class DummySimulatorSeeded(Simulator):
 if __name__ == "__main__":
     # Quick and dirty tests:
     sim = DummySimulatorSeeded()
-    # %%
     x = np.array([[0.5000, 0.5], [0.3, 0.3]])
     # The same value will produce the same result
     assert (sim(x, n_simulations_per_point=5) == sim(x, n_simulations_per_point=5)).all()
 
-    # %5
+    # %%
     # Very similar values produce different results
     # we allow a wide margin of error because results should be completely different due to sampling
-    x1 = np.array([[0.5 + 1e-5, 0.5], [0.3, 0.3]])
-    assert not np.allclose(sim(x1, n_simulations_per_point=5), sim(x, n_simulations_per_point=5), atol=2)
+    x1 = np.array([[0.5 + 1e-5, 0.5], [0.3 + 1e-5, 0.3]])
+    assert (sim(x1, n_simulations_per_point=5) != sim(x, n_simulations_per_point=5)).all()
 
     # %%
-    # Plut the surface over a small area. If sample is not random the values should change slowly.
-    x1 = np.linspace(0.5, 0.5 + 1e-8, 10)  # 100 points between -5 and 5
-    x2 = np.linspace(0.5, 0.5 + 1e-8, 10)
+    # Plot the surface over a small area. If sample is not random the values should change slowly.
+    x1 = np.linspace(0.5, 0.5 + 1e-8, 100)  # 100 points between -5 and 5
+    x2 = np.linspace(0.5, 0.5 + 1e-8, 100)
     # Create a grid of (x, y) points
     x1_mesh, x2_mesh = np.meshgrid(x1, x2)
     x = np.column_stack([x1_mesh.flatten(), x2_mesh.flatten()])
 
-    # %%
-    import matplotlib.pyplot as plt
-
     samples = sim(x).flatten()
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
-    _ = ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)), cmap="viridis")
+    _ = ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)))
+
+# %%

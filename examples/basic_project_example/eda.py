@@ -1,28 +1,23 @@
-"""Visualise the data and simulator that define this problem."""
+"""Visualise the environment data and simulator that define this problem."""
 
 # %%
-
 from pathlib import Path
 
 import numpy as np
-from ax import (
-    SearchSpace,
-)
+from ax import SearchSpace
 from ax.core import ParameterType, RangeParameter
 from numpy.typing import NDArray
 from plotly.subplots import make_subplots
 from scipy.stats import gumbel_r
+from simulator import _true_loc_func, _true_scale_func
 
 from axtreme.plotting.gp_fit import plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
-
-from .simulator import _true_loc_func, _true_scale_func
 
 # %%
 ### Visualise the Environment data
 _problem_dir = Path(__file__).parent
 data: NDArray[np.float64] = np.load(_problem_dir / "data/environment_distribution.npy")
-
 
 fig = histogram_surface3d(data)
 _ = fig.update_layout(title_text="Environment distribution estimate from samples")
@@ -31,10 +26,9 @@ _ = fig.update_layout(scene_aspectmode="cube")
 fig.show()
 
 # %%
-### Visulaise the true underlying function and the simulator
+### Visualise the true underlying function and the simulator
 # NOTE: this is only possible because we are working with a toy example.
 
-# plot it
 fig = make_subplots(
     rows=1,
     cols=3,
@@ -55,9 +49,9 @@ _ = fig.add_trace(plot_surface_over_2d_search_space(plot_search_space, funcs=[_t
 
 
 def gumbel_helper(x: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Helper to plot a speicif portion of the response surface.
+    """Helper to plot a specify portion of the response surface.
 
-    This is possible becuase we know the internal of the simple simulator.
+    This is possible because we know the internal of the simple simulator.
     """
     return gumbel_r.ppf(q=0.75, loc=_true_loc_func(x), scale=_true_scale_func(x))
 

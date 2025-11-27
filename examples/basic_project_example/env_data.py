@@ -42,7 +42,6 @@ def generate_and_save_data(n_samples: int = 1_000_000, seed: int = 42) -> None:
                 else:
                     break
         env_data = np.array(valid_samples[:n_samples])
-
     # Save to file
     current_dir = Path(__file__).parent
     data_dir = current_dir / "data"
