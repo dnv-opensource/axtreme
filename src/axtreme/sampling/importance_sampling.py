@@ -12,7 +12,6 @@ In this file the following is included:
 from collections.abc import Callable
 
 import torch
-from torch.distributions.distribution import Distribution
 
 torch.set_default_dtype(torch.float64)
 
@@ -119,7 +118,9 @@ def importance_sampling_distribution_uniform_region(
 
         3. The PDF of the sampled points `h_x(x)` is a uniform distribution over the region F.
 
-           3.1 `h_x(x)` is estimated with `1/volume(region)`.
+           3.1 `h_x(x)` is estimated as `total_proposals / (volume(region) * total_accepted)`, where
+               `total_proposals` is the total number of uniform samples generated and `total_accepted` is
+               the total number of samples that passed the threshold.
 
         4. The importance sampling weights are then calculated as w(x) = p(x)/h_x(x)
 
@@ -157,47 +158,50 @@ def importance_sampling_distribution_uniform_region(
     """
     uniform_dist = torch.distributions.Uniform(region[0], region[1])
 
-    def _create_samples_and_weights(
-        dist: Distribution, num_samples_to_create: int
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Create samples and weights from a uniform distribution over a defined region."""
-        # Generate samples from the uniform distribution over the region
-        samples = dist.sample(torch.Size([num_samples_to_create]))
+    accepted_samples = []
+    accepted_pdfs = []
 
-        # Calculate the probability density of the samples
-        pdf = env_distribution_pdf(samples)
+    total_accepted = 0  # All accepted samples (for h_x estimation)
+    total_proposals = 0  # All uniform draws
+    samples_collected = 0  # Samples stored for output
 
-        # Find the samples that are above the threshold
-        mask = pdf > threshold
-        samples = samples[mask]
+    while samples_collected < num_samples_total:
+        # Draw a batch of proposals
+        proposals = uniform_dist.sample(torch.Size([num_samples_total]))
+        total_proposals += num_samples_total
 
-        # Calculate the volume of the hyper rectangle that contains the samples
-        volume = torch.prod(region[1] - region[0])
+        # Evaluate PDF and apply threshold
+        pdf_values = env_distribution_pdf(proposals)
+        acceptance_mask = pdf_values > threshold
 
-        # The number of samples that are above the threshold
-        num_samples = samples.shape[0]
+        if not acceptance_mask.any():
+            continue
 
-        # Calculate the importance sampling distribution
-        # The importance sampling distribution is estimated to be
-        # h_x(x) = num_samples_total/(volume(region) * num_samples)
-        h_x = num_samples_to_create / (volume * num_samples)
+        batch_accepted = proposals[acceptance_mask]
+        batch_pdfs = pdf_values[acceptance_mask]
 
-        # Calculate the importance sampling weights
-        weights = pdf[mask] / h_x
+        # Track ALL accepted samples for h(x)
+        num_accepted_this_batch = batch_accepted.shape[0]
+        total_accepted += num_accepted_this_batch
 
-        return samples, weights
+        # Store only what we still need
+        remaining_needed = num_samples_total - samples_collected
+        num_to_store = min(remaining_needed, num_accepted_this_batch)
 
-    # Keep creating importance samples and weights until there are num_samples_total of them
-    samples = torch.empty((0,))
-    weights = torch.empty((0,))
-    while len(samples) < num_samples_total:
-        # If we were to create num_samples_total-len(samples) samples starting in the second iteration the weights would
-        # be inconsistent due to the definition of h_x. Hence, we need to create too many samples and then take only
-        # the needed amount of samples. This is computationally inefficient but as _create_samples_and_weights runs fast
-        # this is acceptable.
-        s, w = _create_samples_and_weights(uniform_dist, num_samples_total)
-        num_missing_samples = min(num_samples_total - len(samples), len(s))
-        samples = torch.cat((samples, s[:num_missing_samples]))
-        weights = torch.cat((weights, w[:num_missing_samples]))
+        accepted_samples.append(batch_accepted[:num_to_store])
+        accepted_pdfs.append(batch_pdfs[:num_to_store])
+
+        samples_collected += num_to_store
+
+    # Concatenate all collected samples
+    samples = torch.cat(accepted_samples, dim=0)
+    pdf_values = torch.cat(accepted_pdfs, dim=0)
+
+    # Calculate proposal distribution density using total accepted
+    volume = torch.prod(region[1] - region[0])
+    h_x = total_proposals / (volume * total_accepted)
+
+    # Compute importance weights
+    weights = pdf_values / h_x
 
     return samples, weights
