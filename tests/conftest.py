@@ -10,7 +10,6 @@ import gpytorch
 import matplotlib.pyplot as plt
 import pytest
 import torch
-import torch.cuda
 from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
 
