@@ -71,7 +71,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = [
+nocuda = [
     "torch==2.4.1",
 ]
 cuda = [
@@ -114,20 +114,20 @@ default-groups = ["dev"]
 native-tls = true
 conflicts = [
     [
-        { extra = "cpu" },
+        { extra = "nocuda" },
         { extra = "cuda" },
     ],
 ]
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-no-cuda", extra = "nocuda" },
     { index = "pytorch-cu124", extra = "cuda" },
 ]
 
 [[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
+name = "pytorch-no-cuda"
+url = "https://download.pytorch.org/whl/torch"
 explicit = true
 
 [[tool.uv.index]]
