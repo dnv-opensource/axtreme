@@ -1,16 +1,10 @@
 # %% [markdown]
 # ## Getting started with Axtreme
 #
-# In this notebook we walk through the core ideas behind **Axtreme** on a simple toy problem:
-#
-# - Step 1: Define the problem in terms of:
-#    - a **simulator** (the physics / system model), and
-#    - an **environment distribution** (how the inputs vary in the real world).
-# - Step:2 Use **brute force** to compute a reference answer for our **Quantity of Interest** (QoI).
-# - Step 3: Build a **surrogate model** of the simulator using **Ax + BoTorch**.
-# - Step 4: Use that surrogate to **estimate the QoI much more cheaply**.
-# - Step 5: Use **Design of Experiments (DoE)** to choose simulator points intelligently
-#   and reduce QoI uncertainty faster.
+# This notebook introduces the key concepts of **Axtreme** using a simple toy problem.
+# We demonstrate how to define a simulation problem, build a surrogate model, estimate
+# a Quantity of Interest (QoI), and use Design of Experiments (DoE) to efficiently
+# reduce uncertainty.
 #
 # The imports below set up:
 #
@@ -70,46 +64,13 @@ print("✓ Setup complete")
 # 3. **QoI Estimation**: Efficiently estimate the Quantity of Interest using the surrogate
 # 4. **Uncertainty Check**: Assess if the QoI uncertainty is acceptable
 # 5. **Design of Experiments**: Iteratively refine the surrogate by intelligently selecting new evaluation points
-#
-# ```mermaid
-# flowchart TD
-#     A[1. Define Problem] --> A1[Simulator Function]
-#     A[1. Define Problem] --> A2[Environment Distribution]
-#
-#     A1 --> B[2. Build Surrogate]
-#     A2 --> B
-#     B --> B1[Define Search Space]
-#     B1 --> B2[Generate Training Data]
-#     B2 --> B3[Evaluate Simulator]
-#     B3 --> B4[Fit GP Model]
-#
-#     B4 --> C[3. Estimate QoI]
-#     C --> C1[Setup Env Samples]
-#     C1 --> C2[Choose QoI Estimator]
-#     C2 --> C3[Compute QoI]
-#
-#     C3 --> D{4. Acceptable?}
-#     D -->|No| E[5. Design of Experiments]
-#     D -->|Yes| F[Final QoI Estimate]
-#
-#     E --> E1[Select Acquisition]
-#     E1 -->|Space-filling| E2[Sobol/Random]
-#     E1 -->|QoI-aware| E3[QoILookAhead]
-#
-#     E2 --> E4[Next Point]
-#     E3 --> E4
-#     E4 --> E5[Evaluate]
-#     E5 --> E6[Update Surrogate]
-#     E6 --> C3
-#
-#     style A fill:#e1f5ff
-#     style B fill:#e8f5e9
-#     style C fill:#f3e5f5
-#     style D fill:#fff4e1
-#     style E fill:#ffe0e0
-#     style F fill:#c8e6c9
-# ```
-#
+
+# %%
+from IPython.display import Image
+
+Image(filename="img/axtreme_workflow.png", width=800)
+
+# %% [markdown]
 # ### Tutorial Note:
 # This tutorial also computes a **brute-force reference** QoI using extensive simulation
 # runs. This is done purely for validation purposes to demonstrate that Axtreme converges
@@ -215,7 +176,11 @@ fig.show()
 #
 # ### 2.1 Extreme Response Distribution (ERD)
 #
-# We imagine observing the environment over **time periods** of length `N_ENV_SAMPLES_PER_PERIOD`.
+# A **period** represents a time window over which we want to find the extreme (maximum) response.
+# For example, in offshore engineering this might represent a return period of 25 years, containing
+# many individual sea states. The number of environment samples per period (`N_ENV_SAMPLES_PER_PERIOD`)
+# determines how many conditions we observe within that time window.
+#
 # For each period we:
 #
 # 1. Draw `N_ENV_SAMPLES_PER_PERIOD` inputs from the environment data
@@ -244,7 +209,7 @@ fig.show()
 # We compute:
 #
 # - A **brute-force estimate** of the ERD median using many simulator calls
-# - An associated **uncertainty** for this estimate using Axtreme's `population_estimators` helpers
+# - An associated **estimated uncertainty** using Axtreme's `population_estimators` helpers
 #
 # This brute-force QoI estimate will serve as:
 #
@@ -320,7 +285,10 @@ plt.show()
 # 2. **Noise distribution**: Specify the distribution family for the simulator noise
 #    (Gumbel)  # noqa: ERA001
 # 3. **Simulations per point**: How many simulator runs to perform at each training point
-#    to estimate the distribution parameters (`loc` and `scale`)
+#    to estimate the distribution parameters (`loc` and `scale`). Higher values lead to less
+#    uncertainty in the GP fit, but increase computation time. Axtreme is designed to work well
+#    with few simulations per point, but higher values can be useful for debugging and testing
+#    purposes.
 #
 # These configuration choices affect:
 #
@@ -361,11 +329,12 @@ print(f"✓ Simulations per point: {N_SIMULATIONS_PER_POINT}")
 #
 # **What the GP actually learns:**
 #
-# The `make_experiment()` function wraps the simulator with logic that:
+# The `make_experiment()` function is a helper that configures an Ax experiment with
+# the appropriate settings. When trials are later added and run, the experiment will:
 #
-# 1. Runs the simulator `N_SIMULATIONS_PER_POINT` times at each training point `x`
-# 2. Fits the Gumbel distribution to those samples to estimate `loc(x)` and `scale(x)`
-# 3. Provides these fitted parameters to the GP
+# 1. Run the simulator `N_SIMULATIONS_PER_POINT` times at each training point `x`
+# 2. Fit the Gumbel distribution to those samples to estimate `loc(x)` and `scale(x)`
+# 3. Provide these fitted parameters to the GP
 #
 # So the GP learns **two separate mappings**:
 # - `x → loc`: How the location parameter varies across the input space
@@ -412,7 +381,9 @@ print(f"✓ Total simulator calls: {len(exp.trials) * N_SIMULATIONS_PER_POINT}")
 # The GP posterior captures uncertainty about the true `loc` and `scale` parameters at
 # this location. The grey lines show the range of plausible response distributions
 # consistent with the training data. When the surrogate has high confidence, these lines
-# cluster tightly around the mean; when uncertain, they spread out.# %%
+# cluster tightly around the mean; when uncertain, they spread out.
+
+# %%
 # Predict at x = [0.5, 0.5]
 test_x = {"x1": 0.5, "x2": 0.5}
 pred_mean, pred_covariance = botorch_model_bridge.predict([ObservationFeatures(parameters=test_x)])
@@ -501,14 +472,8 @@ dataloader = DataLoader(dataset, sampler=sampler, batch_size=256)
 # %% [markdown]
 # ### 4.2 QoI estimator: MarginalCDFExtrapolation
 #
-# We use Axtreme's `MarginalCDFExtrapolation` as a ready-made QoI estimator that:
-#
-# 1. Draws batches of environment inputs from the loader
-# 2. Uses the surrogate model to obtain a distribution of responses at each input
-# 3. Forms many **periods** of length `N_ENV_SAMPLES_PER_PERIOD`
-# 4. Extracts the **maximum** response in each period
-# 5. Estimates the **median** of the resulting extreme response distribution
-# 6. Repeats under different draws from the GP posterior to capture model uncertainty
+# We use Axtreme's `MarginalCDFExtrapolation` as a ready-made QoI estimator that efficiently
+# computes the QoI from the surrogate model while propagating uncertainty from the GP posterior.
 #
 # The result is a **distribution over the QoI**, not just a single number.
 
@@ -742,7 +707,7 @@ def run_trials(
 #    - many DoE Sobol points.
 # 4. Record the number of iterations performed (possibly fewer if the stopping criterion triggers early).
 #
-# This gives us a curve describing how the QoI estimate improves when sampling is uniform and naïve.
+# This gives us a curve describing how the QoI estimate improves when sampling is uniform and naive.
 
 # %%
 # Baseline: Sobol-only DoE
@@ -779,7 +744,7 @@ n_sobol_iters = run_trials(
 # This acquisition function:
 #
 # - Uses the current GP surrogate.
-# - Anticipates how much one more simulator evaluation will reduce the QoI uncertainty.
+# - Anticipates how much adding a new training point to the surrogate will reduce the QoI uncertainty.
 # - Selects the input location where this reduction is expected to be largest.
 #
 # Conceptually, it prioritizes simulator points that are most influential in shaping
