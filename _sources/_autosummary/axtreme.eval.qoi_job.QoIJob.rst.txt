@@ -1,0 +1,33 @@
+QoIJob
+======
+
+.. currentmodule:: axtreme.eval.qoi_job
+
+.. autoclass:: QoIJob
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~QoIJob.__init__
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~QoIJob.name
+      ~QoIJob.model
+      ~QoIJob.qoi
+      ~QoIJob.tags
+      ~QoIJob.metadata
+   
+   
