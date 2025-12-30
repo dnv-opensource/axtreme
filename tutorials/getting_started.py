@@ -24,7 +24,9 @@ import scipy
 import torch
 from ax import Experiment, SearchSpace
 from ax.core import GeneratorRun, ObservationFeatures, ParameterType, RangeParameter
+from ax.core.trial import Trial
 from ax.modelbridge.registry import Models
+from matplotlib.axes import Axes
 from scipy.stats import gumbel_r
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
@@ -417,17 +419,17 @@ for i, sample in enumerate(posterior_samples):
     if i == 0:
         plt.plot(
             x_points,
-            sample_dist.pdf(x_points),
+            sample_dist.pdf(x_points),  # type: ignore[union-attr]
             "grey",
             linewidth=1,
             alpha=0.5,
             label="GP Surrogate posterior samples",
         )
     else:
-        plt.plot(x_points, sample_dist.pdf(x_points), "grey", linewidth=1, alpha=0.5)
+        plt.plot(x_points, sample_dist.pdf(x_points), "grey", linewidth=1, alpha=0.5)  # type: ignore[union-attr]
 
 # Plot mean prediction on top
-plt.plot(x_points, pred_dist_mean.pdf(x_points), "r-", linewidth=2, label="GP Surrogate (mean)")
+plt.plot(x_points, pred_dist_mean.pdf(x_points), "r-", linewidth=2, label="GP Surrogate (mean)")  # type: ignore[union-attr]
 
 plt.xlabel("Response value")
 plt.ylabel("Density")
@@ -550,12 +552,15 @@ fig, axes = plt.subplots(nrows=len(n_training_points), figsize=(10, 3 * len(n_tr
 
 for ax, estimate, n_points in zip(axes, results, n_training_points, strict=True):
     # Extract mean and variance from the estimate
-    mean = qoi_estimator.posterior_sampler.mean(torch.tensor(estimate), -1)
-    var = qoi_estimator.posterior_sampler.var(torch.tensor(estimate), -1)
-    qoi_dist = Normal(mean, var**0.5)
+    # Cast to UTSampler to access mean/var methods (not part of PosteriorSampler protocol)
+    ut_sampler = qoi_estimator.posterior_sampler
+    assert isinstance(ut_sampler, UTSampler)
+    qoi_mean = ut_sampler.mean(torch.tensor(estimate), -1)
+    qoi_var = ut_sampler.var(torch.tensor(estimate), -1)
+    qoi_dist = Normal(qoi_mean, qoi_var**0.5)
 
     # Plot QoI distribution
-    x_range = torch.linspace(float(mean - 3 * var**0.5), float(mean + 3 * var**0.5), 200)
+    x_range = torch.linspace(float(qoi_mean - 3 * qoi_var**0.5), float(qoi_mean + 3 * qoi_var**0.5), 200)
     ax.plot(x_range.numpy(), torch.exp(qoi_dist.log_prob(x_range)).numpy(), "b-", linewidth=2, label="QoI estimate")
     ax.fill_between(x_range.numpy(), 0, torch.exp(qoi_dist.log_prob(x_range)).numpy(), alpha=0.3)
 
@@ -776,6 +781,7 @@ def look_ahead_generator_run(experiment: Experiment) -> GeneratorRun:
     """Generate a new point by optimising the QoILookAhead acquisition."""
 
     # First: build a model bridge to recover the Ax→BoTorch transforms
+    assert experiment.optimization_config is not None
     model_bridge_for_transforms = Models.BOTORCH_MODULAR(
         experiment=experiment,
         data=experiment.fetch_data(metrics=list(experiment.optimization_config.metrics.values())),
@@ -924,8 +930,8 @@ plt.show()
 
 # %%
 def plot_2dtrials(
-    exp: Experiment, ax: plt.Axes | None = None, colour: str = "blue", marker: str = "o", label: str | None = None
-) -> plt.Axes:
+    exp: Experiment, ax: Axes | None = None, colour: str = "blue", marker: str = "o", label: str | None = None
+) -> Axes:
     """Plot the points and number the datapoints added over DoE."""
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 6))
@@ -934,7 +940,7 @@ def plot_2dtrials(
     trial_indices = []
 
     for trial_idx, trial in exp.trials.items():
-        if trial.arm:
+        if isinstance(trial, Trial) and trial.arm:
             params = trial.arm.parameters.values()
             trials.append(list(params))
             trial_indices.append(trial_idx)
