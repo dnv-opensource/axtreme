@@ -1,0 +1,13 @@
+axtreme.utils.logging
+=====================
+
+.. automodule:: axtreme.utils.logging
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      configure_logging
+   
