@@ -76,6 +76,7 @@ cuda = [
 ]
 examples = [
     "openturns>=1.26"
+    "numba==0.61.2"
 ]
 
 [project.urls]
