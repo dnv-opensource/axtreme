@@ -1,0 +1,31 @@
+MarginalCDFExtrapolation
+========================
+
+.. currentmodule:: axtreme.qoi.marginal_cdf_extrapolation
+
+.. autoclass:: MarginalCDFExtrapolation
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~MarginalCDFExtrapolation.__init__
+      ~MarginalCDFExtrapolation.mean
+      ~MarginalCDFExtrapolation.var
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~MarginalCDFExtrapolation.posterior_sampler
+   
+   

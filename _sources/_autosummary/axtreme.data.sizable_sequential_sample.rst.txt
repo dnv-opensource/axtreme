@@ -1,0 +1,17 @@
+axtreme.data.sizable\_sequential\_sample
+========================================
+
+.. automodule:: axtreme.data.sizable_sequential_sample
+   :members:
+   :exclude-members: SizableSequentialSampler,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      SizableSequentialSampler
+   

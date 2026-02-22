@@ -1,0 +1,31 @@
+FixedRandomSampler
+==================
+
+.. currentmodule:: axtreme.data.fixed_random_sample
+
+.. autoclass:: FixedRandomSampler
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~FixedRandomSampler.__init__
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~FixedRandomSampler.num_samples
+      ~FixedRandomSampler.data_source
+      ~FixedRandomSampler.replacement
+   
+   

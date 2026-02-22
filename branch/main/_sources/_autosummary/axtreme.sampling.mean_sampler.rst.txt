@@ -1,0 +1,17 @@
+axtreme.sampling.mean\_sampler
+==============================
+
+.. automodule:: axtreme.sampling.mean_sampler
+   :members:
+   :exclude-members: MeanSampler,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      MeanSampler
+   

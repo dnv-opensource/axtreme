@@ -1,0 +1,78 @@
+IndependentMCSampler
+====================
+
+.. currentmodule:: axtreme.sampling.independent_sampler
+
+.. autoclass:: IndependentMCSampler
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~IndependentMCSampler.__init__
+      ~IndependentMCSampler.add_module
+      ~IndependentMCSampler.apply
+      ~IndependentMCSampler.bfloat16
+      ~IndependentMCSampler.buffers
+      ~IndependentMCSampler.children
+      ~IndependentMCSampler.compile
+      ~IndependentMCSampler.cpu
+      ~IndependentMCSampler.cuda
+      ~IndependentMCSampler.double
+      ~IndependentMCSampler.eval
+      ~IndependentMCSampler.extra_repr
+      ~IndependentMCSampler.float
+      ~IndependentMCSampler.forward
+      ~IndependentMCSampler.get_buffer
+      ~IndependentMCSampler.get_extra_state
+      ~IndependentMCSampler.get_parameter
+      ~IndependentMCSampler.get_submodule
+      ~IndependentMCSampler.half
+      ~IndependentMCSampler.ipu
+      ~IndependentMCSampler.load_state_dict
+      ~IndependentMCSampler.modules
+      ~IndependentMCSampler.named_buffers
+      ~IndependentMCSampler.named_children
+      ~IndependentMCSampler.named_modules
+      ~IndependentMCSampler.named_parameters
+      ~IndependentMCSampler.parameters
+      ~IndependentMCSampler.register_backward_hook
+      ~IndependentMCSampler.register_buffer
+      ~IndependentMCSampler.register_forward_hook
+      ~IndependentMCSampler.register_forward_pre_hook
+      ~IndependentMCSampler.register_full_backward_hook
+      ~IndependentMCSampler.register_full_backward_pre_hook
+      ~IndependentMCSampler.register_load_state_dict_post_hook
+      ~IndependentMCSampler.register_module
+      ~IndependentMCSampler.register_parameter
+      ~IndependentMCSampler.register_state_dict_pre_hook
+      ~IndependentMCSampler.requires_grad_
+      ~IndependentMCSampler.set_extra_state
+      ~IndependentMCSampler.share_memory
+      ~IndependentMCSampler.state_dict
+      ~IndependentMCSampler.to
+      ~IndependentMCSampler.to_empty
+      ~IndependentMCSampler.train
+      ~IndependentMCSampler.type
+      ~IndependentMCSampler.xpu
+      ~IndependentMCSampler.zero_grad
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~IndependentMCSampler.T_destination
+      ~IndependentMCSampler.call_super_init
+      ~IndependentMCSampler.dump_patches
+      ~IndependentMCSampler.training
+   
+   

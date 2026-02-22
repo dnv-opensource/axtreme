@@ -1,0 +1,18 @@
+﻿axtreme.experiment
+==================
+
+.. automodule:: axtreme.experiment
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      add_json_data_to_experiment
+      add_metric_data_to_experiment
+      add_simulation_data_to_experiment
+      add_sobol_points_to_experiment
+      extract_data_from_experiment_as_json
+      make_experiment
+   

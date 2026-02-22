@@ -1,0 +1,14 @@
+axtreme.distributions.icdf
+==========================
+
+.. automodule:: axtreme.distributions.icdf
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      icdf
+      icdf_1d
+   

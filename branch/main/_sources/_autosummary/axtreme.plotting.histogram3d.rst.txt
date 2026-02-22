@@ -1,0 +1,14 @@
+axtreme.plotting.histogram3d
+============================
+
+.. automodule:: axtreme.plotting.histogram3d
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      histogram3d
+      histogram_surface3d
+   

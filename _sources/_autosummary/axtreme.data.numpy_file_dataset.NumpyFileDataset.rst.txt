@@ -1,0 +1,24 @@
+NumpyFileDataset
+================
+
+.. currentmodule:: axtreme.data.numpy_file_dataset
+
+.. autoclass:: NumpyFileDataset
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~NumpyFileDataset.__init__
+   
+   
+
+
+   
+   
+   

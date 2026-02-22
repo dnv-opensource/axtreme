@@ -1,0 +1,18 @@
+﻿axtreme.distributions
+=====================
+
+.. automodule:: axtreme.distributions
+   :members:
+
+
+   
+.. rubric:: Modules
+.. autosummary::
+   :toctree:
+   :template: custom-module.rst
+   :recursive:
+
+   helpers
+   icdf
+   mixture
+   utils

@@ -1,0 +1,18 @@
+﻿axtreme.qoi
+===========
+
+.. automodule:: axtreme.qoi
+   :members:
+
+
+   
+.. rubric:: Modules
+.. autosummary::
+   :toctree:
+   :template: custom-module.rst
+   :recursive:
+
+   gp_bruteforce
+   marginal_cdf_extrapolation
+   qoi_estimator
+   utils

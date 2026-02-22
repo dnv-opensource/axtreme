@@ -1,0 +1,17 @@
+axtreme.sampling.normal\_independent\_sampler
+=============================================
+
+.. automodule:: axtreme.sampling.normal_independent_sampler
+   :members:
+   :exclude-members: NormalIndependentSampler,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      NormalIndependentSampler
+   

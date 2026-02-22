@@ -1,0 +1,22 @@
+axtreme.sampling.ut\_sampler
+============================
+
+.. automodule:: axtreme.sampling.ut_sampler
+   :members:
+   :exclude-members: UTSampler,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      calculate_sigmas
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      UTSampler
+   

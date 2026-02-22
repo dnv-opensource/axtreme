@@ -1,0 +1,26 @@
+axtreme.acquisition.qoi\_look\_ahead
+====================================
+
+.. automodule:: axtreme.acquisition.qoi_look_ahead
+   :members:
+   :exclude-members: QoILookAhead,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      average_observational_noise
+      closest_observational_noise
+      conditional_update
+      construct_inputs_qoi_look_ahead
+      reject_if_batched_model
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      QoILookAhead
+   

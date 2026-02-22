@@ -1,0 +1,78 @@
+NormalIndependentSampler
+========================
+
+.. currentmodule:: axtreme.sampling.normal_independent_sampler
+
+.. autoclass:: NormalIndependentSampler
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~NormalIndependentSampler.__init__
+      ~NormalIndependentSampler.add_module
+      ~NormalIndependentSampler.apply
+      ~NormalIndependentSampler.bfloat16
+      ~NormalIndependentSampler.buffers
+      ~NormalIndependentSampler.children
+      ~NormalIndependentSampler.compile
+      ~NormalIndependentSampler.cpu
+      ~NormalIndependentSampler.cuda
+      ~NormalIndependentSampler.double
+      ~NormalIndependentSampler.eval
+      ~NormalIndependentSampler.extra_repr
+      ~NormalIndependentSampler.float
+      ~NormalIndependentSampler.forward
+      ~NormalIndependentSampler.get_buffer
+      ~NormalIndependentSampler.get_extra_state
+      ~NormalIndependentSampler.get_parameter
+      ~NormalIndependentSampler.get_submodule
+      ~NormalIndependentSampler.half
+      ~NormalIndependentSampler.ipu
+      ~NormalIndependentSampler.load_state_dict
+      ~NormalIndependentSampler.modules
+      ~NormalIndependentSampler.named_buffers
+      ~NormalIndependentSampler.named_children
+      ~NormalIndependentSampler.named_modules
+      ~NormalIndependentSampler.named_parameters
+      ~NormalIndependentSampler.parameters
+      ~NormalIndependentSampler.register_backward_hook
+      ~NormalIndependentSampler.register_buffer
+      ~NormalIndependentSampler.register_forward_hook
+      ~NormalIndependentSampler.register_forward_pre_hook
+      ~NormalIndependentSampler.register_full_backward_hook
+      ~NormalIndependentSampler.register_full_backward_pre_hook
+      ~NormalIndependentSampler.register_load_state_dict_post_hook
+      ~NormalIndependentSampler.register_module
+      ~NormalIndependentSampler.register_parameter
+      ~NormalIndependentSampler.register_state_dict_pre_hook
+      ~NormalIndependentSampler.requires_grad_
+      ~NormalIndependentSampler.set_extra_state
+      ~NormalIndependentSampler.share_memory
+      ~NormalIndependentSampler.state_dict
+      ~NormalIndependentSampler.to
+      ~NormalIndependentSampler.to_empty
+      ~NormalIndependentSampler.train
+      ~NormalIndependentSampler.type
+      ~NormalIndependentSampler.xpu
+      ~NormalIndependentSampler.zero_grad
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~NormalIndependentSampler.T_destination
+      ~NormalIndependentSampler.call_super_init
+      ~NormalIndependentSampler.dump_patches
+      ~NormalIndependentSampler.training
+   
+   

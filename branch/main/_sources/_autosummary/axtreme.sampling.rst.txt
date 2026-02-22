@@ -1,0 +1,19 @@
+﻿axtreme.sampling
+================
+
+.. automodule:: axtreme.sampling
+   :members:
+
+
+   
+.. rubric:: Modules
+.. autosummary::
+   :toctree:
+   :template: custom-module.rst
+   :recursive:
+
+   base
+   independent_sampler
+   mean_sampler
+   normal_independent_sampler
+   ut_sampler

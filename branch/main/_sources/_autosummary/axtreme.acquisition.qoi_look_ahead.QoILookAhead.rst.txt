@@ -1,0 +1,81 @@
+QoILookAhead
+============
+
+.. currentmodule:: axtreme.acquisition.qoi_look_ahead
+
+.. autoclass:: QoILookAhead
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~QoILookAhead.__init__
+      ~QoILookAhead.add_module
+      ~QoILookAhead.apply
+      ~QoILookAhead.bfloat16
+      ~QoILookAhead.buffers
+      ~QoILookAhead.children
+      ~QoILookAhead.compile
+      ~QoILookAhead.cpu
+      ~QoILookAhead.cuda
+      ~QoILookAhead.double
+      ~QoILookAhead.eval
+      ~QoILookAhead.extra_repr
+      ~QoILookAhead.fantasy_observations
+      ~QoILookAhead.float
+      ~QoILookAhead.forward
+      ~QoILookAhead.get_buffer
+      ~QoILookAhead.get_extra_state
+      ~QoILookAhead.get_parameter
+      ~QoILookAhead.get_submodule
+      ~QoILookAhead.half
+      ~QoILookAhead.ipu
+      ~QoILookAhead.load_state_dict
+      ~QoILookAhead.lookahead
+      ~QoILookAhead.modules
+      ~QoILookAhead.named_buffers
+      ~QoILookAhead.named_children
+      ~QoILookAhead.named_modules
+      ~QoILookAhead.named_parameters
+      ~QoILookAhead.parameters
+      ~QoILookAhead.register_backward_hook
+      ~QoILookAhead.register_buffer
+      ~QoILookAhead.register_forward_hook
+      ~QoILookAhead.register_forward_pre_hook
+      ~QoILookAhead.register_full_backward_hook
+      ~QoILookAhead.register_full_backward_pre_hook
+      ~QoILookAhead.register_load_state_dict_post_hook
+      ~QoILookAhead.register_module
+      ~QoILookAhead.register_parameter
+      ~QoILookAhead.register_state_dict_pre_hook
+      ~QoILookAhead.requires_grad_
+      ~QoILookAhead.set_X_pending
+      ~QoILookAhead.set_extra_state
+      ~QoILookAhead.share_memory
+      ~QoILookAhead.state_dict
+      ~QoILookAhead.to
+      ~QoILookAhead.to_empty
+      ~QoILookAhead.train
+      ~QoILookAhead.type
+      ~QoILookAhead.xpu
+      ~QoILookAhead.zero_grad
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~QoILookAhead.T_destination
+      ~QoILookAhead.call_super_init
+      ~QoILookAhead.dump_patches
+      ~QoILookAhead.training
+   
+   

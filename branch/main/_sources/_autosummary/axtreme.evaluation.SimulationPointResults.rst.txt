@@ -1,0 +1,32 @@
+SimulationPointResults
+======================
+
+.. currentmodule:: axtreme.evaluation
+
+.. autoclass:: SimulationPointResults
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~SimulationPointResults.__init__
+      ~SimulationPointResults.metric_data
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~SimulationPointResults.metric_names
+      ~SimulationPointResults.means
+      ~SimulationPointResults.cov
+   
+   

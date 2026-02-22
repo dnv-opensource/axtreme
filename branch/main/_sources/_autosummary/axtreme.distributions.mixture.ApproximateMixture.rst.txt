@@ -1,0 +1,51 @@
+ApproximateMixture
+==================
+
+.. currentmodule:: axtreme.distributions.mixture
+
+.. autoclass:: ApproximateMixture
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~ApproximateMixture.__init__
+      ~ApproximateMixture.cdf
+      ~ApproximateMixture.entropy
+      ~ApproximateMixture.enumerate_support
+      ~ApproximateMixture.expand
+      ~ApproximateMixture.icdf
+      ~ApproximateMixture.log_prob
+      ~ApproximateMixture.perplexity
+      ~ApproximateMixture.rsample
+      ~ApproximateMixture.sample
+      ~ApproximateMixture.sample_n
+      ~ApproximateMixture.set_default_validate_args
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~ApproximateMixture.arg_constraints
+      ~ApproximateMixture.batch_shape
+      ~ApproximateMixture.component_distribution
+      ~ApproximateMixture.event_shape
+      ~ApproximateMixture.has_enumerate_support
+      ~ApproximateMixture.has_rsample
+      ~ApproximateMixture.mean
+      ~ApproximateMixture.mixture_distribution
+      ~ApproximateMixture.mode
+      ~ApproximateMixture.stddev
+      ~ApproximateMixture.support
+      ~ApproximateMixture.variance
+   
+   

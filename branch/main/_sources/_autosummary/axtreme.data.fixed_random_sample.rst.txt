@@ -1,0 +1,17 @@
+axtreme.data.fixed\_random\_sample
+==================================
+
+.. automodule:: axtreme.data.fixed_random_sample
+   :members:
+   :exclude-members: FixedRandomSampler,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      FixedRandomSampler
+   

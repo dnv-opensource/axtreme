@@ -1,0 +1,13 @@
+axtreme.utils.gradient
+======================
+
+.. automodule:: axtreme.utils.gradient
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      is_smooth_1d
+   

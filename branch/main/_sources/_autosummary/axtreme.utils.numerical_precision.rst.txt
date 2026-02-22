@@ -1,0 +1,13 @@
+axtreme.utils.numerical\_precision
+==================================
+
+.. automodule:: axtreme.utils.numerical_precision
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      maximal_representation_error_between_0_1
+   

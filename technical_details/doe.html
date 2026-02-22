@@ -1,0 +1,761 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Importance sampling" href="importance_sampling.html"><link rel="prev" title="GPBruteforce behaviour w.r.t changes in the underlying model" href="gpbruteforce.html">
+        <link rel="prefetch" href="../_static/DNV_logo_RGB.jpg" as="image">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Design of Experiments (DoE) - axtreme 0.1.1</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">axtreme 0.1.1</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../_static/DNV_logo_RGB.jpg" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">axtreme 0.1.1</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../basic_concepts/basic_concepts.html">Basic Concepts</a><input aria-label="Toggle navigation of Basic Concepts" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../basic_concepts/surrogate_model.html">Surrogate model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic_concepts/qoi_estimate.html">QoI Estimates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../basic_concepts/doe.html">Design of Experiments (DoE)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../usecase_offshorewind.html">Example Usecase</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../developer_content.html">Developer Content</a><input aria-label="Toggle navigation of Developer Content" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../README.html">axtreme</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api.html">API Reference</a><input aria-label="Toggle navigation of API Reference" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../axtreme.html">axtreme package</a><input aria-label="Toggle navigation of axtreme package" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.acquisition.html">axtreme.acquisition</a><input aria-label="Toggle navigation of axtreme.acquisition" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.acquisition.qoi_look_ahead.html">axtreme.acquisition.qoi_look_ahead</a><input aria-label="Toggle navigation of axtreme.acquisition.qoi_look_ahead" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.acquisition.qoi_look_ahead.QoILookAhead.html">QoILookAhead</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.html">axtreme.data</a><input aria-label="Toggle navigation of axtreme.data" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.batch_invariant_sampler.html">axtreme.data.batch_invariant_sampler</a><input aria-label="Toggle navigation of axtreme.data.batch_invariant_sampler" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.batch_invariant_sampler.BatchInvariantSampler2d.html">BatchInvariantSampler2d</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.dataset.html">axtreme.data.dataset</a><input aria-label="Toggle navigation of axtreme.data.dataset" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.dataset.MinimalDataset.html">MinimalDataset</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.fixed_random_sample.html">axtreme.data.fixed_random_sample</a><input aria-label="Toggle navigation of axtreme.data.fixed_random_sample" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.fixed_random_sample.FixedRandomSampler.html">FixedRandomSampler</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.importance_dataset.html">axtreme.data.importance_dataset</a><input aria-label="Toggle navigation of axtreme.data.importance_dataset" class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" role="switch" type="checkbox"/><label for="toctree-checkbox-11"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.importance_dataset.ImportanceAddedWrapper.html">ImportanceAddedWrapper</a></li>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.importance_dataset.ImportanceIndexWrapper.html">ImportanceIndexWrapper</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.multi_dim_batch_sampler.html">axtreme.data.multi_dim_batch_sampler</a><input aria-label="Toggle navigation of axtreme.data.multi_dim_batch_sampler" class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" role="switch" type="checkbox"/><label for="toctree-checkbox-12"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.multi_dim_batch_sampler.MultiBatchSampler.html">MultiBatchSampler</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.numpy_file_dataset.html">axtreme.data.numpy_file_dataset</a><input aria-label="Toggle navigation of axtreme.data.numpy_file_dataset" class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" role="switch" type="checkbox"/><label for="toctree-checkbox-13"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.numpy_file_dataset.NumpyFileDataset.html">NumpyFileDataset</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.data.sizable_sequential_sample.html">axtreme.data.sizable_sequential_sample</a><input aria-label="Toggle navigation of axtreme.data.sizable_sequential_sample" class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" role="switch" type="checkbox"/><label for="toctree-checkbox-14"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.data.sizable_sequential_sample.SizableSequentialSampler.html">SizableSequentialSampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.distributions.html">axtreme.distributions</a><input aria-label="Toggle navigation of axtreme.distributions" class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" role="switch" type="checkbox"/><label for="toctree-checkbox-15"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.distributions.helpers.html">axtreme.distributions.helpers</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.distributions.icdf.html">axtreme.distributions.icdf</a></li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.distributions.mixture.html">axtreme.distributions.mixture</a><input aria-label="Toggle navigation of axtreme.distributions.mixture" class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" role="switch" type="checkbox"/><label for="toctree-checkbox-16"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.distributions.mixture.ApproximateMixture.html">ApproximateMixture</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.distributions.utils.html">axtreme.distributions.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.eval.html">axtreme.eval</a><input aria-label="Toggle navigation of axtreme.eval" class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" role="switch" type="checkbox"/><label for="toctree-checkbox-17"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.eval.object_logging.html">axtreme.eval.object_logging</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.eval.qoi_helpers.html">axtreme.eval.qoi_helpers</a></li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.eval.qoi_job.html">axtreme.eval.qoi_job</a><input aria-label="Toggle navigation of axtreme.eval.qoi_job" class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" role="switch" type="checkbox"/><label for="toctree-checkbox-18"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.eval.qoi_job.QoIJob.html">QoIJob</a></li>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.eval.qoi_job.QoIJobResult.html">QoIJobResult</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.eval.utils.html">axtreme.eval.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.plotting.html">axtreme.plotting</a><input aria-label="Toggle navigation of axtreme.plotting" class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" role="switch" type="checkbox"/><label for="toctree-checkbox-19"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.plotting.doe.html">axtreme.plotting.doe</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.plotting.gp_fit.html">axtreme.plotting.gp_fit</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.plotting.histogram3d.html">axtreme.plotting.histogram3d</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.qoi.html">axtreme.qoi</a><input aria-label="Toggle navigation of axtreme.qoi" class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" role="switch" type="checkbox"/><label for="toctree-checkbox-20"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.qoi.gp_bruteforce.html">axtreme.qoi.gp_bruteforce</a><input aria-label="Toggle navigation of axtreme.qoi.gp_bruteforce" class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" role="switch" type="checkbox"/><label for="toctree-checkbox-21"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.qoi.gp_bruteforce.GPBruteForce.html">GPBruteForce</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.qoi.marginal_cdf_extrapolation.html">axtreme.qoi.marginal_cdf_extrapolation</a><input aria-label="Toggle navigation of axtreme.qoi.marginal_cdf_extrapolation" class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" role="switch" type="checkbox"/><label for="toctree-checkbox-22"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.qoi.marginal_cdf_extrapolation.MarginalCDFExtrapolation.html">MarginalCDFExtrapolation</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.qoi.qoi_estimator.html">axtreme.qoi.qoi_estimator</a><input aria-label="Toggle navigation of axtreme.qoi.qoi_estimator" class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" role="switch" type="checkbox"/><label for="toctree-checkbox-23"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.qoi.qoi_estimator.QoIEstimator.html">QoIEstimator</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.qoi.utils.html">axtreme.qoi.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.sampling.html">axtreme.sampling</a><input aria-label="Toggle navigation of axtreme.sampling" class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" role="switch" type="checkbox"/><label for="toctree-checkbox-24"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.sampling.base.html">axtreme.sampling.base</a><input aria-label="Toggle navigation of axtreme.sampling.base" class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" role="switch" type="checkbox"/><label for="toctree-checkbox-25"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.sampling.base.MeanVarPosteriorSampledEstimates.html">MeanVarPosteriorSampledEstimates</a></li>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.sampling.base.PosteriorSampler.html">PosteriorSampler</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.sampling.independent_sampler.html">axtreme.sampling.independent_sampler</a><input aria-label="Toggle navigation of axtreme.sampling.independent_sampler" class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" role="switch" type="checkbox"/><label for="toctree-checkbox-26"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.sampling.independent_sampler.IndependentMCSampler.html">IndependentMCSampler</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.sampling.mean_sampler.html">axtreme.sampling.mean_sampler</a><input aria-label="Toggle navigation of axtreme.sampling.mean_sampler" class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" role="switch" type="checkbox"/><label for="toctree-checkbox-27"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.sampling.mean_sampler.MeanSampler.html">MeanSampler</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.sampling.normal_independent_sampler.html">axtreme.sampling.normal_independent_sampler</a><input aria-label="Toggle navigation of axtreme.sampling.normal_independent_sampler" class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" role="switch" type="checkbox"/><label for="toctree-checkbox-28"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.sampling.normal_independent_sampler.NormalIndependentSampler.html">NormalIndependentSampler</a></li>
+</ul>
+</li>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.sampling.ut_sampler.html">axtreme.sampling.ut_sampler</a><input aria-label="Toggle navigation of axtreme.sampling.ut_sampler" class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" role="switch" type="checkbox"/><label for="toctree-checkbox-29"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.sampling.ut_sampler.UTSampler.html">UTSampler</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.simulator.html">axtreme.simulator</a><input aria-label="Toggle navigation of axtreme.simulator" class="toctree-checkbox" id="toctree-checkbox-30" name="toctree-checkbox-30" role="switch" type="checkbox"/><label for="toctree-checkbox-30"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5 has-children"><a class="reference internal" href="../_autosummary/axtreme.simulator.base.html">axtreme.simulator.base</a><input aria-label="Toggle navigation of axtreme.simulator.base" class="toctree-checkbox" id="toctree-checkbox-31" name="toctree-checkbox-31" role="switch" type="checkbox"/><label for="toctree-checkbox-31"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l6"><a class="reference internal" href="../_autosummary/axtreme.simulator.base.Simulator.html">Simulator</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.simulator.utils.html">axtreme.simulator.utils</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.utils.html">axtreme.utils</a><input aria-label="Toggle navigation of axtreme.utils" class="toctree-checkbox" id="toctree-checkbox-32" name="toctree-checkbox-32" role="switch" type="checkbox"/><label for="toctree-checkbox-32"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.distibution_helpers.html">axtreme.utils.distibution_helpers</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.experiment_utils.html">axtreme.utils.experiment_utils</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.gradient.html">axtreme.utils.gradient</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.logging.html">axtreme.utils.logging</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.model_helpers.html">axtreme.utils.model_helpers</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.modelbridge_utils.html">axtreme.utils.modelbridge_utils</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.numerical_precision.html">axtreme.utils.numerical_precision</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.population_estimators.html">axtreme.utils.population_estimators</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.utils.transforms.html">axtreme.utils.transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.evaluation.html">axtreme.evaluation</a><input aria-label="Toggle navigation of axtreme.evaluation" class="toctree-checkbox" id="toctree-checkbox-33" name="toctree-checkbox-33" role="switch" type="checkbox"/><label for="toctree-checkbox-33"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.evaluation.EvaluationFunction.html">EvaluationFunction</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.evaluation.SimulationPointResults.html">SimulationPointResults</a></li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="../_autosummary/axtreme.experiment.html">axtreme.experiment</a></li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.metrics.html">axtreme.metrics</a><input aria-label="Toggle navigation of axtreme.metrics" class="toctree-checkbox" id="toctree-checkbox-34" name="toctree-checkbox-34" role="switch" type="checkbox"/><label for="toctree-checkbox-34"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.metrics.LocalMetadataMetric.html">LocalMetadataMetric</a></li>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.metrics.QoIMetric.html">QoIMetric</a></li>
+</ul>
+</li>
+<li class="toctree-l4 has-children"><a class="reference internal" href="../_autosummary/axtreme.runner.html">axtreme.runner</a><input aria-label="Toggle navigation of axtreme.runner" class="toctree-checkbox" id="toctree-checkbox-35" name="toctree-checkbox-35" role="switch" type="checkbox"/><label for="toctree-checkbox-35"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l5"><a class="reference internal" href="../_autosummary/axtreme.runner.LocalMetadataRunner.html">LocalMetadataRunner</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 current has-children"><a class="reference internal" href="technical_details.html">Technical Details</a><input aria-label="Toggle navigation of Technical Details" checked="" class="toctree-checkbox" id="toctree-checkbox-36" name="toctree-checkbox-36" role="switch" type="checkbox"/><label for="toctree-checkbox-36"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="ax_integration.html">Compatibility with <code class="docutils literal notranslate"><span class="pre">Ax</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="gpbruteforce.html"><code class="docutils literal notranslate"><span class="pre">GPBruteforce</span></code> behaviour w.r.t changes in the underlying model</a></li>
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">Design of Experiments (DoE)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="importance_sampling.html">Importance sampling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../glossary.html">Glossary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../STYLEGUIDE.html">Style Guide</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../LICENSE.html">LICENSE</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/technical_details/doe.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="design-of-experiments-doe">
+<h1>Design of Experiments (DoE)<a class="headerlink" href="#design-of-experiments-doe" title="Link to this heading">¶</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Design of Experiments (DoE) is a core component of the Axtreme framework that intelligently selects new simulation points to reduce the uncertainty of the Quantity of Interest (QoI). Unlike traditional space-filling approaches like Sobol sampling, DoE uses acquisition functions to strategically choose points that provide the most information for improving QoI estimates.</p>
+</section>
+<section id="purpose-and-motivation">
+<h2>Purpose and Motivation<a class="headerlink" href="#purpose-and-motivation" title="Link to this heading">¶</a></h2>
+<section id="why-doe">
+<h3>Why DoE?<a class="headerlink" href="#why-doe" title="Link to this heading">¶</a></h3>
+<p>Running simulations is computationally expensive, so we want to be strategic about which points to evaluate. This can be achieved by employing DOE. The key insight is that <strong>the data point that most reduces uncertainty in our QoI calculation is not necessarily where the surrogate model has the greatest uncertainty</strong>. Small model inaccuracies in regions important to the QoI calculation can have a greater impact than large inaccuracies elsewhere.</p>
+</section>
+<section id="the-problem-doe-solves">
+<h3>The Problem DoE Solves<a class="headerlink" href="#the-problem-doe-solves" title="Link to this heading">¶</a></h3>
+<p>Traditional approaches like Sobol sampling distribute points uniformly across the search space. However, for extreme response problems, extreme responses often occur in specific, small regions of the search space. These regions may represent a fraction of the total parameter space. Random sampling requires many more iterations to adequately sample these critical regions, while DoE can identify and focus on these regions much more efficiently.</p>
+</section>
+<section id="problems-where-doe-is-most-beneficial">
+<h3>Problems Where DoE is Most Beneficial<a class="headerlink" href="#problems-where-doe-is-most-beneficial" title="Link to this heading">¶</a></h3>
+<p>DoE provides the greatest advantage over traditional sampling methods for specific types of problems:</p>
+<p><strong>Problem Attributes:</strong></p>
+<ul class="simple">
+<li><p><strong>Extreme value problems</strong>: Problems where you’re interested in rare and/or extreme events. Extreme events occur in small regions of the parameter space. DoE can identify and focus sampling on these critical regions much more efficiently than uniform sampling.</p></li>
+<li><p><strong>High-dimensional parameter spaces</strong>: The curse of dimensionality makes uniform sampling inefficient. DoE can identify important parameter combinations without exhaustively sampling the entire space.</p></li>
+<li><p><strong>Expensive simulations</strong>: Problems where each simulation run is computationally costly. When simulation budget is limited, every evaluation must count. DoE maximizes information gain per simulation run.</p></li>
+<li><p><strong>Complex simulators</strong>: Problems where the underlying response of the simulator is complex. Responses create complex regions where small changes in inputs lead to large changes in outputs. DoE can adaptively focus on these critical regions.</p></li>
+<li><p><strong>Sparse Signal Problems</strong>: Problems where the QoI is sensitive to only a small subset of the parameter space. When the “interesting” regions are sparse, random sampling wastes effort on uninformative regions. DoE can identify and focus on the relevant areas.</p></li>
+<li><p><strong>Limited Prior Knowledge</strong>: Problems where you have limited understanding of the underlying physics or relationships. DoE can adaptively learn about the system structure during the sampling process, gradually building understanding of where important behavior occurs.</p></li>
+</ul>
+<p><strong>DoE May Not Help When:</strong></p>
+<ul class="simple">
+<li><p>Simple, linear relationships</p></li>
+<li><p>All regions equally important to QoI</p></li>
+<li><p>Well-understood physics with analytical solutions</p></li>
+</ul>
+<p><strong>Assessing Problem Suitability for DoE:</strong></p>
+<p>Before applying DoE, consider these questions:</p>
+<ol class="arabic simple">
+<li><p><strong>Is my simulation expensive?</strong></p></li>
+<li><p><strong>Am I interested in extreme or rare events?</strong></p></li>
+<li><p><strong>Is my parameter space high-dimensional?</strong></p></li>
+<li><p><strong>Do I expect non-linear or complex behavior?</strong></p></li>
+<li><p><strong>Is my simulation budget limited?</strong></p></li>
+<li><p><strong>Do I have limited prior knowledge about the problem and its important regions?</strong></p></li>
+</ol>
+<p>If you answer “yes” to most of these questions, DoE is likely to provide significant benefits over traditional sampling approaches.</p>
+</section>
+</section>
+<section id="how-doe-works-in-axtreme">
+<h2>How DoE Works in Axtreme<a class="headerlink" href="#how-doe-works-in-axtreme" title="Link to this heading">¶</a></h2>
+<section id="core-components">
+<h3>Core Components<a class="headerlink" href="#core-components" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Surrogate Model</strong>: A Gaussian Process (GP) that approximates the expensive simulator</p></li>
+<li><p><strong>QoI Estimator</strong>: Calculates the quantity of interest and its uncertainty from the GP</p></li>
+<li><p><strong>Acquisition Function</strong>: <code class="docutils literal notranslate"><span class="pre">QoILookAhead</span></code> - evaluates how much each candidate point would reduce QoI uncertainty</p></li>
+<li><p><strong>Optimization</strong>: Finds the point that maximizes the acquisition function</p></li>
+</ol>
+</section>
+<section id="the-doe-process">
+<h3>The DoE Process<a class="headerlink" href="#the-doe-process" title="Link to this heading">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Start</span> <span class="k">with</span> <span class="n">initial</span> <span class="n">training</span> <span class="n">data</span> <span class="p">(</span><span class="n">warm</span><span class="o">-</span><span class="n">up</span> <span class="n">phase</span> <span class="n">using</span> <span class="n">Sobol</span> <span class="n">sampling</span><span class="p">)</span>
+<span class="mf">2.</span> <span class="n">Fit</span> <span class="n">GP</span> <span class="n">surrogate</span> <span class="n">model</span> <span class="n">to</span> <span class="n">current</span> <span class="n">data</span>
+<span class="mf">3.</span> <span class="n">For</span> <span class="n">each</span> <span class="n">candidate</span> <span class="n">point</span><span class="p">:</span>
+   <span class="o">-</span> <span class="n">Predict</span> <span class="n">what</span> <span class="n">the</span> <span class="n">GP</span> <span class="n">would</span> <span class="n">look</span> <span class="n">like</span> <span class="k">if</span> <span class="n">we</span> <span class="n">added</span> <span class="n">this</span> <span class="n">point</span>
+   <span class="o">-</span> <span class="n">Calculate</span> <span class="n">how</span> <span class="n">this</span> <span class="n">would</span> <span class="n">change</span> <span class="n">the</span> <span class="n">QoI</span> <span class="n">estimate</span> <span class="n">uncertainty</span>
+<span class="mf">4.</span> <span class="n">Select</span> <span class="n">the</span> <span class="n">point</span> <span class="n">that</span> <span class="n">reduces</span> <span class="n">QoI</span> <span class="n">uncertainty</span> <span class="n">the</span> <span class="n">most</span>
+<span class="mf">5.</span> <span class="n">Evaluate</span> <span class="n">the</span> <span class="n">simulator</span> <span class="n">at</span> <span class="n">this</span> <span class="n">point</span>
+<span class="mf">6.</span> <span class="n">Add</span> <span class="n">new</span> <span class="n">data</span> <span class="n">to</span> <span class="n">the</span> <span class="n">training</span> <span class="nb">set</span>
+<span class="mf">7.</span> <span class="n">Repeat</span> <span class="n">until</span> <span class="n">a</span> <span class="n">given</span> <span class="n">stopping</span> <span class="n">criteria</span> <span class="ow">is</span> <span class="n">met</span>
+</pre></div>
+</div>
+</section>
+<section id="qoilookahead-acquisition-function">
+<h3>QoILookAhead Acquisition Function<a class="headerlink" href="#qoilookahead-acquisition-function" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">QoILookAhead</span></code> acquisition function works by:</p>
+<ul class="simple">
+<li><p>Taking a candidate point and predicting what the posterior GP would look like if that point were added</p></li>
+<li><p>Calculating the expected QoI uncertainty with this augmented GP</p></li>
+<li><p>Selecting points that minimize this expected uncertainty</p></li>
+</ul>
+</section>
+</section>
+<section id="evaluating-doe-performance">
+<h2>Evaluating DoE Performance<a class="headerlink" href="#evaluating-doe-performance" title="Link to this heading">¶</a></h2>
+<section id="key-performance-indicators">
+<h3>Key Performance Indicators<a class="headerlink" href="#key-performance-indicators" title="Link to this heading">¶</a></h3>
+<section id="qoi-convergence-rate">
+<h4>1. QoI Convergence Rate<a class="headerlink" href="#qoi-convergence-rate" title="Link to this heading">¶</a></h4>
+<p>Monitor how quickly the QoI estimate converges to the brute force value by plotting QoI estimates over iterations.</p>
+<p><img alt="qoi_convergence" src="../_images/qoi_convergence.png" />
+<em>Figure 1: Comparison of QoI convergence between DoE (green) and Sobol sampling (blue) approaches. The black line shows the brute force QoI value. DoE typically converges faster.</em></p>
+<p>This figure compares how two sampling methods, Sobol (blue) and Look-ahead DoE (green), estimate a Quantity of Interest as they accumulate simulation data. The solid lines show mean QoI estimates, while shaded regions represent 90% confidence intervals. DoE (green) reduces the uncertainty more effectively compared to Sobol (blue). The black dashed line shows the “brute force” QoI value calculated with exhaustive sampling, and the red band indicates ±0.5% error tolerance. Vertical dashed lines show SEM threshold corresponding to the 90 % confidence interval. Each method stops after meeting both the error and SEM tolerances, DoE at ~600 simulation runs (trial 20) versus Sobol at ~2000 runs (trial 67).</p>
+<p>While Sobol’s final estimate appears slightly closer to the reference line, this visual impression can be slightly misleading as the simulation stops when both acceptable error and confidence interval tolerance is achieved. The DoE is able to reach both these stoping criterias with ~70% fewer simulation runs compared to Sobol. Here, simulation runs refers to individual evaluations of the expensive simulator. However it is important to note that the stopping criterias can be configured and changed by the user for differnet problems.</p>
+<p><strong>What to look for:</strong></p>
+<ul class="simple">
+<li><p>DoE should converge faster than Sobol</p></li>
+<li><p>Uncertainty in the QoI estimate should also be reduced faster than Sobol</p></li>
+</ul>
+</section>
+<section id="standard-error-of-the-mean-sem">
+<h4>2. Standard Error of the Mean (SEM)<a class="headerlink" href="#standard-error-of-the-mean-sem" title="Link to this heading">¶</a></h4>
+<p>The Standard Error of the Mean provides a direct measure of uncertainty in the QoI estimate that doesn’t require knowledge of the true value. SEM quantifies how precisely we know the mean of our QoI estimate and decreases as we collect more informative data. It is calculated as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[SEM = \frac{\sigma}{\sqrt{n}}\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\(\sigma\)</span> is the standard deviation of the QoI estimate and <span class="math notranslate nohighlight">\(n\)</span> is the effective sample size. Monitoring SEM reduction allows us to assess convergence reliability and set stopping criteria based on achieving acceptable uncertainty levels.</p>
+<p>Track the uncertainty in QoI estimates over iterations to assess convergence.</p>
+<p><img alt="sem_convergence" src="../_images/sem_convergence.png" />
+<em>Figure 2: Standard Error of the Mean (SEM) over iterations for both DoE and Sobol approaches. DoE typically achieves target SEM thresholds with fewer iterations and shows more consistent reduction.</em></p>
+<p><strong>What to look for:</strong></p>
+<ul class="simple">
+<li><p>DoE should achieve target SEM with fewer iterations</p></li>
+<li><p>More consistent SEM reduction compared to random methods</p></li>
+<li><p>Smoother convergence curve without large fluctuations</p></li>
+</ul>
+<p>It’s important to note that monitoring QoI convergence and SEM reduction is valuable also for problems where no brute force solution is available for comparison. In such cases, you can still assess DoE performance by comparing the rate of convergence and final uncertainty levels between DoE and baseline methods like Sobol sampling. The SEM provides a direct measure of estimation uncertainty that DoEsn’t require knowledge of the true value, making it useful for real-world applications. While comparing against known brute force solutions provides clearer validation and is helpful for learning and understanding DoE behavior, the convergence patterns and uncertainty reduction trends remain the important indicators of DoE effectiveness in practical applications.</p>
+</section>
+<section id="point-selection-quality">
+<h4>3. Point Selection Quality<a class="headerlink" href="#point-selection-quality" title="Link to this heading">¶</a></h4>
+<p>Visualize where DoE selects points to understand if it’s focusing on important regions, as demonstrated in Figure 3.</p>
+<p><img alt="point_selection" src="../_images/point_selection.png" />
+<em>Figure 3: Point selection in search space of the DoE (Red) and Sobol (Blue) over environement and exptreme response distribution heatmaps. Here one can observe that the DoE focuses on the specific region where the extreme responses occur, while Sobol selects points more uniformly in the search space.</em></p>
+<p>One can also look at the point selection on the GP surface for more insight into how the GP fits the function the GP is approximating. The key difference between DoE (<a class="reference internal" href="#fig-doe-gp-surface">Figure 4b</a>) and Sobol (<a class="reference internal" href="#fig-sobol-gp-surface">Figure 4a</a>) becomes apparent when examining how each approach affects the GP’s ability to model the underlying function. DoE strategically selects points to achieve high accuracy in regions that are critical for QoI estimation, even if this means accepting lower accuracy in less important areas of the search space. In contrast, Sobol sampling distributes points uniformly across the entire domain, resulting in a GP that fits the underlying function more evenly across the whole search space but requires significantly more points to achieve the same level of QoI accuracy.</p>
+<p><img alt="sobol_gp_surface" id="fig-sobol-gp-surface" src="../_images/sobol_gp_surface.png" />
+<em>Figure 4a: GP surface fitted using Sobol sampling showing uniform point distribution and consistent model accuracy across the entire search space. However many simulations are needed to achive this accuracy. The red surface represents the true underlyning function the GP is approximating, green surface is the GP mean prediction of the underlyning function across the search space, the blue surfaces is the upper and lower confidence bounds of the GP and the red points is the simulation points added to the GP with red vertical error bars representing the observation noise of these simulated points.</em></p>
+<p><img alt="DoE_gp_surface" id="fig-doe-gp-surface" src="../_images/doe_gp_surface.png" />
+<em>Figure 4b: GP surface fitted using DoE showing concentrated point selection in regions important for QoI calculation. The model achieves high accuracy in critical areas while maintaining lower accuracy elsewhere.</em></p>
+<p>This visualization technique is valuable because it can be applied even without prior knowledge of the underlying true function. By examining where DoE concentrates its point selection compared to uniform Sobol sampling, researchers can identify which regions of the parameter space contribute most significantly to QoI accuracy. This spatial analysis reveals whether the DoE algorithm is successfully identifying and focusing on specific regions or patterns that are most relevant for the QoI, providing insight into both the DoE behavior and the underlying problem structure.</p>
+<p><strong>What to look for:</strong></p>
+<ul class="simple">
+<li><p>Points concentrated in regions where extreme responses occur</p></li>
+<li><p>Points placed where GP uncertainty impacts QoI calculation most</p></li>
+<li><p>Avoidance of point selection in regions of the parameter space less relevant for the QoI estimate</p></li>
+</ul>
+</section>
+</section>
+</section>
+<section id="tunable-parameters">
+<h2>Tunable Parameters<a class="headerlink" href="#tunable-parameters" title="Link to this heading">¶</a></h2>
+<p>Understanding and properly tuning DoE parameters is crucial for optimal performance. This section covers the key parameters that control DoE behavior and how to adjust them based on your problem characteristics.</p>
+<section id="critical-parameters">
+<h3>Critical Parameters<a class="headerlink" href="#critical-parameters" title="Link to this heading">¶</a></h3>
+<section id="warm-up-runs-warm-up-runs">
+<h4>1. Warm-up Runs (<code class="docutils literal notranslate"><span class="pre">warm_up_runs</span></code>)<a class="headerlink" href="#warm-up-runs-warm-up-runs" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose</strong>: Number of initial Sobol points before starting DoE</p>
+<p><strong>Why it matters</strong>: The GP surrogate model needs sufficient initial data to make reasonable predictions about the response surface. Too few warm-up points result in a poorly initialized GP that makes poor decisions about where to sample next. Too many warm-up points waste simulation budget on random sampling instead of DoE point selection.</p>
+<p><strong>Tuning Guidelines</strong>:</p>
+<ul class="simple">
+<li><p><strong>Too few</strong>: GP may be poorly initialized, leading to poor early DoE decisions and slower convergence</p></li>
+<li><p><strong>Too many</strong>: Wastes budget on random sampling instead of intelligent point selection</p></li>
+<li><p><strong>Problem dependency</strong>: More complex response surfaces (highly non-linear, multi-modal) require more warm-up points for stable GP fitting</p></li>
+</ul>
+</section>
+<section id="doe-iterations-doe-runs">
+<h4>2. DoE Iterations (<code class="docutils literal notranslate"><span class="pre">DoE_runs</span></code>)<a class="headerlink" href="#doe-iterations-doe-runs" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose</strong>: Number of DoE iterations to run after warm-up phase</p>
+<p><strong>Why it matters</strong>: This determines how much of your computational budget is allocated to intelligent sampling versus random initialization. The optimal number depends on your total budget, problem complexity, and convergence requirements.</p>
+<p><strong>Tuning Guidelines</strong>:</p>
+<ul class="simple">
+<li><p>Monitor convergence of QoI estimates to determine when additional iterations provide diminishing returns</p></li>
+<li><p>Use stopping criteria based on SEM or convergence tolerance rather than fixed iteration counts</p></li>
+<li><p>Consider computational budget constraints - more iterations provide better accuracy but at higher cost</p></li>
+<li><p>For expensive simulations, more DoE iterations may be required compared to warm up runs.</p></li>
+<li><p>For simple problems, fewer DoE iterations may be sufficient as the GP learns the response surface quickly</p></li>
+</ul>
+</section>
+<section id="sem-threshold-sem-threshold">
+<h4>3. SEM Threshold (<code class="docutils literal notranslate"><span class="pre">sem_threshold</span></code>)<a class="headerlink" href="#sem-threshold-sem-threshold" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose</strong>: Stopping criteria based on standard error of the mean</p>
+<p><strong>Why it matters</strong>: This controls when DoE stops based on the uncertainty in the QoI estimate. It directly trades off computational cost against estimate precision. The threshold should be chosen based on your application’s accuracy requirements.</p>
+<p><strong>Tuning Guidelines</strong>:</p>
+<ul class="simple">
+<li><p><strong>Lower values</strong>: More precise estimates but require more iterations</p></li>
+<li><p><strong>Higher values</strong>: Faster convergence but less precise estimates</p></li>
+<li><p><strong>Budget constraints</strong>: If you have limited computational budget, use higher thresholds to ensure convergence within available resources</p></li>
+<li><p><strong>Monitor actual SEM values</strong>: Start with default and adjust based on observed convergence patterns</p></li>
+</ul>
+</section>
+<section id="number-of-simulations-per-point-n-simulations-per-point">
+<h4>4. Number of Simulations per Point (<code class="docutils literal notranslate"><span class="pre">N_SIMULATIONS_PER_POINT</span></code>)<a class="headerlink" href="#number-of-simulations-per-point-n-simulations-per-point" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Purpose</strong>: Number of simulations per point for each point added to the experiment.</p></li>
+<li><p><strong>Why it matters</strong>: Higher values will lead to less uncertainty in the GP fit, but will also increase the time it takes to run the experiment.</p></li>
+<li><p><strong>Tuning</strong>: This will always be a compromise between computational cost and QoI accuracy. Ideally you want as few simulations as possible (with a expensive simulator), but simultaneously you want an accurate GP. Increase if GP estimates are noisy or unstable, decrease if computation time is prohibitive. Although high values might not be possible in practical applications, it can be useful for debugging and testing purposes, reducing this source of uncertainty.</p></li>
+</ul>
+</section>
+<section id="random-seed-seed">
+<h4>5.Random Seed (<code class="docutils literal notranslate"><span class="pre">seed</span></code>)<a class="headerlink" href="#random-seed-seed" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Purpose</strong>: Controls reproducibility of environment sampling</p></li>
+<li><p><strong>Why it matters</strong>: Fixed seeds enable reproducible results; varying seeds assess robustness</p></li>
+<li><p><strong>Tuning</strong>: Fix for development and debugging, vary for robustness assessment and final evaluation</p></li>
+</ul>
+</section>
+</section>
+</section>
+<section id="troubleshooting-common-issues">
+<h2>Troubleshooting Common Issues<a class="headerlink" href="#troubleshooting-common-issues" title="Link to this heading">¶</a></h2>
+<p>The key to successful parameter tuning is understanding your problem characteristics, computational constraints, and accuracy requirements, then systematically adjusting parameters while monitoring their effects on DoE performance.</p>
+<section id="poor-doe-performance">
+<h3>Poor DoE Performance<a class="headerlink" href="#poor-doe-performance" title="Link to this heading">¶</a></h3>
+<p><strong>Symptoms</strong>: DoE performs similarly to or worse than Sobol sampling</p>
+<p><strong>Potential Causes</strong>:</p>
+<ol class="arabic simple">
+<li><p><strong>Insufficient warm-up</strong>: Increase <code class="docutils literal notranslate"><span class="pre">warm_up_runs</span></code></p></li>
+<li><p><strong>Simple problem</strong>: The underlying functions may be too simple to benefit from DoE</p></li>
+<li><p><strong>Broad extreme regions</strong>: Extreme responses may span too much of the search space</p></li>
+<li><p><strong>Acquisition function issues</strong>: Check optimization settings</p></li>
+</ol>
+</section>
+<section id="slow-convergence">
+<h3>Slow Convergence<a class="headerlink" href="#slow-convergence" title="Link to this heading">¶</a></h3>
+<p><strong>Symptoms</strong>: QoI estimates take many iterations to converge</p>
+<p><strong>Potential Solutions</strong>:</p>
+<ol class="arabic simple">
+<li><p><strong>Adjust SEM threshold</strong>: May be too strict</p></li>
+<li><p><strong>Increase environment samples</strong>: More samples may improve QoI accuracy</p></li>
+<li><p><strong>Check GP fit quality</strong>: Visualize GP surfaces to ensure good fits</p></li>
+<li><p><strong>Verify stopping criteria</strong>: May need problem-specific criteria</p></li>
+</ol>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Always compare to baseline</strong>: Run Sobol sampling as a benchmark</p></li>
+<li><p><strong>Use multiple seeds</strong>: Test robustness across different initializations</p></li>
+<li><p><strong>Monitor convergence</strong>: Don’t just look at final results, watch the trajectory</p></li>
+<li><p><strong>Visualize point selection</strong>: Understand where and why DoE selects points</p></li>
+<li><p><strong>Problem-specific tuning</strong>: Adjust parameters based on your specific problem characteristics</p></li>
+<li><p><strong>Validate with ground truth</strong>: When possible, compare against brute-force calculations</p></li>
+</ol>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>DoE in Axtreme provides a  framework for efficiently reducing QoI uncertainty in expensive simulation problems. Success depends on proper parameter tuning, understanding when DoE is expected to outperform random sampling, and careful monitoring of convergence behavior. The key is to focus computational budget on regions that most impact the QoI calculation, rather than trying to model the entire response surface equally well.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="importance_sampling.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Importance sampling</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="gpbruteforce.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title"><code class="docutils literal notranslate"><span class="pre">GPBruteforce</span></code> behaviour w.r.t changes in the underlying model</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2024, DNV AS. All rights reserved.
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Design of Experiments (DoE)</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#purpose-and-motivation">Purpose and Motivation</a><ul>
+<li><a class="reference internal" href="#why-doe">Why DoE?</a></li>
+<li><a class="reference internal" href="#the-problem-doe-solves">The Problem DoE Solves</a></li>
+<li><a class="reference internal" href="#problems-where-doe-is-most-beneficial">Problems Where DoE is Most Beneficial</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#how-doe-works-in-axtreme">How DoE Works in Axtreme</a><ul>
+<li><a class="reference internal" href="#core-components">Core Components</a></li>
+<li><a class="reference internal" href="#the-doe-process">The DoE Process</a></li>
+<li><a class="reference internal" href="#qoilookahead-acquisition-function">QoILookAhead Acquisition Function</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#evaluating-doe-performance">Evaluating DoE Performance</a><ul>
+<li><a class="reference internal" href="#key-performance-indicators">Key Performance Indicators</a><ul>
+<li><a class="reference internal" href="#qoi-convergence-rate">1. QoI Convergence Rate</a></li>
+<li><a class="reference internal" href="#standard-error-of-the-mean-sem">2. Standard Error of the Mean (SEM)</a></li>
+<li><a class="reference internal" href="#point-selection-quality">3. Point Selection Quality</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tunable-parameters">Tunable Parameters</a><ul>
+<li><a class="reference internal" href="#critical-parameters">Critical Parameters</a><ul>
+<li><a class="reference internal" href="#warm-up-runs-warm-up-runs">1. Warm-up Runs (<code class="docutils literal notranslate"><span class="pre">warm_up_runs</span></code>)</a></li>
+<li><a class="reference internal" href="#doe-iterations-doe-runs">2. DoE Iterations (<code class="docutils literal notranslate"><span class="pre">DoE_runs</span></code>)</a></li>
+<li><a class="reference internal" href="#sem-threshold-sem-threshold">3. SEM Threshold (<code class="docutils literal notranslate"><span class="pre">sem_threshold</span></code>)</a></li>
+<li><a class="reference internal" href="#number-of-simulations-per-point-n-simulations-per-point">4. Number of Simulations per Point (<code class="docutils literal notranslate"><span class="pre">N_SIMULATIONS_PER_POINT</span></code>)</a></li>
+<li><a class="reference internal" href="#random-seed-seed">5.Random Seed (<code class="docutils literal notranslate"><span class="pre">seed</span></code>)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#troubleshooting-common-issues">Troubleshooting Common Issues</a><ul>
+<li><a class="reference internal" href="#poor-doe-performance">Poor DoE Performance</a></li>
+<li><a class="reference internal" href="#slow-convergence">Slow Convergence</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#best-practices">Best Practices</a></li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=a58bc63e"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    </body>
+</html>

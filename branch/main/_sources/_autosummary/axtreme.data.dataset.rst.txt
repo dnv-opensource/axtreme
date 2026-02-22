@@ -1,0 +1,17 @@
+axtreme.data.dataset
+====================
+
+.. automodule:: axtreme.data.dataset
+   :members:
+   :exclude-members: MinimalDataset,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      MinimalDataset
+   

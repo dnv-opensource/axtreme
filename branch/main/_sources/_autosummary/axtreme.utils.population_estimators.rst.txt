@@ -1,0 +1,16 @@
+axtreme.utils.population\_estimators
+====================================
+
+.. automodule:: axtreme.utils.population_estimators
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      estimate_pdf_value_from_sample
+      plot_dist
+      sample_mean_se
+      sample_median_se
+   
