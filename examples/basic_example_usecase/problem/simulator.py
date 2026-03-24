@@ -19,7 +19,8 @@ _branin_currin = BraninCurrin(negate=False).to(dtype=torch.double)
 
 # %%
 # These are helpers for our dummy simulator, and would not be available in a real problem
-def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
+def _true_loc_func_torch(x: torch.Tensor) -> torch.Tensor:
+    """Takes input of shape (*b, d=2) and returns (*b,) locs."""
     # For this toy example we use a Mixture distribution of a MultivariateNormal distribution
     dist1_mean, dist1_cov = torch.tensor([0.8, 0.8]), torch.tensor([[0.03, 0], [0, 0.03]])
     dist2_mean, dist2_cov = torch.tensor([0.2, 0.8]), torch.tensor([[0.04, 0.01], [0.01, 0.04]])
@@ -35,12 +36,23 @@ def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
         )
     )
     gmm = MixtureSameFamily(mix, component_dist)
-    return np.exp(gmm.log_prob(torch.tensor(x)).numpy())
+    return gmm.log_prob(x).exp()
+
+
+def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Takes input of shape (*b, d=2) and returns (*b,) locs."""
+    return _true_loc_func_torch(torch.tensor(x)).numpy()
+
+
+def _true_scale_func_torch(x: torch.Tensor) -> torch.Tensor:
+    """Takes input of shape (*b, d=2) and returns (*b,) locs."""
+    # For this toy example we use a constant scale for simplicity
+    return torch.ones(x.shape[:-1]) * 0.1
 
 
 def _true_scale_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
-    # For this toy example we use a constant scale for simplicity
-    return np.ones(x.shape[0]) * 0.1
+    """Takes input of shape (*b, d=2) and returns (*b,) locs."""
+    return _true_scale_func_torch(torch.tensor(x)).numpy()
 
 
 def dummy_simulator_function(x: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -136,3 +148,12 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
     _ = ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)), cmap="viridis")
+
+    # %% Testing the shape of the underlying function is as expected
+    assert _true_loc_func_torch(torch.rand(2)).shape == torch.Size([])
+    assert _true_loc_func_torch(torch.rand(5, 2)).shape == torch.Size([5])
+    assert _true_loc_func_torch(torch.rand(7, 5, 2)).shape == torch.Size([7, 5])
+
+    assert _true_scale_func_torch(torch.rand(2)).shape == torch.Size([])
+    assert _true_scale_func_torch(torch.rand(5, 2)).shape == torch.Size([5])
+    assert _true_scale_func_torch(torch.rand(7, 5, 2)).shape == torch.Size([7, 5])

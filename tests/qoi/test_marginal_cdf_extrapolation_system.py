@@ -11,7 +11,7 @@ individual steps, and contain additional detail regarding the motivation for the
 This script is designed to be run interactively as well as though pytest.
 """
 
-# ruff: noqa: T201
+# ruff: noqa: T201 PT028
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 # %%
 import json

@@ -185,7 +185,7 @@ if __name__ == "__main__":
     N_ENV_SAMPLES_PER_PERIOD = N_YEARS_IN_PERIOD * N_SECONDS_IN_YEAR // N_SECONDS_IN_TIME_STEP
     N_ENV_SAMPLES_PER_PERIOD = 1000
 
-    samples, x_max = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 300_000)
+    samples, x_max = collect_or_calculate_results(N_ENV_SAMPLES_PER_PERIOD, 10_000)
 
     _ = plt.hist(samples, bins=100, density=True)
     _ = plt.title(
@@ -199,8 +199,11 @@ if __name__ == "__main__":
         f"results/brute_force/erd_n_sample_per_period_{N_ENV_SAMPLES_PER_PERIOD}.png",
     )
     plt.show()
-
-    _ = plt.scatter(x_max[:, 0], x_max[:, 1])
+    _ = plt.scatter(x_max[:, 0], x_max[:, 1], alpha=0.5, s=5)
+    _ = plt.title("Locations of max response in environment space (point is sample erd)")
+    plt.savefig(
+        f"results/brute_force/erd_n_sample_per_period_x{N_ENV_SAMPLES_PER_PERIOD}.png",
+    )
     plt.show()
 
     # %%

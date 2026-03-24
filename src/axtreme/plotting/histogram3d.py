@@ -91,7 +91,7 @@ def histogram3d(  # noqa: PLR0913
                         **{
                             "intensity": [0, 0, 0, 0, z_value, z_value, z_value, z_value],
                             "flatshading": flatshading,
-                            "coloaxtremeis": "coloaxtremeis",
+                            "coloraxis": "coloraxis",
                             **mesh3d_kwargs,
                         },
                     ),

@@ -1,6 +1,6 @@
 """Plotting module for visualizing how well the GP fits the data."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TypeAlias
 
 import matplotlib.pyplot as plt
@@ -43,16 +43,38 @@ def plot_surface_over_2d_search_space(
     # Extract the parameter names and ranges from the search space
     assert len(search_space.parameters) == 2, "Only 2D search spaces are supported for now."  # noqa: PLR2004
 
-    (x1_name, x1_param), (x2_name, x2_param) = list(search_space.parameters.items())
+    (_, x1_param), (_, x2_param) = list(search_space.parameters.items())
 
     if not (isinstance(x1_param, RangeParameter) and isinstance(x2_param, RangeParameter)):
         msg = f"""Expect search_space.parameters to all be of type RangeParameter.
          Instead got {type(x1_param) = }, and {type(x2_param) = }."""
         raise NotImplementedError(msg)
 
+    bounds = [(x1_param.lower, x1_param.upper), (x2_param.lower, x2_param.upper)]
+    return plot_surface_over_2d_space(bounds, funcs, colors, num_points)
+
+
+def plot_surface_over_2d_space(
+    bounds: Sequence[tuple[float, float]],
+    funcs: list[Callable[[Numpy2dArray], Numpy1dArray]],
+    colors: list[str] | None = None,
+    num_points: int = 101,
+) -> Figure:
+    """Creates a figure with the functions `funcs` plotted over the bounds.
+
+    Note:
+        Currently only support search spaces with 2 parameters.
+
+    Args:
+        bounds: For evaluation and plotting `[(x1_low, x1_high), (x2_low, x2_high)]`
+        funcs: A list of callables that take in a numpy array with shape (num_values, num_parameters=2 )
+            and return a numpy array with (num_values) elements.
+        colors: A list of colors to use for each function. If None, will use default Plotly colors.
+        num_points: The number of points in each dimension to evaluate the functions at.
+    """
     # Generate parameter ranges using NumPy
-    x1_values = np.linspace(x1_param.lower, x1_param.upper, num_points)
-    x2_values = np.linspace(x2_param.lower, x2_param.upper, num_points)
+    x1_values = np.linspace(bounds[0][0], bounds[0][1], num_points)
+    x2_values = np.linspace(bounds[1][0], bounds[1][1], num_points)
 
     # Create a meshgrid for the parameter values
 
