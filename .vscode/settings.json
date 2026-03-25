@@ -49,4 +49,5 @@
     "mypy-type-checker.reportingScope": "workspace",
     "mypy-type-checker.preferDaemon": true,
     "ruff.configurationPreference": "filesystemFirst",
+    "python-envs.pythonProjects": [],
 }
