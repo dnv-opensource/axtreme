@@ -74,7 +74,10 @@ dependencies = [
 cuda = [
     "torch==2.4.1",
 ]
-
+examples = [
+    "openturns>=1.26",
+    "numba==0.61.2"
+]
 
 [project.urls]
 Homepage = "https://github.com/dnv-opensource/axtreme"
