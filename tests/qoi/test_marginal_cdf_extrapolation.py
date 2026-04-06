@@ -1,6 +1,7 @@
 # %%
 import json
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,118 +22,82 @@ torch.set_default_dtype(torch.float64)
 
 class TestMarginalCDFExtrapolation:
     """
-
-    Plan:
+    Test overview:
         - without importance sampling:
             - __call__:
-                - Unit test None
-                - Integration tests:
-                    - batched params and weights
-                    - dtype:
-                        - float32 where safe
-                        - float32 where not safe
+                - (unit) multiple posterior samples are handled correctly
+                - (unit) marginal CDF with insufficient precision is detected and raises error
+                - (integration) Using minimal input compare output to manually calculated expected value
             - _parameter_estimates:
-                - Integration test:
-                    - batch produce same results as non batch
-                    - 1 and multi (2) posterior samples.
+                - (unit) batched and non-batched env data produce the same result
         - with importance sampling:
-            - Unit test:
-                - _parameter_estimates: input and output weights are attached to the same samples
-            - System Test
-                - Show that that the QoI estimation with importance samples has less uncertainty in the result compared
-                to when using the regular approach of including the whole environment dataset.
-
-    Other sub components we potentially should test?
-        - distributions with different batches get optimised/treated properly (e.g in optimisation_)
+            - _parameter_estimates:
+                - (unit): importance weight w_i is still attached to the correct sample at the end of the function
+            - (integration): toy example showing importance sampling can produce less variable QoI estimates.
+        - Helper:
+            - q_to_qtimestep:
+                - (unit) prove that log based calculation are not required for numerical stability
+                - (unit) Rough proof results stable for typical values in calculations we do.
+            - acceptable_timestep_error:
+                - (unit) Error raise when can't perform calculation with required precision
     """
 
-    @pytest.mark.integration
-    @pytest.mark.parametrize(
-        "dtype, period_len",
-        [
-            # Short period
-            (torch.float32, 3),
-            (torch.float64, 3),
-            # Realistic period length
-            (torch.float64, 25 * 365 * 24),
-        ],
-    )
-    def test_call_basic_example(
-        self, gp_passthrough_1p: GenericDeterministicModel, dtype: torch.dtype, period_len: int
-    ):
-        """Runs a minimal version of the qoi using a deterministic model and a short period_len.
+    def test___call__two_posterior_samples(self):
+        """__call__ with 2 posterior samples returns a result of shape (2,).
 
-        Demonstrate both float32 and float64 can be used (with this short period)
-
-        Take 2 posterior samples to confirm the shape can be supported throughout.
+        Mocks _parameter_estimates to return params with n_posterior_samples=2 and
+        checks the output shape is (2,), confirming the posterior sample dimension
+        propagates correctly through the mixture and icdf steps.
         """
-        # Define the inputs
-        quantile = torch.tensor(0.5, dtype=dtype)
-        quantile_accuracy = torch.tensor(0.5, dtype=dtype)
-        # fmt: off
-        env_sample= torch.tensor(
-            [
-                [[0], [1], [2]]
-            ],
-            dtype = dtype
-        )
-        # fmt: on
-
-        # Run the method
-        qoi_estimator_non_batch = MarginalCDFExtrapolation(
-            env_iterable=env_sample,
-            period_len=period_len,
-            posterior_sampler=IndexSampler(torch.Size([2])),  # draw 2 posterior samples
-            quantile=quantile,
-            quantile_accuracy=quantile_accuracy,
+        dtype = torch.float64
+        # Shape: (n_posterior_samples=2, n_env=3, n_targets=2)
+        params = torch.tensor(
+            [[[2.0, 1e-6], [2.0, 1e-6], [2.0, 1e-6]], [[2.0, 1e-6], [2.0, 1e-6], [2.0, 1e-6]]],
             dtype=dtype,
         )
-        qoi = qoi_estimator_non_batch(gp_passthrough_1p)
+        weights = torch.ones(2, 3, dtype=dtype)  # shape: (n_posterior_samples=2, n_env=3)
 
-        # Calculated the expected value directly.
-        # This relies on knowledge of the internals, specifically that the underlying distribution produce will be
-        # [Gumbel(0, 1e-6), Gumbel(1, 1e-6), Gumbel(2, 1e-6)]. The first two will be clipped to quantile q= 1-finfo.eps
-        #  as per the bounds of ApproximateMixture
-        dist = Gumbel(torch.tensor(2, dtype=dtype), 1e-6)
-        q_timestep = (dist.cdf(qoi[0]) + (1 - torch.finfo(dtype).eps) * 2) / 3
+        qoi_estimator = MarginalCDFExtrapolation(
+            env_iterable=[],  # not used — _parameter_estimates is mocked
+            period_len=3,
+            quantile=torch.tensor(0.5, dtype=dtype),
+            quantile_accuracy=torch.tensor(0.5, dtype=dtype),
+            dtype=dtype,
+        )
 
-        # check can be scaled up to the original timeframe with the desired accuracy
-        assert q_timestep**period_len == pytest.approx(quantile, abs=quantile_accuracy)
+        with patch.object(qoi_estimator, "_parameter_estimates", return_value=(params, weights)):
+            qoi = qoi_estimator(MagicMock())
 
-    def test_call_insuffecient_numeric_precision(self, gp_passthrough_1p: GenericDeterministicModel):
-        """Runs a minimal version of the qoi using a deterministic model and a short period_len.
+        assert qoi.shape == torch.Size([2])
 
-        Demonstrate both float32 and float64 can be used (with this short period)
+    def test___call__insufficient_numeric_precision(self):
+        """__call__ raises TypeError when float32 precision is too coarse for the period_len.
 
-        Take 2 posterior samples to confirm the shape can be supported throughout.
+        With float32 and a realistic 25-year period_len, the single-timestep CDF values
+        lack enough resolution for the required quantile_accuracy. The underlying icdf
+        solver detects this and raises TypeError. _parameter_estimates is mocked so the
+        test exercises only the __call__ precision-check logic.
         """
-        # Define the inputs
         dtype = torch.float32
-        quantile = torch.tensor(0.5, dtype=dtype)
-        quantile_accuracy = torch.tensor(0.5, dtype=dtype)
-        # fmt: off
-        env_sample= torch.tensor(
-            [
-                [[0], [1], [2]]
-            ],
-            dtype = dtype
-        )
-        # fmt: on
+        # Shape: (n_posterior_samples=1, n_env=3, n_targets=2) — simple Gumbel params
+        params = torch.tensor([[[2.0, 1e-6], [2.0, 1e-6], [2.0, 1e-6]]], dtype=dtype)
+        weights = torch.ones(1, 3, dtype=dtype)
 
-        # Run the method
-        qoi_estimator_non_batch = MarginalCDFExtrapolation(
-            env_iterable=env_sample,
+        qoi_estimator = MarginalCDFExtrapolation(
+            env_iterable=[],  # not used — _parameter_estimates is mocked
             period_len=25 * 365 * 24,
-            posterior_sampler=IndexSampler(torch.Size([2])),  # draw 2 posterior samples
-            quantile=quantile,
-            quantile_accuracy=quantile_accuracy,
+            quantile=torch.tensor(0.5, dtype=dtype),
+            quantile_accuracy=torch.tensor(0.5, dtype=dtype),
             dtype=dtype,
         )
 
-        with pytest.raises(TypeError, match="The distribution provided does not have suitable resolution"):
-            _ = qoi_estimator_non_batch(gp_passthrough_1p)
+        with (
+            patch.object(qoi_estimator, "_parameter_estimates", return_value=(params, weights)),
+            pytest.raises(TypeError, match="The distribution provided does not have suitable resolution"),
+        ):
+            _ = qoi_estimator(MagicMock())
 
-    def test_parameter_estimates_env_batch_invariant(
+    def test__parameter_estimates_env_batch_invariant(
         self, gp_passthrough_1p_sampler: IndexSampler, gp_passthrough_1p: GenericDeterministicModel
     ):
         """Checks that batched and non-batch env data produce the same result.
@@ -175,21 +140,14 @@ class TestMarginalCDFExtrapolation:
         torch.testing.assert_close(param_non_batch, param_batch)
         torch.testing.assert_close(weight_non_batch, weight_batch)
 
-    def test_parameter_estimates_consistency_of_weights(self, gp_passthrough_1p: GenericDeterministicModel):
-        """
-        Tests that the `_parameter_estimates` method in `MarginalCDFExtrapolation` correctly combines environment
-        samples and their associated importance weights, and that the outputs match expected values when using a
-        deterministic Gaussian Process (GP). The deterministic nature of the GP model leads to fully predictable
-        posterior samples, i.e. they are identical to the environment samples.
+    def test__parameter_estimates_consistency_of_weights(self, gp_passthrough_1p: GenericDeterministicModel):
+        """Minor check that the importance weights and samples don't get shuffled during the function.
 
-        This test ensures that:
-        - Posterior samples returned by `_parameter_estimates` are correctly ordered.
-        - Importance weights are preserved and correctly matched to the associated samples.
+        In other words, importance weight is attached to the correct sample at the end.
 
-        Args:
-            gp_passthrough_1p is defined in conftest.py. It creates a deterministic GP which always produces identical
-            posterior samples. The output location is a direct pass through of the given input data, and the scale is
-            set to 1e-6.
+        Approach:
+        Use a deterministic GP so the inputs can be traced through to their output position.
+
         """
         # MarginalCDFExtrapolation expects an iterable of env data. To use importance samples, each item is expected to
         # be of the following form [env_samples, importance_weights], where:
@@ -227,32 +185,94 @@ class TestMarginalCDFExtrapolation:
         # The calculated importance weights should be the same as the input importance weights
         assert torch.equal(torch.tensor([[0.1, 0.2, 0.3, 0.4]]), importance_weights_qoi)
 
-    @pytest.mark.system
-    @pytest.mark.non_deterministic
-    # Ruff does not allow default arguments in test functions. Using a decorator circumvents that.
-    @pytest.mark.parametrize("error_tolerance, visualise", [(1, False)])
-    def test_system_marginal_cdf_with_importance_sampling(
-        self,
-        error_tolerance: float,
-        *,
-        visualise: bool,
+    @pytest.mark.integration
+    @pytest.mark.parametrize(
+        "dtype, period_len",
+        [
+            # Short period
+            (torch.float32, 3),
+            (torch.float64, 3),
+            # Realistic period length
+            (torch.float64, 25 * 365 * 24),
+        ],
+    )
+    def test__call__basic_example(
+        self, gp_passthrough_1p: GenericDeterministicModel, dtype: torch.dtype, period_len: int
     ):
+        """Minimal MarginalCDFCExtrapolation calculation where expected value can be calculated directly.
+
+        Uses 3 input points and a deterministic GP so expected result can be explicitly calculated.
         """
-        There is variability in the specific samples in the env_data used to instantiate a QoiEstimator, which creates
-        the variability of the QoIEstimator estimate. This can be seen by inspecting how the estimates given change when
-        the QoiEstimator has been instantiated with a different dataset. This test shows how (good) importance samples
-        can reduce the variability between estimates of QoIEstimators instantiated with different env_data. The effect
-        of GP uncertainty is removed by using a deterministic model, meaning all uncertainty in the estimate comes from
-        the environment samples.
+        # Define the inputs
+        quantile = torch.tensor(0.5, dtype=dtype)
+        quantile_accuracy = torch.tensor(0.5, dtype=dtype)
+        # fmt: off
+        env_sample= torch.tensor(
+            [
+                [[0], [1], [2]]
+            ],
+            dtype = dtype
+        )
+        # fmt: on
+
+        # Run the method
+        qoi_estimator_non_batch = MarginalCDFExtrapolation(
+            env_iterable=env_sample,
+            period_len=period_len,
+            posterior_sampler=IndexSampler(torch.Size([1])),
+            quantile=quantile,
+            quantile_accuracy=quantile_accuracy,
+            dtype=dtype,
+        )
+        qoi = qoi_estimator_non_batch(gp_passthrough_1p)
+
+        # Calculated the expected value directly.
+        # This relies on knowledge of the internals, specifically that the underlying distribution produce will be
+        # [Gumbel(0, 1e-6), Gumbel(1, 1e-6), Gumbel(2, 1e-6)]. The first two will be clipped to quantile q= 1-finfo.eps
+        #  as per the bounds of ApproximateMixture
+        dist = Gumbel(torch.tensor(2, dtype=dtype), 1e-6)
+        q_timestep = (dist.cdf(qoi[0]) + (1 - torch.finfo(dtype).eps) * 2) / 3
+
+        # check can be scaled up to the original timeframe with the desired accuracy
+        assert q_timestep**period_len == pytest.approx(quantile, abs=quantile_accuracy)
+
+    @pytest.mark.integration
+    @pytest.mark.non_deterministic
+    def test_marginal_cdf_with_importance_sampling(  # noqa: PLR0915
+        self,
+        error_tolerance: float = 1.0,  # noqa: PT028
+        *,
+        visualise: bool = False,  # noqa: PT028
+    ):
+        """Toy example showing importance sampling can produce less variable QoI estimates.
+
+        QoIEstimator need to integrate out (marginalise) the effect of the weather. This integration can be ESTIMATED
+        using sample based methods. This test demonstrates that importance sampling produces less variable (and still
+        correct) estimates compared to random sampling.
+
+        NOTE: QoIEstimator output only shows GP variability. To understand the variability of the QoIEstimator due to
+        the environment samples the estimator must me run with different env samples (of the same size).
+
+        Test overview:
+            Inputs
+            - Response functions: A tight normal distribution at (1,1)
+            - Environment distribution: Sample from std normal (with x1 > 0 and x2 > 0)
+            - Importance sampling distribution: Uniform samples within a circle of radius 1.75 (with x1 > 0 and x2 > 0)
+
+            Process:
+            - 1) draw a subsample from the environment distribution or importance sampling distribution.
+            - 2) Run the QoIEstimator with this subsamples (The true underlying function is used inplace of the GP to
+              remove the effect of GP uncertainty and isolate the effect of the environment samples). The QoIEstimator
+              thus returns a single number per run.
+            - 3) Repeat set 1 and 2 many times. Compare the distribution of prediction.
+
+            Expected result:
+            - Using the same number of samples, the importance sampling approach should have less variance in its
+              its estimates (and still be centered around the true value). Thresholds are set via visual inspection.
 
         Args:
             error_tolerance: The error allowed in assertions is multiplied by this number.
             visualise: Bool to specify if the QoI results shall be plotted.
-
-        Expectation:
-        As we use a deterministic GP the QoI estimator will not be a distribution but a point representing the mean.
-        The std of the means of several runs of the QoI estimator should be lower with uncertainty sampling than
-        without. By visual inspection a threshold for the std for importance sampling is chosen.
         """
 
         # Load precalculated importance samples and weights
@@ -290,6 +310,36 @@ class TestMarginalCDFExtrapolation:
             return torch.stack([loc, scale], dim=-1)
 
         gp_deterministic = GenericDeterministicModel(_true_underlying_func, num_outputs=2)
+
+        if visualise:
+            _, ax = plt.subplots(1, 1, figsize=(10, 8))
+
+            # Plot 1: Overlay both distributions on a single scatter plot
+            _ = ax.scatter(env_data[:, 0], env_data[:, 1], alpha=0.2, label="Environment", color="steelblue", s=10)
+            _ = ax.scatter(
+                importance_samples[:, 0].numpy(),
+                importance_samples[:, 1].numpy(),
+                alpha=0.3,
+                label="Importance samples",
+                color="darkorange",
+                s=10,
+            )
+
+            # Plot 2: Heatmap of true underlying function (loc), only where value > 1
+            all_x = np.concatenate([env_data[:, 0], importance_samples[:, 0].numpy()])
+            all_y = np.concatenate([env_data[:, 1], importance_samples[:, 1].numpy()])
+            x1_grid = np.linspace(all_x.min(), all_x.max(), 300)
+            x2_grid = np.linspace(all_y.min(), all_y.max(), 300)
+            X1, X2 = np.meshgrid(x1_grid, x2_grid)  # noqa: N806
+            grid = torch.tensor(np.stack([X1.ravel(), X2.ravel()], axis=1))
+            with torch.no_grad():
+                loc_values = _true_underlying_func(grid)[:, 0].numpy().reshape(X1.shape)
+            masked_values = np.where(loc_values > 1, loc_values, np.nan)
+            im = ax.pcolormesh(X1, X2, masked_values, cmap="viridis", shading="auto")
+            _ = plt.colorbar(im, ax=ax, label="loc (response)")
+
+            _ = ax.set_title("Environment and importance samples with underlying response function")
+            _ = ax.legend
 
         # Create jobs with with and without importance sampling
         qoi_jobs = []
@@ -356,7 +406,7 @@ class TestMarginalCDFExtrapolation:
 
             df_jobs[df_jobs["dataset_name"] == "full"].hist(column="mean", ax=ax[0], grid=False)
             ax[0].axvline(brute_force_qoi, c="orange", label=f"Brute force ({brute_force_qoi:.2f})")
-            ax[0].set_title(f"Dataset: full, mean={std_qoi_means_full:.2f}, std={mean_qoi_means_full:.2f}")
+            ax[0].set_title(f"Dataset: full, mean={mean_qoi_means_full:.2f}, std={std_qoi_means_full:.2f}")
             ax[0].legend()
 
             # Plot results for importance sampling
@@ -407,20 +457,23 @@ def test_q_to_qtimestep_numerical_precision_of_timestep_conversion(
     "q", [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
 )
 def test_q_to_qtimestep_numerical_precision_period_increase(q: float):
-    """Estimate the numerical error introduced through this operation.
+    """Rough check to ensure have enough numerical stability for type of calcs we commonly do.
 
     This calculates the "round trip error" of going q_longterm -> q_timestep -> q_longterm, as this is easier to test.
     This error may be larger than conversion q_longterm -> q_timestep.
     By default python uses float64 (on most machines). This has a precision of 1e-15.
 
+    Characteristics of common calcs:
+    - q = quantile of ERD, typically between 0.05 and 0.95
+    - period_len = not expecting to be larger than 100 year simulation with 1 second time step is is approx 1e10.
+    - Absolute error typically acceptable in final quantile estimate q +- .001
+
     NOTE:
         - abs = 1e-10: all tests pass
         - abs = 1e-11: approx half the tests fail.
-
-    By default python uses float64 (on most machines). This has a precision of 1e-15.
     """
 
-    period_len = int(1e13)
+    period_len = int(1e13)  # every second for 100 year = 1e10
     q_step = q_to_qtimestep(q, period_len)
     assert q_step**period_len == pytest.approx(q, abs=1e-3)
 
@@ -435,4 +488,4 @@ def test_acceptable_timestep_error_at_limits_of_precision():
 if __name__ == "__main__":
     # %%
     MarginalCDF = TestMarginalCDFExtrapolation()
-    MarginalCDF.test_system_marginal_cdf_with_importance_sampling(1, visualise=True)
+    MarginalCDF.test_marginal_cdf_with_importance_sampling(1, visualise=True)
