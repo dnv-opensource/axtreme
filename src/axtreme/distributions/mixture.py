@@ -305,4 +305,15 @@ def icdf_value_bounds(dist: MixtureSameFamily, q: torch.Tensor) -> torch.Tensor:
     lower_bound = values.min(dim=-1).values
     upper_bound = values.max(dim=-1).values
 
+    # Handle edge cases where the lower and upper bound are the same.
+    # NOTE: This only sets the starting bounds for optimisation, so its not an issue if the bounds are a little large.
+    identical = torch.isclose(lower_bound, upper_bound)
+    # If working with very small number eps with will comparatively large - but should still find correct result.
+    finfo_eps = torch.finfo(lower_bound.dtype).eps
+    # large numbers: a difference of eps will be truncated by numeric precision, so find a relative value
+    # Small number: Could use a value smaller than eps, but don't bother
+    offset = (lower_bound.abs() * finfo_eps * 10).clamp(min=finfo_eps)
+    lower_bound = torch.where(identical, lower_bound - offset, lower_bound)
+    upper_bound = torch.where(identical, upper_bound + offset, upper_bound)
+
     return torch.stack([lower_bound, upper_bound])

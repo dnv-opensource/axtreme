@@ -333,14 +333,14 @@ class TestApproximateMixture:
         # a simple q applied to each mixture model
         (
             torch.tensor(0.5),
-            # This are known upfront becuase of the loc and scale specifiec in the test
+            # This are known upfront because of the loc and scale specified in the test
             (Gumbel(0, 1).icdf(0.5), Gumbel(1, 1).icdf(0.5)),  # expected bound for 1s mixture model
             (Gumbel(1, 1).icdf(0.5), Gumbel(2, 1).icdf(0.5)),  # expected bound for 2nd mixture model
         ),
-        # Minture model specific quantiles
+        # Mixture model specific quantiles
         (
             torch.tensor([0.5, 0.9]),
-            # This are known upfront becuase of the loc and scale specifiec in the test
+            # This are known upfront because of the loc and scale specified in the test
             (Gumbel(0, 1).icdf(0.5), Gumbel(1, 1).icdf(0.5)),  # expected bound for 1s mixture model
             (Gumbel(1, 1).icdf(0.9), Gumbel(2, 1).icdf(0.9)),  # expected bound for 2nd mixture model
         ),
@@ -354,7 +354,7 @@ def test_icdf_value_bounds(q: torch.Tensor, bounds1: tuple[float, float], bounds
     NOTE: Bounds are specified verbosely in areguments to make it clearer where they come from. Could simplfy this to
     just a tensor of bounds.
     """
-    # Set to the require compoents
+    # Set to the require components
     # fmt: off
     loc = torch.tensor([[0.0, 1.,], [1.0, 2.,]], dtype=torch.float64)
     # fmt: on
@@ -371,3 +371,34 @@ def test_icdf_value_bounds(q: torch.Tensor, bounds1: tuple[float, float], bounds
     torch.testing.assert_close(actual_bouds1, torch.tensor(bounds1), atol=1e-5, rtol=0)
     actual_bouds2 = bounds[:, 1]
     torch.testing.assert_close(actual_bouds2, torch.tensor(bounds2), atol=1e-5, rtol=0)
+
+
+@pytest.mark.parametrize(
+    "loc",
+    [
+        # Negative loc: check not using multiplication/division which will invert bounds.
+        -10.0,
+        # Near-zero loc: offset must not collapse to 0
+        0.0,
+        # Positive loc: sanity check that the fix doesn't break the normal case
+        10.0,
+        # Large loc: check the offset is not
+        1e12,
+    ],
+)
+def test_icdf_value_bounds_identical_components_lower_lt_upper(loc: float):
+    """Handles edge case of picking bounds when components all give identical icdf value (e.g. components are identical)
+
+    Check that in all cases lower_bounc < upper_bound.
+    """
+    q = torch.tensor(0.5)
+    identical_loc = torch.tensor([loc, loc], dtype=torch.float64)
+    scale = torch.ones_like(identical_loc)
+    comp = Gumbel(loc=identical_loc, scale=scale)
+    mix = Categorical(torch.ones_like(identical_loc, dtype=torch.float64))
+    dist = MixtureSameFamily(mix, comp)
+
+    bounds = icdf_value_bounds(dist, q)
+    lower, upper = bounds[0], bounds[1]
+
+    assert lower < upper, f"Expected lower < upper for loc={loc}, got lower={lower}, upper={upper}"
