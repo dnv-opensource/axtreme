@@ -7,7 +7,7 @@ from ax.core import TParameterization
 from scipy.stats import rv_continuous
 
 from axtreme.simulator import Simulator
-from axtreme.utils import distibution_helpers
+from axtreme.utils import distribution_helpers
 
 
 # QUESTION: is this the right place for this?
@@ -177,10 +177,10 @@ class EvaluationFunction:
         """
         # NOTE: the order/index matches that returned by rv_continous.fit
         # This can be explicity collected by using distribution_parameter_names_from_scipy(rv_continous)
-        param_means, cov = distibution_helpers.fit_dist_with_uncertainty(y, self.output_dist)
+        param_means, cov = distribution_helpers.fit_dist_with_uncertainty(y, self.output_dist)
 
         # TODO(sw): Will need to change when we look at correlated output becuase will need to look at the covariances
         # Will address this once we know what the correlated GP requires as input and output
-        param_names = distibution_helpers.distribution_parameter_names_from_scipy(self.output_dist)
+        param_names = distribution_helpers.distribution_parameter_names_from_scipy(self.output_dist)
 
         return SimulationPointResults(metric_names=param_names, means=param_means, cov=cov)

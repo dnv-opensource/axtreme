@@ -5,7 +5,7 @@ import pytest
 from scipy import stats
 from scipy.stats._distn_infrastructure import rv_continuous
 
-from axtreme.utils import distibution_helpers
+from axtreme.utils import distribution_helpers
 
 
 @pytest.mark.parametrize(
@@ -17,11 +17,11 @@ from axtreme.utils import distibution_helpers
     ],
 )
 def test_distribution_parameter_names_from_scipy(dist: rv_continuous, expected: list[str]):
-    result = distibution_helpers.distribution_parameter_names_from_scipy(dist)
+    result = distribution_helpers.distribution_parameter_names_from_scipy(dist)
     assert result == expected
 
 
-# TODO(sw): How do we chance that the uncertainty (cov) we are getting is reasonable?
+# TODO(sw): How do we check that the uncertainty (cov) we are getting is reasonable?
 @pytest.mark.parametrize(
     "dist, params",
     [
@@ -36,5 +36,5 @@ def test_distribution_parameter_names_from_scipy(dist: rv_continuous, expected: 
 )
 def test_fit_dist_with_uncertainty(dist: rv_continuous, params: dict[str, Any]):
     sample = dist.rvs(**params, size=10_000, random_state=7)
-    means, _ = distibution_helpers.fit_dist_with_uncertainty(sample, dist)
+    means, _ = distribution_helpers.fit_dist_with_uncertainty(sample, dist)
     np.testing.assert_allclose(means, list(params.values()), atol=1e-2)
