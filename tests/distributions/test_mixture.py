@@ -1,3 +1,4 @@
+# %%
 import matplotlib.pyplot as plt
 import pytest
 import torch
@@ -46,9 +47,18 @@ class TestApproximateMixture:
     # TODO(sw 2024-12-14): Test more distributions
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("dist_class", [Gumbel, LogNormal])
-    def test_lower_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):  # noqa: PT028
-        """Fnd bounds that do not throw error and produce 0."""
-        dist = dist_class(torch.tensor(0, dtype=dtype), 1)  # type: ignore  # noqa: PGH003
+    def test_show_lower_bound_x_issue(
+        self,
+        dtype: torch.dtype,
+        dist_class: type[Distribution],
+        *,
+        visualise: bool = False,  # noqa: PT028
+    ):
+        """Mostly to demo behaviour that happens between q = [finfo.tiny, finfo.eps].
+
+        Test fails if the lower bound is changed so developer will be made aware of the issues
+        """
+        dist = dist_class(torch.tensor([0], dtype=dtype), torch.tensor([1], dtype=dtype))  # type: ignore  # noqa: PGH003
 
         if visualise:
             # visualise the reverse relationship:
@@ -61,6 +71,7 @@ class TestApproximateMixture:
             icdfs = dist.icdf(qs)
 
             _ = plt.axvline(finfo.eps, color="red", label="eps")
+            _ = plt.axvline(finfo.tiny, color="blue", label="tiny")
             _ = plt.scatter(qs, icdfs, label="icdf(x) -> q")
             _ = plt.ylabel("x (icdf(q)-> x)")
             _ = plt.xlabel("q ")
@@ -69,20 +80,32 @@ class TestApproximateMixture:
             _ = plt.legend()
             plt.pause(5)
 
-        lower_bound_x = ApproximateMixture._lower_bound_x(dist)
+            xs = icdfs
+            q = dist.cdf(xs)
+            _ = plt.scatter(xs, q)
+            _ = plt.yscale("log")
+            _ = plt.ylim(finfo.tiny, 5e-5)
+            _ = plt.ylabel("q")
+            _ = plt.xlabel("x ")
+            _ = plt.title("CDF: cdf(x)->q")
+            _ = plt.axhline(finfo.eps, color="red", label="eps")
+            _ = plt.axhline(finfo.tiny, color="blue", label="tiny")
+            plt.pause(5)
 
-        assert dist.cdf(lower_bound_x) == 0
+        mixture_dist = ApproximateMixture(Categorical(probs=torch.tensor([1], dtype=dtype)), dist)
+        assert mixture_dist.quantile_bounds[0] == pytest.approx(torch.finfo(dtype).eps)
 
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("dist_class", [Gumbel, LogNormal])
     def test_upper_bound_x(self, dtype: torch.dtype, dist_class: type[Distribution], *, visualise: bool = False):  # noqa: PT028
-        dist = dist_class(torch.tensor(0, dtype=dtype), 1)  # type: ignore  # noqa: PGH003
+        """Mostly to demo behaviour that happens between q = [1 - finfo.eps, 1]."""
+        dist = dist_class(torch.tensor([0], dtype=dtype), torch.tensor([1], dtype=dtype))  # type: ignore  # noqa: PGH003
 
         if visualise:
             finfo = torch.finfo(dtype)
             max_x = dist.icdf(torch.tensor(1 - finfo.eps, dtype=dtype))
-            # NOTE: these bounds may beed to be adjsuted for different dists
-            x = torch.linspace(max_x - 1, max_x + 0.5, 1000, dtype=torch.float32)
+            # NOTE: these bounds may need to be adjusted for different dists
+            x = torch.linspace(max_x - 1, max_x + 0.5, 1000, dtype=dtype)
             cdfs = dist.cdf(x)
 
             _ = plt.axhline(1 - finfo.eps, color="red", label="eps")
@@ -94,13 +117,50 @@ class TestApproximateMixture:
             _ = plt.legend()
             plt.pause(5)
 
-        upper_bound_x = ApproximateMixture._upper_bound_x(dist)
+        mixture_dist = ApproximateMixture(Categorical(probs=torch.ones(1, dtype=dtype)), dist)
+        assert mixture_dist.quantile_bounds[1] == pytest.approx(1 - torch.finfo(dtype).eps)
 
-        assert dist.cdf(upper_bound_x) == 1 - torch.finfo(dtype).eps
+    @pytest.mark.parametrize(
+        "component_distribution_shape, input_shape",
+        [
+            # unbatched mixture, unbatched input
+            (torch.Size([3]), torch.Size([1])),
+            # batched mixture, unbatched input
+            (torch.Size([5, 3]), torch.Size([1])),
+            # unbatched mixture, unbatched input
+            (torch.Size([3]), torch.Size([7, 1])),
+            # batched mixture, batched input
+            (torch.Size([5, 3]), torch.Size([7, 5])),
+            # larger_batch_mixture
+            (torch.Size([10, 5, 3]), torch.Size([7, 10, 1])),
+        ],
+    )
+    def test_cdf_shape_equivalent_to_mixture(self, component_distribution_shape: torch.Size, input_shape: torch.Size):
+        """Check the input and output shape behaves the same way as MixtureSameFamily.
+
+        TODO:
+        - Test distribution with ``.event_shape!=torch.Size([])``
+        """
+        x = torch.rand(input_shape)
+
+        loc = torch.zeros(component_distribution_shape)
+        scale = torch.ones(component_distribution_shape)
+
+        dist = Gumbel(loc, scale)
+        mix = Categorical(torch.ones(component_distribution_shape))
+
+        approx_mixture = ApproximateMixture(mix, dist)
+        mixture = MixtureSameFamily(mix, dist)
+
+        # Run through both of the methods.
+        actual_value = approx_mixture.cdf(x)
+        expected_value = mixture.cdf(x)
+
+        assert actual_value.shape == expected_value.shape
 
     # Nothing interesting should happen with different shapes, just checking that here.
     @pytest.mark.parametrize(
-        "shape",
+        "component_distribution_shape",
         [
             # Unbatch mixture distribution, with only a single component
             torch.Size([1]),
@@ -122,7 +182,9 @@ class TestApproximateMixture:
             ),
         ],
     )
-    def test_equivalent_to_mixturesamefamily_within_range(self, shape: torch.Size, q: float, dtype: torch.dtype):
+    def test_cdf_equivalent_to_mixturesamefamily_within_range(
+        self, component_distribution_shape: torch.Size, q: float, dtype: torch.dtype
+    ):
         """ApproximateMixture and MixtureSameFamily should have identical behaviour within the component range.
 
         Within the range the component distribution supports, behaviour should be identical.
@@ -139,24 +201,74 @@ class TestApproximateMixture:
             - And the input is the in the range
             - The output should be identical
         """
-        # Create the x value wich represents that quantile. The gumbel here matches the one we use as dist.
+        # Create the x value which represents that quantile. The gumbel here matches the one we use as dist.
         # This has shape (1,) which can be broadcast in the CDF step to any underlying distribution
         x = Gumbel(loc=torch.zeros(1, dtype=dtype), scale=1).icdf(q)
 
-        loc = torch.zeros(shape, dtype=dtype)
-        scale = torch.ones(shape, dtype=dtype)
+        loc = torch.zeros(component_distribution_shape, dtype=dtype)
+        scale = torch.ones(component_distribution_shape, dtype=dtype)
 
         dist = Gumbel(loc, scale)
-        mix = Categorical(torch.ones(shape, dtype=dtype))
+        mix = Categorical(torch.ones(component_distribution_shape, dtype=dtype))
 
         approx_mixture = ApproximateMixture(mix, dist)
         mixture = MixtureSameFamily(mix, dist)
 
-        # Run through bothe of the methods.
+        # Run through both of the methods.
         actual_value = approx_mixture.cdf(x)
         expected_value = mixture.cdf(x)
 
         assert torch.allclose(actual_value, expected_value)
+
+    @pytest.mark.parametrize(
+        "loc, scale, q, dtype, expect_violation",
+        [
+            # ## Standard case: loc and scale are close and this can be represented numerically
+            (1, 1, 1 - torch.finfo(torch.float32).eps, torch.float32, False),
+            (1, 1, 0.5, torch.float32, False),
+            (1, 1, torch.finfo(torch.float32).eps, torch.float32, False),
+            # Real failure: float32 can reliabilty represent the first 7 digits. For this problem would need 11+ digits
+            (25_000, 1e-6, 1 - torch.finfo(torch.float32).eps, torch.float32, True),
+            (25_000, 1e-6, 0.5, torch.float32, True),
+            (25_000, 1e-6, torch.finfo(torch.float32).eps, torch.float32, True),
+            # float64 is precise to 15 places.
+            (25_000, 1e-6, 1 - torch.finfo(torch.float64).eps, torch.float64, False),
+            # Float64: 10 digits for loc, 6 for scale -> leads to failure
+            (25_000 * 10e5, 1e-6, 1 - torch.finfo(torch.float64).eps, torch.float64, True),
+        ],
+    )
+    def test_check_cdf_numeric_precision(
+        self,
+        loc: float,
+        scale: float,
+        q: float,
+        dtype: torch.dtype,
+        expect_violation: bool,  # noqa: FBT001
+    ):
+        """Test can detect when don't have the precision to represent the bounds needed."""
+        dist = Gumbel(loc=torch.tensor([loc], dtype=dtype), scale=torch.tensor([scale], dtype=dtype))
+        results = ApproximateMixture._check_cdf_numeric_precision(dist, q)
+        assert results["has_violation"] == expect_violation
+
+    # @pytest.mark.parametrize(
+    #     "x,expected_q",
+    #     [
+    #         # above bounds
+    #         (100_000, 1 - torch.finfo(torch.float32).eps),
+    #         # below bounds
+    #         (-100_000, 0),
+    #     ],
+    # )
+    # def test_cdf_value_outside_bounds(self, x: float, expected_q: float):
+    #     dtype = torch.float32
+    #     loc = torch.tensor([1], dtype=dtype)
+    #     component_dist = Gumbel(loc=loc, scale=1)
+    #     mixture_dist = Categorical(probs=torch.ones_like(loc))
+
+    #     dist = ApproximateMixture(mixture_dist, component_dist)
+    #     x_tensor = torch.tensor([x], dtype=dtype)
+    #     cdf_value = dist.cdf(x_tensor)
+    #     assert cdf_value == pytest.approx(expected_q)
 
     @pytest.mark.integration  # Relies on `dist_cdf_resolution` otherwise not really an integration test.
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
@@ -167,7 +279,7 @@ class TestApproximateMixture:
         weighted sum. As such finner grain tests of output can be performed. The test demonstrates the following:
 
             - The cdf does not fail for extremely larges of small inputs.
-            - It produces the expected quantils for these results (up to the accuracy specifed by `dist_cdf_resolution`)
+            - It produces the expected quantiles for these results (up to `dist_cdf_resolution` accuracy).
         """
         loc = torch.tensor([0.0], dtype=dtype)
         scale = torch.ones_like(loc, dtype=dtype)
@@ -325,6 +437,40 @@ class TestApproximateMixture:
         with pytest.raises(AssertionError):
             # difference is 5.45e-10
             torch.testing.assert_close(q_32, q_64, atol=1e-10, rtol=0)
+
+    def test_calculate_x_bounds_returns_correct_values(self):
+        """calculate_x_bounds should return dist.icdf(q_lowerbound) and dist.icdf(q_upperbound)."""
+        dtype = torch.float64
+        finfo = torch.finfo(dtype)
+        q_lower = finfo.eps
+        q_upper = 1 - finfo.eps
+
+        loc = torch.tensor([0.0], dtype=dtype)
+        scale = torch.ones_like(loc)
+        dist = Gumbel(loc, scale)
+
+        x_lower, x_upper = ApproximateMixture.calculate_x_bounds(dist, q_upperbound=q_upper, q_lowerbound=q_lower)
+
+        torch.testing.assert_close(x_lower, dist.icdf(torch.tensor(q_lower, dtype=dtype)))
+        torch.testing.assert_close(x_upper, dist.icdf(torch.tensor(q_upper, dtype=dtype)))
+
+    def test_calculate_x_bounds_warns_on_precision_violation(self):
+        """calculate_x_bounds should emit a RuntimeWarning when the dtype lacks precision to represent the bounds.
+
+        Uses loc=25_000, scale=1e-6 with float32 — a case proven to trigger violations in
+        _check_cdf_numeric_precision (both upper and lower bounds).
+        """
+        dtype = torch.float32
+        finfo = torch.finfo(dtype)
+        q_lower = finfo.eps
+        q_upper = 1 - finfo.eps
+
+        loc = torch.tensor([25_000.0], dtype=dtype)
+        scale = torch.tensor([1e-6], dtype=dtype)
+        dist = Gumbel(loc, scale)
+
+        with pytest.warns(RuntimeWarning, match="Insufficient precision"):
+            ApproximateMixture.calculate_x_bounds(dist, q_upperbound=q_upper, q_lowerbound=q_lower)
 
 
 @pytest.mark.parametrize(
