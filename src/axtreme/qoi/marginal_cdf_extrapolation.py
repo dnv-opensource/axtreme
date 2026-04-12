@@ -141,23 +141,8 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
 
             params, weights = params.type(self.dtype), weights.type(self.dtype)
 
-        # Create the the marginal distribution for the parameters. The categorical distribution handles weights scaling
-        # resulting batch shape (n_posterior_samples)
-        if self.response_distribution is Gumbel:
-            assert issubclass(self.response_distribution, Gumbel)  # help mypy determine the type
-            loc = params[..., 0]
-            scale = params[..., 1].clamp(min=1e-6)  # Ensure scale is positive
-            component_dist = self.response_distribution(loc, scale)
-        else:
-            # To support other distribution need to to apply parameter constraints (list on the distribution), to the
-            # the input params. Additionally need to know the order (name) of params in params.
-            raise NotImplementedError("Only Gumbel distributions are currently supported.")
-
-        # ApproximateMixture is appropriate becuase it produces conservative estimate. The optimisation method
-        # later check that the dist has suitable resolution for the required accuracy.
-        dist = ApproximateMixture(
-            mixture_distribution=Categorical(weights),
-            component_distribution=component_dist,
+        dist, _ = _mixture_distribution_from_importance_samples(
+            weights, params, component_dist_class=self.response_distribution
         )
 
         # determine the timestep quantile to be found, and the acceptable margin of error
@@ -166,9 +151,18 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
 
         # calculated the icdf values
         qtimestep = torch.tensor(_qtimestep, dtype=torch.float64)
-        # TODO(sw 2026-04-07): This should probably be updated if using a corrected distribution - otherwise will always
-        # select the degenerate distribution as the lower bound (which will be quite bad if the degenerate distribution
-        # is far away)
+
+        # Check that the quantile searching for in not in the degenerate distribution added
+        # TODO(sw 2026-4-12): this assume event dim (,).
+        # TODO(sw 2026-4-12): Look for a more elegant way to handle this
+        if (dist.mixture_distribution.probs[..., -1] > qtimestep).any():
+            msg = (
+                "The quantile being searched for is in the degenerate distribution added. This will give incorrect"
+                " results as because the degenerate distribution is only intended to add baseline mass, and its "
+                " location is meaningless. Consider the quantile being searched for, and the importance bounds used."
+            )
+            raise RuntimeError(msg)
+
         opt_bounds = icdf_value_bounds(dist, qtimestep)
         qois = icdf.icdf(dist, qtimestep, max_qtimestep_error, opt_bounds)
         # TODO(sw 2024-12-16): Gradient should be reattached here.

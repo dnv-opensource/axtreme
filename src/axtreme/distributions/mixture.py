@@ -314,9 +314,9 @@ class ApproximateMixture(MixtureSameFamily):
 
         cdf_x = self.component_distribution.cdf(x)
 
-        # Manually replaces the result of the out of bound CDF calc
-        cdf_x[too_large_mask] = self.cdf_out_of_bounds_q[1].expand_as(x)[too_large_mask]
-        cdf_x[too_small_mask] = self.cdf_out_of_bounds_q[0].expand_as(x)[too_small_mask]
+        # Manually replaces the result of the out of bound CDF calc (follow MixtureSafeFamily for dtype convention)
+        cdf_x[too_large_mask] = self.cdf_out_of_bounds_q[1].expand_as(x)[too_large_mask].to(cdf_x.dtype)
+        cdf_x[too_small_mask] = self.cdf_out_of_bounds_q[0].expand_as(x)[too_small_mask].to(cdf_x.dtype)
 
         mix_prob = self.mixture_distribution.probs
         # This is the approach found in torch. Can introduce small numerical errors, but we assume these are neglible.
