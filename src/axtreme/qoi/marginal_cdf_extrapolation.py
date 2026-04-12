@@ -2,6 +2,7 @@
 
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 # %%
+import inspect
 import warnings
 from collections.abc import Iterable
 from contextlib import ExitStack
@@ -125,20 +126,20 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
             torch.Tensor: A tensor, with shape (n_posterior_samples,), of the estimated QoI for each of the
             functions sampled from the GP using the posterior sampler.
         """
-        # resulting shape is (n_posterior_samples, n_env_samples, n_targets) and _posterior_samples, n_env_samples)
-        params, weigths = self._parameter_estimates(model)
+        # resulting shape is (n_posterior_samples, n_env_samples, n_targets) and (n_posterior_samples, n_env_samples)
+        params, weights = self._parameter_estimates(model)
 
-        if params.dtype != self.dtype or weigths.dtype != self.dtype:
+        if params.dtype != self.dtype or weights.dtype != self.dtype:
             msg = (
-                f"The model produced parameters of dtype {params.dtype} and weigths of dtype {weigths.dtype}."
+                f"The model produced parameters of dtype {params.dtype} and weights of dtype {weights.dtype}."
                 f" This does not match the specified dtype {self.dtype}."
                 " Parameters and weights will be converted to this dtype to create a suitable distribution."
                 " NOTE: underlying parameters are still only accurate to float32 precision, this may effect overall"
-                " accuracy. Recommended make float64 preicitons with the model."
+                " accuracy. Recommended make float64 precisions with the model."
             )
             warnings.warn(msg, stacklevel=8)
 
-            params, weigths = params.type(self.dtype), weigths.type(self.dtype)
+            params, weights = params.type(self.dtype), weights.type(self.dtype)
 
         # Create the the marginal distribution for the parameters. The categorical distribution handles weights scaling
         # resulting batch shape (n_posterior_samples)
@@ -155,7 +156,7 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
         # ApproximateMixture is appropriate becuase it produces conservative estimate. The optimisation method
         # later check that the dist has suitable resolution for the required accuracy.
         dist = ApproximateMixture(
-            mixture_distribution=Categorical(weigths),
+            mixture_distribution=Categorical(weights),
             component_distribution=component_dist,
         )
 
@@ -165,6 +166,9 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
 
         # calculated the icdf values
         qtimestep = torch.tensor(_qtimestep, dtype=torch.float64)
+        # TODO(sw 2026-04-07): This should probably be updated if using a corrected distribution - otherwise will always
+        # select the degenerate distribution as the lower bound (which will be quite bad if the degenerate distribution
+        # is far away)
         opt_bounds = icdf_value_bounds(dist, qtimestep)
         qois = icdf.icdf(dist, qtimestep, max_qtimestep_error, opt_bounds)
         # TODO(sw 2024-12-16): Gradient should be reattached here.
@@ -173,8 +177,8 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
     def _parameter_estimates(self, model: Model) -> tuple[torch.Tensor, torch.Tensor]:
         """Estimate the parameters of the individual distributions the make up the marginal distribution.
 
-        Estimate the parameters of the component distribtuions (individual distribution that will later be marginalised)
-        , and the associated mixure weights (importance weight of each of the samples in the marginalisation).
+        Estimate the parameters of the component distributions (individual distribution that will later be marginalised)
+        , and the associated mixture weights (importance weight of each of the samples in the marginalisation).
 
         Args:
             model: The GP model to use for the QOI estimation. The number of output distributions should match that
@@ -192,10 +196,9 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
             # Adding context to the stack according to the configuration
             if self.no_grad:
                 stack.enter_context(torch.no_grad())
-            # Unclear the impact of this sett, but accoring the this shouldn't have downside. https://arxiv.org/abs/1803.06058
+            # Unclear the impact of this setting, but according to this it shouldn't have downside. https://arxiv.org/abs/1803.06058
             stack.enter_context(gpytorch.settings.fast_pred_var())
 
-            # make sure transforms are on the right device.
             if self.input_transform:
                 assert isinstance(self.input_transform, Module)
                 self.input_transform = self.input_transform.to(self.device)
@@ -254,6 +257,188 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
             return posterior_samples, importance_weights
 
 
+def _mixture_distribution_from_importance_samples(
+    weights: torch.Tensor,
+    params: torch.Tensor,
+    component_dist_class: type[Distribution],
+    lower_bound: float | None = None,
+) -> tuple[ApproximateMixture, torch.Tensor]:
+    """Creates a mixture distribution from importance samples using special assumptions to relax sampling constraints.
+
+    Importance sampling that is unique to marginalising CDFs. Often there are regions where the random variable the CDF
+    describes can be assumed to be 0. Using this assumption, we can relax the requirements on the importance sampling
+    distribution q(x) and allow it to exclude these regions. This allows:
+    - more efficient importance sampling
+    - (when distribution params are selected using a GP) avoid surrogate fitting step function at operation boundaries.
+
+    Background:
+        Assuming importance sampling is defined as:
+
+        E_p[f(x)] = E_q[f(x) * p(x)/q(x)]
+
+        Where:
+        - f(x) is the function being evaluated (when marginalising CDFs, f(x) = CDF(r|x)).
+        - p(x) is the true distribution.
+        - q(x) is the importance distribution.
+
+        Assumption of standard importance sampling:
+        - q(x) = 0 -> f(x)*p(x) = 0
+
+        Assumption for this importance sampling approach.
+        - q(x) = 0 -> f(x) = 1 OR p(x) = 0  # TODO: check if the second part holds.
+        - In other words: supp(q(x)) can be a subset of supp(p(x)), as long as f(x) = 1 outside of supp(q(x)).
+
+    For details of method see TODO(sw 2026-04-07): put link to the write up, and later to pre-print.
+
+    Args:
+        weights: importance weights associated with each sample.
+          shape: (*b, n_env_samples)
+        params: parameters of the distribution associated with each weight.
+          shape: (*b, n_env_samples, n_params) where n_params are the parameters to construct the distribution, in the
+          same order as the `component_dist_class` constructor.
+        component_dist_class: the distribution class which the params can be used to construct a distribution.
+        lower_bound: If a lower bound for the distribution is known it can be provided so the correction factor (for
+          region outside supp(q)) is applied before this point.
+
+    Returns:
+       A tuple of:
+       - mixture distribution representing the marginal. Will have `batch_shape` of (*b)
+       - tensor of standard errors (shape (*b,)).
+         - This is the standard error associate with estimating the mass of p(x) in the region not covered by supp(q).
+         - This gives a confidence interval of how wrong icdf estimate could be wrong due to the estimation.
+         - The error introduced by the estimate in the region covered by supp(q) is NOT captured in this.
+
+    Todo:
+    - Thing to add to the explanatory note:
+        - after the meths have s section about the approximation (e.g why value should never exceed 1, what to do in
+        that case.)
+    """
+    # NOTE: currently only support distributions parameterised by loc and scale currently because know how to produce
+    # degenerate dist for this.
+    dist_args = inspect.signature(component_dist_class).parameters
+    if set(dist_args.keys()) != {"loc", "scale", "validate_args"}:
+        msg = (
+            "Currently only distribution parameterised with {'loc', 'scale', 'validate_args'} are supported. ",
+            f"Got: {set(dist_args.keys())}",
+        )
+        raise NotImplementedError(msg)
+    # loc and scale provided could be any values, do minimum to enforce distribution bounds
+    loc = params[..., 0]
+    # Ensure scale is positive and make sure it is large enough to avoid numeric issues (ApproximateMixture for details)
+    scale = params[..., 1].clamp(min=abs(loc) * torch.finfo(params.dtype).eps * 100)
+    params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
+
+    # Calculate the correction factor for missing mass as per XXX TODO(sw 2026-04-07): Put link to note explaining.
+    integral_p_over_q_est = torch.mean(weights, dim=-1, keepdim=True)
+    integral_p_over_q_var = torch.var(weights, dim=-1, keepdim=True) / weights.shape[-1]
+    integral_p_over_q_std_err = integral_p_over_q_var.sqrt()
+
+    if (integral_p_over_q_est > 1).any():
+        msg = (
+            "Some batches in weighs have average which exceeds 1, values will be clipped to 1. This means the "
+            "importance sampling estimate of p(x) over supp(q) is exceeds 1, which is not possible a p(x) is "
+            "probability distribution. Small violation with large number of sample is okay. Large violation indicate "
+            "importance sampling weights should be investigated."
+            f"\nAverage weights per batch {integral_p_over_q_est}\n"
+            f"batch standard error {integral_p_over_q_std_err}"
+        )
+        warnings.warn(msg, stacklevel=1)
+        # We know weights must be too big, so should re-weight. Clamping ends up being equivalent to re-weighting the
+        # weights to sum to 1.(integral_p_over_not_q=0, and ApproximateMixture distribution automatically make
+        # sum(weights) = 1).
+        integral_p_over_q_est = integral_p_over_q_est.clamp(max=1)
+
+    integral_p_over_not_q = 1 - integral_p_over_q_est
+    weights_n = weights / weights.shape[-1]
+
+    # Create a degenerate dist which contributes all its cdf mass because any contributions from component dist
+    component_dist_uncorrected = component_dist_class(*torch.unbind(params, dim=-1))
+    # Output shape: (*b, n_params)
+    correction_params = _create_lowerbound_degenerate_distribution_params(
+        component_dist_uncorrected, lower_bound=lower_bound
+    )
+
+    # append the weight and degenerate params to the existing weights and params
+    updated_weights = torch.concat([weights_n, integral_p_over_not_q], dim=-1)
+    updated_params = torch.concat(
+        [
+            params,  # shape (*b, n_env_samples, n_params)
+            correction_params.unsqueeze(-2),  # shape (*b, 1, n_params)
+        ],
+        dim=-2,
+    )
+
+    dist = ApproximateMixture(
+        mixture_distribution=Categorical(updated_weights),
+        component_distribution=component_dist_class(*torch.unbind(updated_params, dim=-1)),
+    )
+
+    return dist, integral_p_over_q_std_err
+
+
+# %%
+def _create_lowerbound_degenerate_distribution_params(
+    component_dist: Distribution, lower_bound: float | None = None
+) -> torch.Tensor:
+    """Pick the parameters to produce the degenerate distribution at lowerbound of component dist.
+
+    Picks the parameters to create a degenerate distribution which represents the missing mass as per  XXX
+    TODO(sw 2026-04-07): Put link to note explaining. This distribution should add all its mass prior to any other
+    component distribution adding mass.
+
+    Args:
+        component_dist: The component distribution to generate the parameters for.
+            The last dimension of the batch shape will be aggregated across to make the mixture dist.
+        lower_bound:
+            - None: the degenerate distribution is placed just before any distribution on the component dist starts
+              adding mass.
+                - Benefits: This is tight and robust (will always give correct optimisation results).
+                - Cons: Placing this mass before the input domain starts would be more conceptually representative.
+            - Value: The lowerbound of the input domain.
+                - Benefits: Distribution better represent conceptual problem
+
+    Returns:
+    A tensor of parameters with shape (*component_dist.batch_shape[:-1], n_params)
+    - n_params is the number of parameters required to construct the distribution.
+    """
+    # Only know how to handle loc and scale for the time being
+    dist_args = inspect.signature(component_dist.__init__).parameters
+    if set(dist_args.keys()) != {"loc", "scale", "validate_args"}:
+        msg = (
+            "Currently only distribution parameterised with {'loc', 'scale', 'validate_args'} are supported. ",
+            f"Got: {set(dist_args.keys())}",
+        )
+        raise NotImplementedError(msg)
+    dtype = component_dist.loc.dtype  # pyright: ignore[reportAttributeAccessIssue]
+
+    # Find the lowest point where mass is added to the cdf.
+    # NOTE:  torch.finfo(dtype).eps based on the lower bound in ApproximateMixture)
+    lower = component_dist.icdf(torch.finfo(dtype).eps)
+    # aggregate across the same dimension as the mixture dist
+    lower = lower.min(dim=-1).values
+
+    if lower_bound is not None:
+        if (lower_bound > lower).any():
+            msg = (
+                f"lower_bound provided {lower_bound} is larger than some of the component distribution lower"
+                f"bounds {lower.min()}. lower_bound must be greater"
+            )
+            raise ValueError(msg)
+
+        lower = torch.ones_like(lower) * lower_bound
+
+    # degenerate distribution needs to have finished adding mass by this point.
+    # Pick a scale and check the offset required to the dist to be finished.
+    scale = lower.abs() * torch.finfo(dtype).eps * 100  # 100 is some buffer
+    temp_dist = type(component_dist)(loc=0, scale=scale)
+    # offset for the centered distribution to be finish
+    x_offset = temp_dist.icdf(1 - torch.finfo(dtype).eps)
+    loc = lower - x_offset
+
+    params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
+    return params
+
+
 def q_to_qtimestep(q: float, period_len: int) -> float:
     """Convert a long term quantile to an equivalent single timestep quantile.
 
@@ -265,8 +450,8 @@ def q_to_qtimestep(q: float, period_len: int) -> float:
         The equivalent quantile for a single timestep with error +-
 
     Note:
-        This funciton exists because there were numerical concerns for this process. Having a function allows us to
-        document them in tests. It is appropriately accuract for very large periods. Periods of 1e13 creates an error of
+        This function exists because there were numerical concerns for this process. Having a function allows us to
+        document them in tests. It is appropriately accurate for very large periods. Periods of 1e13 creates an error of
         less that 1e-3 in q (the full quantile estimate). See
         `test/qoi/test_margianl_cdf_extpolation/test_q_to_qtimestep_numerical_precision_period_increase` for details.
     """

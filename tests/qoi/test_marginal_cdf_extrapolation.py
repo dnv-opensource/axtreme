@@ -10,12 +10,20 @@ import pytest
 import torch
 from botorch.models.deterministic import GenericDeterministicModel
 from botorch.sampling.index_sampler import IndexSampler
-from torch.distributions import Gumbel, MultivariateNormal
+from setuptools import Distribution
+from torch.distributions import Categorical, Gumbel, MultivariateNormal, Normal, Uniform
 from torch.utils.data import DataLoader
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
+from axtreme.distributions.mixture import ApproximateMixture
 from axtreme.eval.qoi_job import QoIJob
-from axtreme.qoi.marginal_cdf_extrapolation import MarginalCDFExtrapolation, acceptable_timestep_error, q_to_qtimestep
+from axtreme.qoi.marginal_cdf_extrapolation import (
+    MarginalCDFExtrapolation,
+    _create_lowerbound_degenerate_distribution_params,
+    _mixture_distribution_from_importance_samples,
+    acceptable_timestep_error,
+    q_to_qtimestep,
+)
 
 torch.set_default_dtype(torch.float64)
 
@@ -482,6 +490,234 @@ def test_acceptable_timestep_error_at_limits_of_precision():
     """When values reach the limits of precision check an error is thrown."""
     with pytest.raises(ValueError):
         _ = acceptable_timestep_error(0.5, int(1e6), atol=1e-10)
+
+
+class TestMixtureDistributionFromImportanceSamples:
+    def test_unbatched_input(self):
+        dtype = torch.float64
+        weights = torch.ones(4, dtype=dtype) / 4
+        loc = torch.tensor([0.0, 10.0, 20.0, 30.0], dtype=dtype)
+        scale = torch.tensor([1.0, 1.0, 1.0, 1.0], dtype=dtype)
+        params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
+
+        dist, _ = _mixture_distribution_from_importance_samples(weights, params, Gumbel)
+
+        # expected a new distribution with weight .75 to be added at the end
+        expected_weights = torch.tensor([0.0625, 0.0625, 0.0625, 0.0625, 0.75], dtype=dtype)
+        torch.testing.assert_close(dist.mixture_distribution.probs, expected_weights)
+
+        # expect the component distribution size to be larger.
+        # Checking the additional value is appropriate is left to _create_lowerbound_degenerate_distribution_params
+        assert dist.component_distribution.loc.shape == torch.Size([5])
+
+    def test_basic_batched_input(self):
+        """Test batched inputs (e.g. params (*b, n_samples, n_targets)) are handled and each batch gets a unique
+        additional component"""
+        dtype = torch.float64
+        weights = torch.ones(2, 4, dtype=dtype)
+        weights[0] /= 4
+        weights[1] /= 5
+        loc = torch.tensor([[0.0, 10.0, 20.0, 30.0], [40.0, 50.0, 60.0, 70.0]], dtype=dtype)
+        scale = torch.ones_like(loc)
+        params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
+
+        dist, _ = _mixture_distribution_from_importance_samples(weights, params, Gumbel)
+
+        expected_weights = torch.tensor(
+            [[0.0625, 0.0625, 0.0625, 0.0625, 0.75], [0.05, 0.05, 0.05, 0.05, 0.8]], dtype=dtype
+        )
+        torch.testing.assert_close(dist.mixture_distribution.probs, expected_weights)
+
+        # Checking the add params finding adding cdf contribution before the component dist is left to
+        # TestCreateLowerboundDegenerateDistributionParams. Here small check that each batch got a unique addition.
+        assert dist.component_distribution.loc.shape == torch.Size([2, 5])
+        # Rough sanity check that additional components are added to right place
+        assert dist.component_distribution.loc[0, -1].item() == pytest.approx(0 - 3, abs=3)
+        assert dist.component_distribution.loc[1, -1].item() == pytest.approx(40 - 3, abs=3)
+
+    @pytest.mark.parametrize(
+        "p_dist, q_dist, expected_result",
+        [
+            # Case supp(q) < supp(p).
+            (Normal(0, 1), Uniform(0, 3), 0.5),
+            # Case supp(q) >= supp(p).
+            (Uniform(0, 3), Normal(0, 1), 1.0),
+        ],
+    )
+    def test_p_over_q_integral_estimate_and_uncertainty(
+        self, p_dist: Distribution, q_dist: Distribution, expected_result: float
+    ):
+        """Ignore the component distribution and check the integral int_supp(q){(p)} has good mean.
+
+        Perform a calculation where the result is know analytically.
+        """
+        # importance samples from q
+        with torch.random.fork_rng():
+            _ = torch.manual_seed(10)
+            # Take a large number of sample as currently only interested in checking the integral estimate is good.b
+            sample = q_dist.sample((10_000,))  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Calculate the weights. This gets a bit convoluted because we need to manually set values outside the support.
+        in_p_support = p_dist.support.check(sample)  # pyright: ignore[reportAttributeAccessIssue]
+        weights = torch.zeros_like(sample)
+        weights[in_p_support] = torch.exp(p_dist.log_prob(sample[in_p_support]) - q_dist.log_prob(sample[in_p_support]))  # pyright: ignore[reportAttributeAccessIssue]
+
+        dummy_params = torch.ones((*sample.shape, 2))
+
+        dist, _ = _mixture_distribution_from_importance_samples(
+            weights=weights,
+            params=dummy_params,
+            component_dist_class=Gumbel,  # Note this is just a placeholder, we don't care about the component dist
+        )
+
+        # integral_p_over_not_q is added to the end of the weights
+        integral_p_over_q_est = 1 - dist.mixture_distribution.probs[-1]
+        assert integral_p_over_q_est.item() == pytest.approx(expected_result, abs=0.01)
+
+    # TODO(sw 2026-04-12): could add test to check uncertainty is well calibrated. Skipping for now as the formula
+    # is pretty straight forward and we don't currently rely on the number.
+
+    def test_p_over_q_integral_estimate_clipping_and_warning(self):
+        """Simple test to check weight clipping and warning when int_supp(q)(p) > 1."""
+        dtype = torch.float64
+        n_samples = 4
+        # weights with mean = 2.0 > 1, simulating an over-estimated integral
+        weights = torch.full((n_samples,), 2.0, dtype=dtype)
+        loc = torch.tensor([0.0, 10.0, 20.0, 30.0], dtype=dtype)
+        scale = torch.ones(n_samples, dtype=dtype)
+        params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
+
+        with pytest.warns(UserWarning, match="exceeds 1"):
+            dist, _ = _mixture_distribution_from_importance_samples(weights, params, Gumbel)
+
+        # When clipped: integral_p_over_not_q = 1 - 1 = 0, so the degenerate component has weight 0
+        assert dist.mixture_distribution.probs[-1].item() == pytest.approx(0.0, abs=1e-10)
+
+    def test_cdf_equivalent_when_q_subset_q(self, visualise: bool = False):  # noqa: FBT001, FBT002, PT028
+        """Tests importance sampling can exclude regions of 0 response (corresponding to CDF(R<=0) = 1).
+
+        ``_mixture_distribution_from_importance_samples`` is designed to relax importance sampling requirements:
+        - from: q(x) = 0 -> f(x)p(x) = 0
+        - to: q(x) = 0 -> f(x) = 1 OR p(x) = 0
+        This test checks the CDF produced when q excludes regions of 0 response is correct.
+
+        Inputs:
+        - Environment distributions: Uniform(0,1)
+        - Importance sampling distribution: Uniform(0.75,1)
+        - Response function: The conceptually show how the response is generated (the response function is not used in
+          the test)
+            - x in [0,.75]: 0
+            - x in [.75,1]: Gumbel(loc = 1, scale = 1)
+        - true_underlying function: Generates the location and scale corresponding to the response function
+            - x in [0,.75] -> loc = 0, scale = 1e-6 (to approximate a step function)
+            - x in [.75,1] -> loc = 1, scale = 1
+
+        Process:
+        - 1) calculate the resulting CDF without importance sampling (or analytically)
+        - 2) calculate the CDF with importance sampling (where q excludes regions of 0 response)
+
+        Expected result:
+            Both produce the same CDF
+        """
+        env_dist = Uniform(0, 1)
+        is_dist = Uniform(0.75, 1)
+
+        analytical_dist = ApproximateMixture(
+            mixture_distribution=Categorical(torch.tensor([0.75, 0.25])),  # 75% mass on zero response, 25% on active
+            component_distribution=Gumbel(loc=torch.tensor([0.0, 1.0]), scale=torch.tensor([1e-6, 1.0])),
+        )
+
+        def true_underlying(x: torch.Tensor) -> torch.Tensor:
+            in_active_region = x >= 0.75
+            loc = torch.where(in_active_region, torch.tensor(1.0), torch.tensor(0.0))
+            scale = torch.where(in_active_region, torch.tensor(1.0), torch.tensor(1e-6))
+            return torch.stack([loc, scale], dim=-1)
+
+        # Importance sample (q subset p):
+        n_samples = 10_000
+        with torch.random.fork_rng():
+            _ = torch.manual_seed(10)
+            is_samples = is_dist.sample((n_samples,))
+        # p(x)/q(x) = 1/0.25 = 4
+        is_weights = torch.exp(env_dist.log_prob(is_samples) - is_dist.log_prob(is_samples))
+        is_params = true_underlying(is_samples)
+        # NOTE: use arguement `lower_bound`` if want to plot over the entire domain.
+        # Typically our optimisation only searches in the importance region as we look for large q value
+        is_dist, _ = _mixture_distribution_from_importance_samples(
+            weights=is_weights, params=is_params, component_dist_class=Gumbel
+        )
+
+        # Check the distribution the approximately equal (within the important bounds)
+        x_range = torch.linspace(0.75, 1, 100)
+        expected_cdf = analytical_dist.cdf(x_range)
+        actual_cdf = is_dist.cdf(x_range)
+        torch.testing.assert_close(expected_cdf, actual_cdf, atol=0.01, rtol=0.0)
+
+        if visualise:
+            # for demo purposes can also put the MC estimate on the plot:
+            # Direct monte carlo estimate:
+            n_samples = 10_000
+            env_samples = env_dist.sample((n_samples,))
+            params = true_underlying(env_samples)
+            # Not importance sampling, so no weights
+            weights = torch.ones_like(env_samples)
+            mc_dist = ApproximateMixture(
+                mixture_distribution=Categorical(weights),
+                component_distribution=Gumbel(loc=params[:, 0], scale=params[:, 1]),
+            )
+
+            _, ax = plt.subplots(1, 1, figsize=(10, 8))
+            _ = ax.plot(x_range, mc_dist.cdf(x_range), label="MC CDF", color="green", linestyle="dotted")
+            _ = ax.plot(x_range, expected_cdf, label="Analytical CDF", color="blue")
+            _ = ax.plot(x_range, actual_cdf, label="IS CDF", color="orange", linestyle="dashed")
+            _ = ax.set_title("CDF comparison between analytical and importance sampling approach")
+            _ = ax.set_xlabel("x")
+            _ = ax.set_ylabel("CDF")
+            _ = ax.legend()
+
+
+class TestCreateLowerboundDegenerateDistributionParams:
+    def test_simple_dist(self):
+        """Degenerate dist finishes adding mass before the single component starts."""
+        comp_dist = Gumbel(loc=torch.tensor([0.0, 10.0]), scale=torch.tensor([1.0, 1.0]))
+        params = _create_lowerbound_degenerate_distribution_params(comp_dist)
+        dtype = params.dtype
+        finfo = torch.finfo(dtype)
+        # Every component's lower tail must start at or above where the degenerate dist finishes
+        component_lower_bounds = comp_dist.icdf(torch.tensor(finfo.eps)).min(dim=-1).values  # noqa: PD011
+        degenerate_dist_upper_bound = Gumbel(*torch.unbind(params, dim=-1)).icdf(torch.tensor(1 - finfo.eps))
+        assert component_lower_bounds >= degenerate_dist_upper_bound
+
+    def test_batched_dist_different_scales(self):
+        """Degenerate dist is placed before the lowest-starting component when locs and scales differ."""
+        comp_dist = Gumbel(loc=torch.tensor([[0.0, 10.0], [1.0, 1.0]]), scale=torch.tensor([[0.5, 5.0], [1.0, 1.0]]))
+        params = _create_lowerbound_degenerate_distribution_params(comp_dist)
+        dtype = params.dtype
+        finfo = torch.finfo(dtype)
+        # The degenerate dist must finish before ALL components start adding mass
+        component_lower_bounds = comp_dist.icdf(torch.tensor(finfo.eps)).min(dim=-1).values  # noqa: PD011
+        degenerate_dist_upper_bound = Gumbel(*torch.unbind(params, dim=-1)).icdf(torch.tensor(1 - finfo.eps))
+        assert (component_lower_bounds >= degenerate_dist_upper_bound).all()
+
+    def test_lower_bound_too_high_raises(self):
+        """Passing a lower_bound above the component dist's lower tail raises ValueError."""
+        comp_dist = Gumbel(loc=torch.tensor([0.0, 10.0]), scale=torch.tensor([1.0, 1.0]))
+        dtype = comp_dist.loc.dtype
+        finfo = torch.finfo(dtype)
+        actual_lower = comp_dist.icdf(torch.tensor(finfo.eps)).min().item()
+        too_high = actual_lower + 1.0
+        with pytest.raises(ValueError, match="lower_bound provided"):
+            _ = _create_lowerbound_degenerate_distribution_params(comp_dist, lower_bound=too_high)
+
+    def test_lower_bound_set_appropriately(self):
+        """When lower_bound is set below all components, degenerate dist finishes at or before lower_bound."""
+        comp_dist = Gumbel(loc=torch.tensor([0.0, 10.0]), scale=torch.tensor([1.0, 1.0]))
+        lower_bound = -20.0
+        params = _create_lowerbound_degenerate_distribution_params(comp_dist, lower_bound=lower_bound)
+        dtype = params.dtype
+        finfo = torch.finfo(dtype)
+        # The degenerate dist must have finished adding mass by lower_bound
+        assert Gumbel(*torch.unbind(params, dim=-1)).icdf(torch.tensor(1 - finfo.eps)).item() <= lower_bound
 
 
 # %% Can be used to get plots for test_system_marginal_cdf_with_importance_sampling
