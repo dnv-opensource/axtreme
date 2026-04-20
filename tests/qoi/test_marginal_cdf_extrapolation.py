@@ -1,6 +1,4 @@
 # %%
-import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
@@ -12,7 +10,7 @@ from botorch.models.deterministic import GenericDeterministicModel
 from botorch.sampling.index_sampler import IndexSampler
 from setuptools import Distribution
 from torch.distributions import Categorical, Gumbel, MultivariateNormal, Normal, Uniform
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, RandomSampler
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.distributions.mixture import ApproximateMixture
@@ -24,6 +22,7 @@ from axtreme.qoi.marginal_cdf_extrapolation import (
     acceptable_timestep_error,
     q_to_qtimestep,
 )
+from axtreme.utils.brute_force import brute_force_calc
 
 torch.set_default_dtype(torch.float64)
 
@@ -246,7 +245,7 @@ class TestMarginalCDFExtrapolation:
 
     @pytest.mark.integration
     @pytest.mark.non_deterministic
-    def test_marginal_cdf_with_importance_sampling(  # noqa: PLR0915
+    def test_marginal_cdf_with_importance_sampling(  # noqa: C901, PLR0915
         self,
         error_tolerance: float = 1.0,  # noqa: PT028
         *,
@@ -282,30 +281,75 @@ class TestMarginalCDFExtrapolation:
             error_tolerance: The error allowed in assertions is multiplied by this number.
             visualise: Bool to specify if the QoI results shall be plotted.
         """
+        ######### STEP UP
+        PERIOD_LEN = 1_000  # noqa: N806
+        N_BRUTE_FORCE_ESTS = 20_00  # noqa: N806
 
-        # Load precalculated importance samples and weights
-        importance_samples = torch.load(
-            Path(__file__).parent / "data" / "importance_sampling" / "importance_samples.pt", weights_only=True
-        )
-        importance_weights = torch.load(
-            Path(__file__).parent / "data" / "importance_sampling" / "importance_weights.pt", weights_only=True
+        ### Make and sample env dist
+        class _EnvDist:
+            """Simple truncated normal distribution"""
+
+            def __init__(self, loc: torch.Tensor, cov: torch.Tensor, lower_bounds: torch.Tensor) -> None:
+                assert cov.shape == (2, 2), "NotYetImplemented, only supports 2D case currently"
+                assert (cov[0, 1] == 0) and (cov[1, 0] == 0), "NotYetImplemented, only supports independent normal"  # noqa: PT018
+                self.mvn = MultivariateNormal(loc, covariance_matrix=cov)
+                self.lower_bounds = lower_bounds
+                # Calculated how much of mass has been removed by truncation.
+                # Pdf will need to increase so the integral is 1.
+                prb_not_truncated = (1 - Normal(loc[0], cov[0, 0] ** 0.5).cdf(lower_bounds[0])) * (
+                    1 - Normal(loc[1], cov[1, 1] ** 0.5).cdf(lower_bounds[1])
+                )
+                self._pdf_correction_factor = 1 / prb_not_truncated
+
+            def sample(self, sample_shape: torch.Size) -> torch.Tensor:
+                """Sample shape restricted to (n,)"""
+                samples = torch.tensor([]).reshape(0, 2)
+                while samples.shape[0] < sample_shape[0]:
+                    s = self.mvn.sample(sample_shape)
+                    in_region = (s > self.lower_bounds).all(dim=-1)
+                    samples = torch.cat([samples, s[in_region]], dim=0)
+
+                return samples[: sample_shape[0]]
+
+            def pdf(self, x: torch.Tensor) -> torch.Tensor:
+                """PDF of the truncated normal distribution."""
+                in_region = (x > self.lower_bounds).all(dim=-1)
+                pdf = torch.zeros(x.shape[0])
+                pdf[in_region] = self.mvn.log_prob(x[in_region]).exp() * self._pdf_correction_factor
+                return pdf
+
+        env_dist = _EnvDist(
+            loc=torch.tensor([0.1, 0.1]), cov=torch.tensor([[0.2, 0], [0, 0.2]]), lower_bounds=torch.tensor([0.0, 0.0])
         )
 
+        with torch.random.fork_rng():
+            _ = torch.manual_seed(66)
+            env_samples = env_dist.sample(torch.Size([PERIOD_LEN * N_BRUTE_FORCE_ESTS]))
+
+        ### Importance sampling distribution: Uniform over region 0 < x1 < 2, 0 < x2 < 2
+        is_dist_bounds = torch.tensor([[0.0, 0.0], [2.0, 2.0]])
+        with torch.random.fork_rng():
+            _ = torch.manual_seed(66)
+            importance_samples = Uniform(0, 2).sample((10_000, 2))
+
+        def importance_pdf(x: torch.Tensor) -> torch.Tensor:
+            in_region = (
+                (x[:, 0] >= is_dist_bounds[0, 0])
+                & (x[:, 0] <= is_dist_bounds[1, 0])
+                & (x[:, 1] >= is_dist_bounds[0, 1])
+                & (x[:, 1] <= is_dist_bounds[1, 1])
+            )
+            pdf = torch.zeros(x.shape[0])
+            area = (is_dist_bounds[1, 0] - is_dist_bounds[0, 0]) * (is_dist_bounds[1, 1] - is_dist_bounds[0, 1])
+            pdf[in_region] = 1 / area
+            return pdf
+
+        importance_weights = env_dist.pdf(importance_samples) / importance_pdf(importance_samples)
         importance_dataset = ImportanceAddedWrapper(
             MinimalDataset(importance_samples), MinimalDataset(importance_weights)
         )
 
-        # Load environment data
-        # The environment is chosen such that it is concentrated in one region of the search space and only few samples
-        # cover the subregion where the extreme response occurs
-        env_data = np.load(Path(__file__).parent / "data" / "importance_sampling" / "environment_distribution.npy")
-
-        # Get brute force estimate
-        brute_force_path = Path(__file__).parent / "data" / "importance_sampling" / "brute_force_solution.json"
-        with brute_force_path.open() as file:
-            brute_force_qoi = json.load(file)["statistics"]["median"]
-
-        # Set up a deterministic GP
+        ### Define the response functions
         def _true_underlying_func(x: torch.Tensor) -> torch.Tensor:
             # Define loc function
             dist_mean, dist_cov = torch.tensor([1, 1]), torch.tensor([[0.03, 0], [0, 0.03]])
@@ -317,13 +361,32 @@ class TestMarginalCDFExtrapolation:
 
             return torch.stack([loc, scale], dim=-1)
 
-        gp_deterministic = GenericDeterministicModel(_true_underlying_func, num_outputs=2)
+        ## Calculate the brute force solutions
+        generator = torch.Generator()
+        _ = generator.manual_seed(27)
+        response_samples, xmax_samples = brute_force_calc(
+            dataloader=DataLoader(
+                env_samples,
+                batch_size=1000,
+                sampler=RandomSampler(env_samples, num_samples=PERIOD_LEN, replacement=False, generator=generator),
+            ),
+            response_params_func=_true_underlying_func,
+            response_dist_class=Gumbel,
+            num_estimates=N_BRUTE_FORCE_ESTS,
+        )
+        assert xmax_samples.unique(dim=0).shape[0] / N_BRUTE_FORCE_ESTS > 0.75, (
+            "Duplicate xmax indicates insufficient variety of env_samples, which can create unstable estimates."
+        )
+        brute_force_qoi = torch.median(response_samples)
+        # TODO(sw 2026-04-20): Add an uncertainty est to brute force est (so know have enough samples).
 
         if visualise:
             _, ax = plt.subplots(1, 1, figsize=(10, 8))
 
             # Plot 1: Overlay both distributions on a single scatter plot
-            _ = ax.scatter(env_data[:, 0], env_data[:, 1], alpha=0.2, label="Environment", color="steelblue", s=10)
+            _ = ax.scatter(
+                env_samples[:, 0], env_samples[:, 1], alpha=0.2, label="Environment", color="steelblue", s=10
+            )
             _ = ax.scatter(
                 importance_samples[:, 0].numpy(),
                 importance_samples[:, 1].numpy(),
@@ -334,8 +397,8 @@ class TestMarginalCDFExtrapolation:
             )
 
             # Plot 2: Heatmap of true underlying function (loc), only where value > 1
-            all_x = np.concatenate([env_data[:, 0], importance_samples[:, 0].numpy()])
-            all_y = np.concatenate([env_data[:, 1], importance_samples[:, 1].numpy()])
+            all_x = np.concatenate([env_samples[:, 0].numpy(), importance_samples[:, 0].numpy()])
+            all_y = np.concatenate([env_samples[:, 1].numpy(), importance_samples[:, 1].numpy()])
             x1_grid = np.linspace(all_x.min(), all_x.max(), 300)
             x2_grid = np.linspace(all_y.min(), all_y.max(), 300)
             X1, X2 = np.meshgrid(x1_grid, x2_grid)  # noqa: N806
@@ -349,9 +412,12 @@ class TestMarginalCDFExtrapolation:
             _ = ax.set_title("Environment and importance samples with underlying response function")
             _ = ax.legend
 
+        ####### Run the estimations
+        gp_deterministic = GenericDeterministicModel(_true_underlying_func, num_outputs=2)
+
         # Create jobs with with and without importance sampling
         qoi_jobs = []
-        datasets = {"full": env_data, "importance_sample": importance_dataset}
+        datasets = {"full": env_samples, "importance_sample": importance_dataset}
         for dataset_name, dataset in datasets.items():
             for i in range(200):
                 # A fixed random sampler selects the same samples if the seed is the same which allows the results to be
@@ -362,7 +428,7 @@ class TestMarginalCDFExtrapolation:
 
                 qoi_estimator = MarginalCDFExtrapolation(
                     env_iterable=dataloader,
-                    period_len=1_000,
+                    period_len=PERIOD_LEN,
                     quantile=torch.tensor(0.5),
                     quantile_accuracy=torch.tensor(0.01),
                     # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
@@ -718,10 +784,3 @@ class TestCreateLowerboundDegenerateDistributionParams:
         finfo = torch.finfo(dtype)
         # The degenerate dist must have finished adding mass by lower_bound
         assert Gumbel(*torch.unbind(params, dim=-1)).icdf(torch.tensor(1 - finfo.eps)).item() <= lower_bound
-
-
-# %% Can be used to get plots for test_system_marginal_cdf_with_importance_sampling
-if __name__ == "__main__":
-    # %%
-    MarginalCDF = TestMarginalCDFExtrapolation()
-    MarginalCDF.test_marginal_cdf_with_importance_sampling(1, visualise=True)
