@@ -1,4 +1,5 @@
 # %%
+import warnings
 from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
@@ -453,7 +454,15 @@ class TestMarginalCDFExtrapolation:
                 )
 
         jobs_output_file = None
-        qoi_results = [job(output_file=jobs_output_file) for job in qoi_jobs]
+
+        # Because we use a small dataset, get warning about the importance sampling correction factor estimate exceeding
+        # 1. The results will be have higher variability because of this, but that is fine for this test (and will be
+        # captured in the plots)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message=".*Some batches in weighs have average which exceeds 1.*"
+            )
+            qoi_results = [job(output_file=jobs_output_file) for job in qoi_jobs]
 
         df_jobs = pd.json_normalize([item.to_dict() for item in qoi_results], max_level=1)
         df_jobs.columns = df_jobs.columns.str.removeprefix("tags.")
