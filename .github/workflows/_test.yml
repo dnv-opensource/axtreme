@@ -26,9 +26,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python.version }}
-      - name: Install the project
-        run: uv sync -p ${{ matrix.python.version }} -U --no-dev
+      - name: Install the project (include dev deps for tests)
+        run: uv sync -p ${{ matrix.python.version }} -U
       - name: Run pytest
-        run: >
-          uv run --with pytest --with pytest-cov
-          pytest -vv --cov -m "not system"
+        run: uv run pytest -vv --cov -m "not system"
