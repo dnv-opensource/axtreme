@@ -40,7 +40,7 @@ def plot_surface_over_2d_search_space(
         colors: A list of colors to use for each function. If None, will use default Plotly colors.
         num_points: The number of points in each dimension to evaluate the functions at.
     """
-    # Extract the parameter names and ranges from the search space
+    # Extract the two parameters from the search space; only their ranges are used below.
     assert len(search_space.parameters) == 2, "Only 2D search spaces are supported for now."  # noqa: PLR2004
 
     (_, x1_param), (_, x2_param) = list(search_space.parameters.items())
