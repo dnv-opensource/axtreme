@@ -1,0 +1,13 @@
+axtreme.utils.modelbridge\_utils
+================================
+
+.. automodule:: axtreme.utils.modelbridge_utils
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      observations_to_arrays
+   

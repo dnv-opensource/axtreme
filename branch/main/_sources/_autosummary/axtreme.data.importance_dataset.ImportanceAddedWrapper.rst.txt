@@ -1,0 +1,29 @@
+ImportanceAddedWrapper
+======================
+
+.. currentmodule:: axtreme.data.importance_dataset
+
+.. autoclass:: ImportanceAddedWrapper
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~ImportanceAddedWrapper.__init__
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~ImportanceAddedWrapper.datasets
+   
+   

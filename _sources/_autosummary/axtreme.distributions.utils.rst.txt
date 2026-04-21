@@ -1,0 +1,15 @@
+axtreme.distributions.utils
+===========================
+
+.. automodule:: axtreme.distributions.utils
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      dist_dtype
+      index_batch_dist
+      index_batch_mixture_dist
+   

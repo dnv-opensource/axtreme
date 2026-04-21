@@ -1,0 +1,33 @@
+GPBruteForce
+============
+
+.. currentmodule:: axtreme.qoi.gp_bruteforce
+
+.. autoclass:: GPBruteForce
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~GPBruteForce.__init__
+      ~GPBruteForce.mean
+      ~GPBruteForce.posterior_samples_erd_samples
+      ~GPBruteForce.sample_surrogate
+      ~GPBruteForce.var
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~GPBruteForce.posterior_sampler
+   
+   

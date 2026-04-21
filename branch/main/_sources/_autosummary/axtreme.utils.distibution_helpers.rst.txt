@@ -1,0 +1,14 @@
+axtreme.utils.distibution\_helpers
+==================================
+
+.. automodule:: axtreme.utils.distibution_helpers
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      distribution_parameter_names_from_scipy
+      fit_dist_with_uncertainty
+   

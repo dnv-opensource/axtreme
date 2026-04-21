@@ -1,0 +1,16 @@
+axtreme.eval.qoi\_helpers
+=========================
+
+.. automodule:: axtreme.eval.qoi_helpers
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      plot_col_histogram
+      plot_distribution
+      plot_groups
+      qoi_ignoring_gp_uncertainty
+   

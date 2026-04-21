@@ -1,0 +1,17 @@
+axtreme.data.batch\_invariant\_sampler
+======================================
+
+.. automodule:: axtreme.data.batch_invariant_sampler
+   :members:
+   :exclude-members: BatchInvariantSampler2d,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      BatchInvariantSampler2d
+   

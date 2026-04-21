@@ -1,0 +1,22 @@
+axtreme.data.numpy\_file\_dataset
+=================================
+
+.. automodule:: axtreme.data.numpy_file_dataset
+   :members:
+   :exclude-members: NumpyFileDataset,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      collect_np_file
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      NumpyFileDataset
+   

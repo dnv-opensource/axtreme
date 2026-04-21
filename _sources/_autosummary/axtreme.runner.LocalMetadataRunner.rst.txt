@@ -1,0 +1,40 @@
+LocalMetadataRunner
+===================
+
+.. currentmodule:: axtreme.runner
+
+.. autoclass:: LocalMetadataRunner
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~LocalMetadataRunner.__init__
+      ~LocalMetadataRunner.clone
+      ~LocalMetadataRunner.deserialize_init_args
+      ~LocalMetadataRunner.poll_available_capacity
+      ~LocalMetadataRunner.poll_exception
+      ~LocalMetadataRunner.poll_trial_status
+      ~LocalMetadataRunner.run
+      ~LocalMetadataRunner.run_multiple
+      ~LocalMetadataRunner.serialize_init_args
+      ~LocalMetadataRunner.stop
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~LocalMetadataRunner.db_id
+      ~LocalMetadataRunner.run_metadata_report_keys
+      ~LocalMetadataRunner.staging_required
+   
+   

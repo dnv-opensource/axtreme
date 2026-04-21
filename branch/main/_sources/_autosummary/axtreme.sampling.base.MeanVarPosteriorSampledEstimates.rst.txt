@@ -1,0 +1,31 @@
+MeanVarPosteriorSampledEstimates
+================================
+
+.. currentmodule:: axtreme.sampling.base
+
+.. autoclass:: MeanVarPosteriorSampledEstimates
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~MeanVarPosteriorSampledEstimates.__init__
+      ~MeanVarPosteriorSampledEstimates.mean
+      ~MeanVarPosteriorSampledEstimates.var
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~MeanVarPosteriorSampledEstimates.posterior_sampler
+   
+   

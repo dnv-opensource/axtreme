@@ -1,0 +1,15 @@
+axtreme.distributions.helpers
+=============================
+
+.. automodule:: axtreme.distributions.helpers
+   :members:
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      approx_mixture_cdf_resolution
+      dist_cdf_resolution
+      mixture_cdf_resolution
+   

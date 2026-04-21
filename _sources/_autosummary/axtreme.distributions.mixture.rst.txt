@@ -1,0 +1,22 @@
+axtreme.distributions.mixture
+=============================
+
+.. automodule:: axtreme.distributions.mixture
+   :members:
+   :exclude-members: ApproximateMixture,
+   
+
+
+   
+   .. rubric:: Functions
+   .. autosummary::
+   
+      icdf_value_bounds
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      ApproximateMixture
+   

@@ -1,0 +1,17 @@
+axtreme.data.multi\_dim\_batch\_sampler
+=======================================
+
+.. automodule:: axtreme.data.multi_dim_batch_sampler
+   :members:
+   :exclude-members: MultiBatchSampler,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      MultiBatchSampler
+   

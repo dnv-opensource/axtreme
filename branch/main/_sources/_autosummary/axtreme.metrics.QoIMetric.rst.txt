@@ -1,0 +1,44 @@
+QoIMetric
+=========
+
+.. currentmodule:: axtreme.metrics
+
+.. autoclass:: QoIMetric
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~QoIMetric.__init__
+      ~QoIMetric.bulk_fetch_experiment_data
+      ~QoIMetric.bulk_fetch_trial_data
+      ~QoIMetric.clone
+      ~QoIMetric.deserialize_init_args
+      ~QoIMetric.fetch_data_prefer_lookup
+      ~QoIMetric.fetch_experiment_data_multi
+      ~QoIMetric.fetch_trial_data
+      ~QoIMetric.fetch_trial_data_multi
+      ~QoIMetric.is_available_while_running
+      ~QoIMetric.maybe_raise_deprecation_warning_on_class_methods
+      ~QoIMetric.period_of_new_data_after_trial_completion
+      ~QoIMetric.serialize_init_args
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~QoIMetric.db_id
+      ~QoIMetric.fetch_multi_group_by_metric
+      ~QoIMetric.name
+      ~QoIMetric.summary_dict
+   
+   
