@@ -10,7 +10,7 @@ from botorch.models.deterministic import GenericDeterministicModel
 from botorch.sampling.index_sampler import IndexSampler
 from setuptools import Distribution
 from torch.distributions import Categorical, Gumbel, MultivariateNormal, Normal, Uniform
-from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
 from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
 from axtreme.distributions.mixture import ApproximateMixture
@@ -321,16 +321,16 @@ class TestMarginalCDFExtrapolation:
         env_dist = _EnvDist(
             loc=torch.tensor([0.1, 0.1]), cov=torch.tensor([[0.2, 0], [0, 0.2]]), lower_bounds=torch.tensor([0.0, 0.0])
         )
-
         with torch.random.fork_rng():
             _ = torch.manual_seed(66)
             env_samples = env_dist.sample(torch.Size([PERIOD_LEN * N_BRUTE_FORCE_ESTS]))
+        env_dataset = MinimalDataset(env_samples)
 
         ### Importance sampling distribution: Uniform over region 0 < x1 < 2, 0 < x2 < 2
         is_dist_bounds = torch.tensor([[0.0, 0.0], [2.0, 2.0]])
         with torch.random.fork_rng():
             _ = torch.manual_seed(66)
-            importance_samples = Uniform(0, 2).sample((10_000, 2))
+            importance_samples = Uniform(0, 2).sample(torch.Size([10_000, 2]))
 
         def importance_pdf(x: torch.Tensor) -> torch.Tensor:
             in_region = (
@@ -366,9 +366,9 @@ class TestMarginalCDFExtrapolation:
         _ = generator.manual_seed(27)
         response_samples, xmax_samples = brute_force_calc(
             dataloader=DataLoader(
-                env_samples,
+                TensorDataset(env_samples),
                 batch_size=1000,
-                sampler=RandomSampler(env_samples, num_samples=PERIOD_LEN, replacement=False, generator=generator),
+                sampler=RandomSampler(env_dataset, num_samples=PERIOD_LEN, replacement=False, generator=generator),
             ),
             response_params_func=_true_underlying_func,
             response_dist_class=Gumbel,
@@ -417,14 +417,16 @@ class TestMarginalCDFExtrapolation:
 
         # Create jobs with with and without importance sampling
         qoi_jobs = []
-        datasets = {"full": env_samples, "importance_sample": importance_dataset}
+        datasets = {"full": env_dataset, "importance_sample": importance_dataset}
         for dataset_name, dataset in datasets.items():
             for i in range(200):
                 # A fixed random sampler selects the same samples if the seed is the same which allows the results to be
                 # compared if this function is run multiple times
                 dataset_size = 800
-                sampler = FixedRandomSampler(dataset, num_samples=dataset_size, seed=i, replacement=True)
-                dataloader = DataLoader(dataset, sampler=sampler, batch_size=100)
+                sampler = FixedRandomSampler(
+                    dataset, num_samples=dataset_size, seed=i, replacement=True
+                )  # typing: ignore[arg-type]
+                dataloader: DataLoader[tuple[torch.Tensor, ...]] = DataLoader(dataset, sampler=sampler, batch_size=100)
 
                 qoi_estimator = MarginalCDFExtrapolation(
                     env_iterable=dataloader,
@@ -703,27 +705,27 @@ class TestMixtureDistributionFromImportanceSamples:
         n_samples = 10_000
         with torch.random.fork_rng():
             _ = torch.manual_seed(10)
-            is_samples = is_dist.sample((n_samples,))
+            is_samples = is_dist.sample(torch.Size((n_samples,)))
         # p(x)/q(x) = 1/0.25 = 4
         is_weights = torch.exp(env_dist.log_prob(is_samples) - is_dist.log_prob(is_samples))
         is_params = true_underlying(is_samples)
         # NOTE: use arguement `lower_bound`` if want to plot over the entire domain.
         # Typically our optimisation only searches in the importance region as we look for large q value
-        is_dist, _ = _mixture_distribution_from_importance_samples(
+        marginal_dist, _ = _mixture_distribution_from_importance_samples(
             weights=is_weights, params=is_params, component_dist_class=Gumbel
         )
 
         # Check the distribution the approximately equal (within the important bounds)
         x_range = torch.linspace(0.75, 1, 100)
         expected_cdf = analytical_dist.cdf(x_range)
-        actual_cdf = is_dist.cdf(x_range)
+        actual_cdf = marginal_dist.cdf(x_range)
         torch.testing.assert_close(expected_cdf, actual_cdf, atol=0.01, rtol=0.0)
 
         if visualise:
             # for demo purposes can also put the MC estimate on the plot:
             # Direct monte carlo estimate:
             n_samples = 10_000
-            env_samples = env_dist.sample((n_samples,))
+            env_samples = env_dist.sample(torch.Size((n_samples,)))
             params = true_underlying(env_samples)
             # Not importance sampling, so no weights
             weights = torch.ones_like(env_samples)

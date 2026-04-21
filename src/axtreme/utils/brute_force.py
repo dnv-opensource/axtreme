@@ -1,3 +1,5 @@
+"""Helper for directly calculating samples of an Extreme Response Distribution (ERD) by brute force."""
+
 from collections.abc import Callable
 
 import torch
@@ -19,6 +21,7 @@ def brute_force_calc(
             (period_length, d). The dataloader will be iterated through num_estimates times, and needs to give different
             data each time it is iterated through (e.g., by using a RandomSampler).
             ```python
+            dataset = TensorDataset(torch.Tensor(data))
             dataloader = DataLoader(
                 dataset,
                 batch_size=4096,
@@ -34,22 +37,22 @@ def brute_force_calc(
         Tuple of:
             ERD samples: (num_estimates,) samples of the ERD for that period length. QoIs can be calculated from this.
             X_max: (num_estimates, d) The location in the environments space that produced the ERD sample.
-
-    Note:
-        - This produces the same results as the methods used in `examples`. Examples should eventually be updated to use
-        this function. Further testing should probably be completed because this is used to get "true values".
     """
     maxs = torch.zeros(num_estimates)
 
-    _, d = next(iter(dataloader)).shape
+    batch = next(iter(dataloader))
+    assert len(batch) == 1, f"A batch is expected to be tuple(Tensor,), got {type(batch)= }{len(batch)=}"
+    env_data = batch[0]
+    assert env_data.ndim == 2, f"Expected env_batch shape (batch_size, d), got {env_data.shape}"  # noqa: PLR2004
+    _, d = env_data.shape
     maxs_location = torch.zeros(num_estimates, d)
 
     for i in tqdm.tqdm(range(num_estimates)):
         current_max = float("-inf")
 
         for batch in dataloader:
-            assert batch.ndim() == 2, f"Expected batch shape (batch_size, {d}), got {batch.shape}"  # noqa: PLR2004
-            params = response_params_func(batch)
+            env_batch = batch[0]
+            params = response_params_func(env_batch)
             response_dist = response_dist_class(*torch.unbind(params, dim=-1))
 
             # Should produce shape (batch_size,)
@@ -59,7 +62,7 @@ def brute_force_calc(
             simulator_samples_max = samples.max(dim=0)
             if simulator_samples_max.values > current_max:
                 current_max = simulator_samples_max.values
-                maxs_location[i] = batch[simulator_samples_max.indices, :]
+                maxs_location[i] = env_batch[simulator_samples_max.indices, :]
 
         maxs[i] = current_max
 

@@ -312,8 +312,8 @@ def _mixture_distribution_from_importance_samples(
     dist_args = inspect.signature(component_dist_class).parameters
     if set(dist_args.keys()) != {"loc", "scale", "validate_args"}:
         msg = (
-            "Currently only distribution parameterised with {'loc', 'scale', 'validate_args'} are supported. ",
-            f"Got: {set(dist_args.keys())}",
+            "Currently only distribution parameterised with {'loc', 'scale', 'validate_args'} are supported. "
+            f"Got: {set(dist_args.keys())}"
         )
         raise NotImplementedError(msg)
     # loc and scale provided could be any values, do minimum to enforce distribution bounds
@@ -346,7 +346,7 @@ def _mixture_distribution_from_importance_samples(
     weights_n = weights / weights.shape[-1]
 
     # Create a degenerate dist which contributes all its cdf mass because any contributions from component dist
-    component_dist_uncorrected = component_dist_class(*torch.unbind(params, dim=-1))
+    component_dist_uncorrected = component_dist_class(*torch.unbind(params, dim=-1))  # type: ignore[arg-type]
     # Output shape: (*b, n_params)
     correction_params = _create_lowerbound_degenerate_distribution_params(
         component_dist_uncorrected, lower_bound=lower_bound
@@ -364,7 +364,7 @@ def _mixture_distribution_from_importance_samples(
 
     dist = ApproximateMixture(
         mixture_distribution=Categorical(updated_weights),
-        component_distribution=component_dist_class(*torch.unbind(updated_params, dim=-1)),
+        component_distribution=component_dist_class(*torch.unbind(updated_params, dim=-1)),  # type: ignore[arg-type]
     )
 
     return dist, integral_p_over_q_std_err
@@ -399,15 +399,16 @@ def _create_lowerbound_degenerate_distribution_params(
     dist_args = inspect.signature(component_dist.__init__).parameters
     if set(dist_args.keys()) != {"loc", "scale", "validate_args"}:
         msg = (
-            "Currently only distribution parameterised with {'loc', 'scale', 'validate_args'} are supported. ",
-            f"Got: {set(dist_args.keys())}",
+            "Currently only distribution parameterised with {'loc', 'scale', 'validate_args'} are supported. "
+            f"Got: {set(dist_args.keys())}"
         )
         raise NotImplementedError(msg)
-    dtype = component_dist.loc.dtype  # pyright: ignore[reportAttributeAccessIssue]
+    dtype = component_dist.loc.dtype  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
 
     # Find the lowest point where mass is added to the cdf.
     # NOTE:  torch.finfo(dtype).eps based on the lower bound in ApproximateMixture)
-    lower = component_dist.icdf(torch.finfo(dtype).eps)
+    eps = torch.tensor(torch.finfo(dtype).eps)
+    lower = component_dist.icdf(eps)
     # aggregate across the same dimension as the mixture dist
     lower = lower.min(dim=-1).values
 
@@ -423,10 +424,10 @@ def _create_lowerbound_degenerate_distribution_params(
 
     # degenerate distribution needs to have finished adding mass by this point.
     # Pick a scale and check the offset required to the dist to be finished.
-    scale = lower.abs() * torch.finfo(dtype).eps * 100  # 100 is some buffer
-    temp_dist = type(component_dist)(loc=0, scale=scale)
+    scale = lower.abs() * eps * 100  # 100 is some buffer
+    temp_dist = type(component_dist)(loc=0, scale=scale)  # type: ignore[arg-type,call-arg]
     # offset for the centered distribution to be finish
-    x_offset = temp_dist.icdf(1 - torch.finfo(dtype).eps)
+    x_offset = temp_dist.icdf(1 - eps)
     loc = lower - x_offset
 
     params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
