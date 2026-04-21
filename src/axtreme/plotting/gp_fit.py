@@ -43,7 +43,7 @@ def plot_surface_over_2d_search_space(
     # Extract the parameter names and ranges from the search space
     assert len(search_space.parameters) == 2, "Only 2D search spaces are supported for now."  # noqa: PLR2004
 
-    (x1_name, x1_param), (x2_name, x2_param) = list(search_space.parameters.items())
+    (_, x1_param), (_, x2_param) = list(search_space.parameters.items())
 
     if not (isinstance(x1_param, RangeParameter) and isinstance(x2_param, RangeParameter)):
         msg = f"""Expect search_space.parameters to all be of type RangeParameter.
@@ -371,11 +371,11 @@ def plot_1d_model(model: SingleTaskGP, X: torch.Tensor | None = None, ax: None |
         mean = posterior.mean[:, target_idx]
         var = posterior.variance[:, target_idx]
         _ = ax.fill_between(X.flatten(), mean - 1.95 * var**0.5, mean + 1.95 * var**0.5, alpha=0.3, color=c)
-        _ = ax.plot(X, mean, color=c, label=f"gp target {target_idx}")
+        _ = ax.plot(X, mean, color=c, label=f"GP target {target_idx}")
         _ = ax.scatter(train_x.flatten(), train_y, color=c)
         _ = ax.errorbar(train_x.flatten(), train_y, 1.95 * train_var**0.5, fmt="o", color=c)
 
-    _ = ax.set_title("Gp prediction")
+    _ = ax.set_title("GP prediction")
     return ax
 
 

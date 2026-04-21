@@ -40,7 +40,7 @@ def plot_distribution(
     for samples_i in samples_list:
         _ = ax.hist(samples_i, density=True, alpha=0.3, bins=len(samples_i) // 5 + 1)
     _ = ax.set_xlabel("QOI value")
-    _ = ax.set_title("QOi estimator distibutions")
+    _ = ax.set_title("QOI estimator distributions")
 
     if brute_force:
         _ = ax.axvline(brute_force, c="black", label=f"Brute force ({brute_force:.2f})")
