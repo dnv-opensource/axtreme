@@ -97,7 +97,7 @@ def plot_qoi_estimates_from_experiment(
         x,
         qoi_means - 1.96 * qoi_sems,
         qoi_means + 1.96 * qoi_sems,
-        label=f"90% Confidence Bound {name}",
+        label=f"95% Confidence Bound {name}",
         alpha=0.3,
         **kwargs,
     )
