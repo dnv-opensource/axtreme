@@ -8,13 +8,21 @@ jobs:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
-        platform:
-          - runner: ubuntu-latest
-          - runner: windows-latest
-          # - runner: macos-latest
-        python:
-          - version: '3.11'
-          - version: '3.12'
+        # platform:
+        #   - runner: ubuntu-latest
+        #   - runner: windows-latest
+        #   # - runner: macos-latest
+        # python:
+        #   - version: '3.11'
+        #   - version: '3.12'
+        # There appears to be an issues with 3.12.10 and pytest. Checking if also on ubuntu.
+        include:
+          - platform: {runner: ubuntu-latest}
+            python: {version: '3.11'}
+          - platform: {runner: ubuntu-latest}
+            python: {version: '3.12'}
+          - platform: {runner: windows-latest}
+            python: {version: '3.11'}
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
