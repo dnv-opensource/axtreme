@@ -368,7 +368,9 @@ class TestMarginalCDFExtrapolation:
             dataloader=DataLoader(
                 TensorDataset(env_samples),
                 batch_size=1000,
-                sampler=RandomSampler(env_dataset, num_samples=PERIOD_LEN, replacement=False, generator=generator),
+                sampler=RandomSampler(
+                    TensorDataset(env_samples), num_samples=PERIOD_LEN, replacement=False, generator=generator
+                ),
             ),
             response_params_func=_true_underlying_func,
             response_dist_class=Gumbel,
@@ -423,10 +425,10 @@ class TestMarginalCDFExtrapolation:
                 # A fixed random sampler selects the same samples if the seed is the same which allows the results to be
                 # compared if this function is run multiple times
                 dataset_size = 800
-                sampler = FixedRandomSampler(
-                    dataset, num_samples=dataset_size, seed=i, replacement=True
-                )  # typing: ignore[arg-type]
-                dataloader: DataLoader[tuple[torch.Tensor, ...]] = DataLoader(dataset, sampler=sampler, batch_size=100)
+
+                sampler = FixedRandomSampler(dataset, num_samples=dataset_size, seed=i, replacement=True)  # type: ignore[arg-type]
+
+                dataloader = DataLoader(dataset, sampler=sampler, batch_size=100)
 
                 qoi_estimator = MarginalCDFExtrapolation(
                     env_iterable=dataloader,
@@ -480,13 +482,13 @@ class TestMarginalCDFExtrapolation:
             std_qoi_means_full = df_jobs.loc[df_jobs["dataset_name"] == "full", "mean"].std()
             mean_qoi_means_full = df_jobs.loc[df_jobs["dataset_name"] == "full", "mean"].mean()
 
-            df_jobs[df_jobs["dataset_name"] == "full"].hist(column="mean", ax=ax[0], grid=False)
+            _ = df_jobs[df_jobs["dataset_name"] == "full"].hist(column="mean", ax=ax[0], grid=False)
             ax[0].axvline(brute_force_qoi, c="orange", label=f"Brute force ({brute_force_qoi:.2f})")
             ax[0].set_title(f"Dataset: full, mean={mean_qoi_means_full:.2f}, std={std_qoi_means_full:.2f}")
             ax[0].legend()
 
             # Plot results for importance sampling
-            df_jobs[df_jobs["dataset_name"] == "importance_sample"].hist(column="mean", ax=ax[1], grid=False)
+            _ = df_jobs[df_jobs["dataset_name"] == "importance_sample"].hist(column="mean", ax=ax[1], grid=False)
             ax[1].axvline(brute_force_qoi, c="orange", label=f"Brute force ({brute_force_qoi:.2f})")
             ax[1].set_title(
                 "Dataset: importance sample, "

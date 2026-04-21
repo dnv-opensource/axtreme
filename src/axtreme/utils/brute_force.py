@@ -17,7 +17,7 @@ def brute_force_calc(
     """Calculate the QOI by brute force.
 
     Args:
-        dataloader: Provides environment samples of shape (batch_size, d), where batches concatenate to shape
+        dataloader: Provides environment samples of shape tuple((batch_size, d),) where batches concatenate to shape
             (period_length, d). The dataloader will be iterated through num_estimates times, and needs to give different
             data each time it is iterated through (e.g., by using a RandomSampler).
             ```python
@@ -28,6 +28,8 @@ def brute_force_calc(
                 sampler=RandomSampler(dataset, num_samples=period_length, replacement=True),
             )
             ```
+            - NOTE: This expects output that matches TensorDataset (each batch is a tuple of tensors), rather than the
+                formatted used in other places (e.g. MinimalDataset), where each batch is a single tensor.
         response_params_func: Take env samples (batch_size, d) and return parameters of the response distribution
             (batch_size, num_params).
         response_dist_class: The distribution class to use to get response samples. Expect to have single output.
@@ -48,15 +50,15 @@ def brute_force_calc(
     maxs_location = torch.zeros(num_estimates, d)
 
     for i in tqdm.tqdm(range(num_estimates)):
-        current_max = float("-inf")
+        current_max = torch.tensor(-torch.inf)
 
         for batch in dataloader:
             env_batch = batch[0]
             params = response_params_func(env_batch)
-            response_dist = response_dist_class(*torch.unbind(params, dim=-1))
+            response_dist = response_dist_class(*torch.unbind(params, dim=-1))  # type: ignore[arg-type]
 
             # Should produce shape (batch_size,)
-            samples = response_dist.sample()
+            samples = response_dist.sample(torch.Size([1])).flatten()
 
             # dim=0 is added so get both value and indices
             simulator_samples_max = samples.max(dim=0)

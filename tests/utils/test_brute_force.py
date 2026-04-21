@@ -21,7 +21,7 @@ def test_brute_force_calc_matches_order_statistic_distribution():
     empirical CDF of `maxs` and the theoretical CDF. A p-value > 0.05 means we cannot reject that
     the samples come from the theoretical distribution.
     """
-    torch.manual_seed(0)
+    _ = torch.manual_seed(0)
 
     period_length = 100
     num_estimates = 5_000

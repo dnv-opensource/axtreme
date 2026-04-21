@@ -150,6 +150,9 @@ include = [
     "examples",
     "tutorials",
 ]
+exclude = [
+    "**/junk*",
+]
 
 typeCheckingMode = "basic"
 useLibraryCodeForTypes = true
@@ -174,7 +177,6 @@ reportUnnecessaryContains = "warning"
 reportUnusedCallResult = "warning"
 reportUnusedExpression = "warning"
 reportMatchNotExhaustive = "warning"
-reportShadowedImports = "warning"
 reportUntypedFunctionDecorator = "warning"
 reportUntypedClassDecorator = "warning"
 reportUntypedBaseClass = "error"

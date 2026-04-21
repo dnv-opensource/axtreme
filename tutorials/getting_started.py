@@ -1,3 +1,4 @@
+# pyright: reportUnusedCallResult=false
 # %% [markdown]
 # ## Getting started with Axtreme
 #

@@ -67,11 +67,11 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
         """Initialise the QOI estimator.
 
         Args:
-            env_iterable: An interable that produces the env data to be used. Typically this is a DataLoader.
+            env_iterable: An iterable that produces the env data to be used. Typically this is a DataLoader.
                 Supports standard env data, and weighted env data (e.g Importance sampled).
 
-                - Standards env data: Expects tensor of shape (batch_size, d)
-                - Weighted data: Expectes list of tensors.
+                - Standards env data: Expected items - tensor of shape (batch_size, d)
+                - Weighted data: Expected items - list of tensors.
 
                     - The first: the env data of shape (batch_size,d).
                     - The second item: the weight, of shape (batch_size,).

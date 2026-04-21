@@ -470,7 +470,7 @@ class TestApproximateMixture:
         dist = Gumbel(loc, scale)
 
         with pytest.warns(RuntimeWarning, match="Insufficient precision"):
-            ApproximateMixture.calculate_x_bounds(dist, q_upperbound=q_upper, q_lowerbound=q_lower)
+            _ = ApproximateMixture.calculate_x_bounds(dist, q_upperbound=q_upper, q_lowerbound=q_lower)
 
 
 @pytest.mark.parametrize(
