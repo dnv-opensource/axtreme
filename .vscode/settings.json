@@ -49,7 +49,6 @@
     "mypy-type-checker.reportingScope": "workspace",
     "mypy-type-checker.preferDaemon": true,
     "ruff.configurationPreference": "filesystemFirst",
-    "cSpell.words": [
-        "effecient"
-    ],
+    "cSpell.words": [],
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
 }
