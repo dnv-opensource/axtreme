@@ -8,6 +8,7 @@ jobs:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
+        # Removed until issue #135 from python 3.12 is resolved.
         # platform:
         #   - runner: ubuntu-latest
         #   - runner: windows-latest
@@ -15,7 +16,6 @@ jobs:
         # python:
         #   - version: '3.11'
         #   - version: '3.12'
-        # There appears to be an issues with 3.12.10 and pytest. Checking if also on ubuntu.
         include:
           - platform: {runner: ubuntu-latest}
             python: {version: '3.11'}

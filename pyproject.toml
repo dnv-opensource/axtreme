@@ -28,7 +28,7 @@ name = "axtreme"
 version = "0.1.1"
 description = "A development library for the RaPiD project"
 readme = "README.md"
-requires-python = ">= 3.11, < 3.13"
+requires-python = ">= 3.11, < 3.12" # See issue #138 concerning python 3.12
 license = { file = "LICENSE" }
 authors = [
     { name = "Sebastian Winter", email = "sebastian.winter@dnv.com" },
@@ -68,8 +68,7 @@ dependencies = [
     "gitpython>=3.1.43",
     "ax-platform[mysql]==0.3.7",
     "plotly>=6.3.1",
-    "pytest>=9.0.3",
-    "pandas>=2.2,<3.0",
+    "pandas>=2.2,<3.0", # See issue #139
 ]
 
 [project.optional-dependencies]
