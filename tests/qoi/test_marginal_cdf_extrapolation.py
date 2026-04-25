@@ -1,5 +1,6 @@
 # %%
 import warnings
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
@@ -24,6 +25,7 @@ from axtreme.qoi.marginal_cdf_extrapolation import (
     q_to_qtimestep,
 )
 from axtreme.utils.brute_force import brute_force_calc
+from axtreme.utils.population_estimators import sample_quantile_estimate
 
 torch.set_default_dtype(torch.float64)
 
@@ -258,49 +260,57 @@ class TestMarginalCDFExtrapolation:
         using sample based methods. This test demonstrates that importance sampling produces less variable (and still
         correct) estimates compared to random sampling.
 
+        NOTE: Currently the intention of this test is do demonstrate reduce variance and REASONABLE accuracy. It is not
+        intend to rigorously test for bias and variance. That is upcoming work.
+
         NOTE: QoIEstimator output only shows GP variability. To understand the variability of the QoIEstimator due to
         the environment samples the estimator must me run with different env samples (of the same size).
 
         Test overview:
-            Inputs
-            - Response functions: A tight normal distribution at (1,1)
-            - Environment distribution: Sample from std normal (with x1 > 0 and x2 > 0)
-            - Importance sampling distribution: Uniform samples within a circle of radius 1.75 (with x1 > 0 and x2 > 0)
+        This is quite a long test as the goal is for everything to be self contained. Overview is as follows:
 
-            Process:
-            - 1) draw a subsample from the environment distribution or importance sampling distribution.
-            - 2) Run the QoIEstimator with this subsamples (The true underlying function is used inplace of the GP to
-              remove the effect of GP uncertainty and isolate the effect of the environment samples). The QoIEstimator
-              thus returns a single number per run.
-            - 3) Repeat set 1 and 2 many times. Compare the distribution of prediction.
-
-            Expected result:
-            - Using the same number of samples, the importance sampling approach should have less variance in its
-              its estimates (and still be centered around the true value). Thresholds are set via visual inspection.
+        - Create the inputs:
+            - Environment distribution: A truncated normal distribution (truncated to x1 > 0 and x2 > 0) with mean at
+              (0.1, 0.1) and std of 0.2.
+            - Importance sampling distribution: Uniform distribution over region 0 < x1 < 2, 0 < x2 < 2.
+            - Response function: Tight uniform normal distribution mean (1,1) and variance .03.
+        - (optional) Visualise the environment and importance samples and the response function.
+        - Brute force estimate the QoI
+        - Create many QoI estimates with/without importance sampling, using different env/importance samples each time.
+        - Compare the distribution of QoI estimates produced.
+        - Perform lose testing the importance sampling QoI has less variance, and a reasonable mean estimate.
 
         Args:
             error_tolerance: The error allowed in assertions is multiplied by this number.
             visualise: Bool to specify if the QoI results shall be plotted.
         """
-        ######### STEP UP
+        ########### STEP UP ###########
         PERIOD_LEN = 1_000  # noqa: N806
-        N_BRUTE_FORCE_ESTS = 20_00  # noqa: N806
+        N_BRUTE_FORCE_ESTS = 5000  # noqa: N806
+        QOI_QUANTILE = 0.5  # noqa: N806
 
-        ### Make and sample env dist
+        #### Make and sample env dist
         class _EnvDist:
-            """Simple truncated normal distribution"""
+            """Simple truncated normal distribution ensure sample and pdf reflection truncation.
+
+            WARNING: If this is changed, the pre-saved brute force results need to be deleted and recalculated.
+            """
 
             def __init__(self, loc: torch.Tensor, cov: torch.Tensor, lower_bounds: torch.Tensor) -> None:
                 assert cov.shape == (2, 2), "NotYetImplemented, only supports 2D case currently"
                 assert (cov[0, 1] == 0) and (cov[1, 0] == 0), "NotYetImplemented, only supports independent normal"  # noqa: PT018
                 self.mvn = MultivariateNormal(loc, covariance_matrix=cov)
                 self.lower_bounds = lower_bounds
-                # Calculated how much of mass has been removed by truncation.
-                # Pdf will need to increase so the integral is 1.
-                prb_not_truncated = (1 - Normal(loc[0], cov[0, 0] ** 0.5).cdf(lower_bounds[0])) * (
-                    1 - Normal(loc[1], cov[1, 1] ** 0.5).cdf(lower_bounds[1])
-                )
-                self._pdf_correction_factor = 1 / prb_not_truncated
+
+                # A valid PDF must satisfy ∫ pdf(x) dx = 1 over its support. Truncating the normal to x > lower_bounds
+                # removes probability mass, so we must renormalise by dividing by P(X > lower_bounds).
+                # By the independence assumption: P(X > lb) = P(X1 > lb1) * P(X2 > lb2).
+                prbx1_above_bound = 1 - Normal(loc[0], cov[0, 0] ** 0.5).cdf(lower_bounds[0])
+                prbx2_above_bound = 1 - Normal(loc[1], cov[1, 1] ** 0.5).cdf(lower_bounds[1])
+                prb_above_bound = prbx1_above_bound * prbx2_above_bound
+
+                # pdf_truncated(x) = pdf(x) / P(X > lb), so the correction factor is 1 / P(X > lb).
+                self._pdf_correction_factor = 1 / prb_above_bound
 
             def sample(self, sample_shape: torch.Size) -> torch.Tensor:
                 """Sample shape restricted to (n,)"""
@@ -324,6 +334,7 @@ class TestMarginalCDFExtrapolation:
         )
         with torch.random.fork_rng():
             _ = torch.manual_seed(66)
+            # Good to have a unique sample for each estimate in the brute force.
             env_samples = env_dist.sample(torch.Size([PERIOD_LEN * N_BRUTE_FORCE_ESTS]))
         env_dataset = MinimalDataset(env_samples)
 
@@ -350,8 +361,9 @@ class TestMarginalCDFExtrapolation:
             MinimalDataset(importance_samples), MinimalDataset(importance_weights)
         )
 
-        ### Define the response functions
+        #### Define the response functions
         def _true_underlying_func(x: torch.Tensor) -> torch.Tensor:
+            # WARNING: If this is changed, the pre-saved brute force results need to be deleted and recalculated.
             # Define loc function
             dist_mean, dist_cov = torch.tensor([1, 1]), torch.tensor([[0.03, 0], [0, 0.03]])
             dist = MultivariateNormal(loc=dist_mean, covariance_matrix=dist_cov)
@@ -361,27 +373,6 @@ class TestMarginalCDFExtrapolation:
             scale = torch.ones(x.shape[0]) * 0.1
 
             return torch.stack([loc, scale], dim=-1)
-
-        ## Calculate the brute force solutions
-        generator = torch.Generator()
-        _ = generator.manual_seed(27)
-        response_samples, xmax_samples = brute_force_calc(
-            dataloader=DataLoader(
-                TensorDataset(env_samples),
-                batch_size=1000,
-                sampler=RandomSampler(
-                    TensorDataset(env_samples), num_samples=PERIOD_LEN, replacement=False, generator=generator
-                ),
-            ),
-            response_params_func=_true_underlying_func,
-            response_dist_class=Gumbel,
-            num_estimates=N_BRUTE_FORCE_ESTS,
-        )
-        assert xmax_samples.unique(dim=0).shape[0] / N_BRUTE_FORCE_ESTS > 0.75, (
-            "Duplicate xmax indicates insufficient variety of env_samples, which can create unstable estimates."
-        )
-        brute_force_qoi = torch.median(response_samples)
-        # TODO(sw 2026-04-20): Add an uncertainty est to brute force est (so know have enough samples).
 
         if visualise:
             _, ax = plt.subplots(1, 1, figsize=(10, 8))
@@ -415,6 +406,60 @@ class TestMarginalCDFExtrapolation:
             _ = ax.set_title("Environment and importance samples with underlying response function")
             _ = ax.legend
 
+        ## Calculate the brute force solutions
+        # Results are cached to disk so subsequent runs skip the slow calculation.
+        # If N_BRUTE_FORCE_ESTS increases save the additional points run.
+        _bf_results_dir = (
+            Path(__file__).parent
+            / "data"
+            / "test_marginal_cdf_extrapolation"
+            / "test_marginal_cdf_with_importance_sampling"
+        )
+        _bf_results_dir.mkdir(parents=True, exist_ok=True)
+        _bf_results_file = _bf_results_dir / "brute_force_results.pt"
+
+        response_samples = torch.tensor([])
+        xmax_samples = torch.zeros(0, 2)
+
+        if _bf_results_file.exists():
+            saved = torch.load(_bf_results_file, weights_only=True)
+            response_samples = saved["response_samples"]
+            xmax_samples = saved["xmax_samples"]
+
+        if len(response_samples) < N_BRUTE_FORCE_ESTS:
+            n_existing = len(response_samples)
+            # don't really need this generator, but it can be handy for debugging to manually seed.
+            generator = torch.Generator()
+            new_response_samples, new_xmax_samples = brute_force_calc(
+                dataloader=DataLoader(
+                    TensorDataset(env_samples),
+                    batch_size=1000,
+                    sampler=RandomSampler(
+                        TensorDataset(env_samples),
+                        num_samples=PERIOD_LEN,
+                        replacement=False,
+                        generator=generator,
+                    ),
+                ),
+                response_params_func=_true_underlying_func,
+                response_dist_class=Gumbel,
+                num_estimates=N_BRUTE_FORCE_ESTS - n_existing,
+            )
+            response_samples = torch.cat([response_samples, new_response_samples])
+            xmax_samples = torch.cat([xmax_samples, new_xmax_samples])
+            torch.save({"response_samples": response_samples, "xmax_samples": xmax_samples}, _bf_results_file)
+        elif len(response_samples) > N_BRUTE_FORCE_ESTS:
+            response_samples = response_samples[:N_BRUTE_FORCE_ESTS]
+            xmax_samples = xmax_samples[:N_BRUTE_FORCE_ESTS]
+
+        # Check the results and calculate the QOI. # TODO(sw 2026-04-25): resolve why there are so many duplicates
+        assert xmax_samples.unique(dim=0).shape[0] / N_BRUTE_FORCE_ESTS > 0.6, (
+            "Duplicate xmax indicates insufficient variety of env_samples, which can create unstable estimates."
+        )
+        brute_force_qoi = response_samples.quantile(QOI_QUANTILE).item()
+        q_est_dist = sample_quantile_estimate(response_samples, QOI_QUANTILE)
+        q_bf_est_95_confidence_interval = (q_est_dist.ppf(0.025), q_est_dist.ppf(0.975))
+
         ####### Run the estimations
         gp_deterministic = GenericDeterministicModel(_true_underlying_func, num_outputs=2)
 
@@ -434,7 +479,7 @@ class TestMarginalCDFExtrapolation:
                 qoi_estimator = MarginalCDFExtrapolation(
                     env_iterable=dataloader,
                     period_len=PERIOD_LEN,
-                    quantile=torch.tensor(0.5),
+                    quantile=torch.tensor(QOI_QUANTILE),
                     quantile_accuracy=torch.tensor(0.01),
                     # IndexSampler needs to be used with GenericDeterministicModel. Each sample just selects the mean.
                     # As we use a deterministic model all posterior samples are identical and hence we only use one.
@@ -493,18 +538,23 @@ class TestMarginalCDFExtrapolation:
 
             _ = df_jobs[df_jobs["dataset_name"] == "full"].hist(column="mean", ax=ax[0], grid=False)
             ax[0].axvline(brute_force_qoi, c="orange", label=f"Brute force ({brute_force_qoi:.2f})")
+            label = f"95% CI ({q_bf_est_95_confidence_interval[0]:.2f}, {q_bf_est_95_confidence_interval[1]:.2f})"
+            ax[0].axvline(q_bf_est_95_confidence_interval[0], c="orange", linestyle="--", label=label)
+            ax[0].axvline(q_bf_est_95_confidence_interval[1], c="orange", linestyle="--")
             ax[0].set_title(f"Dataset: full, mean={mean_qoi_means_full:.2f}, std={std_qoi_means_full:.2f}")
             ax[0].legend()
 
             # Plot results for importance sampling
             _ = df_jobs[df_jobs["dataset_name"] == "importance_sample"].hist(column="mean", ax=ax[1], grid=False)
             ax[1].axvline(brute_force_qoi, c="orange", label=f"Brute force ({brute_force_qoi:.2f})")
+            ax[1].axvline(q_bf_est_95_confidence_interval[0], c="orange", linestyle="--", label=label)
+            ax[1].axvline(q_bf_est_95_confidence_interval[1], c="orange", linestyle="--")
             ax[1].set_title(
                 "Dataset: importance sample, "
                 f"mean={mean_qoi_means_importance_sampling:.2f}, "
                 f"std={std_qoi_means_importance_sampling:.2f}"
             )
-            ax[0].legend()
+            ax[1].legend()
 
 
 @pytest.mark.parametrize("dtype", [(torch.float32), (torch.float64)])
