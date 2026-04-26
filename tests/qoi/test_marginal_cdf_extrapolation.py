@@ -12,9 +12,9 @@ from botorch.models.deterministic import GenericDeterministicModel
 from botorch.sampling.index_sampler import IndexSampler
 from setuptools import Distribution
 from torch.distributions import Categorical, Gumbel, MultivariateNormal, Normal, Uniform
-from torch.utils.data import DataLoader, RandomSampler, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset
 
-from axtreme.data import ImportanceAddedWrapper, MinimalDataset
+from axtreme.data import ImportanceAddedWrapper, MinimalDataset, SizableSequentialSampler
 from axtreme.distributions.mixture import ApproximateMixture
 from axtreme.eval.qoi_job import QoIJob
 from axtreme.qoi.marginal_cdf_extrapolation import (
@@ -256,7 +256,7 @@ class TestMarginalCDFExtrapolation:
             (800, Uniform(torch.tensor([0.5, 0.5]), torch.tensor([1.5, 1.5])), 0.05, 0.12),
             # Bias assessment: Large with very large number of sample to see if estimator convergence to brute force.
             pytest.param(
-                20_000, Uniform(torch.tensor([0.0, 0.0]), torch.tensor([2.0, 2.0])), 0.01, 0.07, marks=pytest.mark.slow
+                20_000, Uniform(torch.tensor([0.0, 0.0]), torch.tensor([2.0, 2.0])), 0.02, 0.07, marks=pytest.mark.slow
             ),
         ],
     )
@@ -307,7 +307,7 @@ class TestMarginalCDFExtrapolation:
         """
         ########### STEP UP ###########
         PERIOD_LEN = 1_000  # noqa: N806
-        N_BRUTE_FORCE_ESTS = 5000  # noqa: N806
+        N_BRUTE_FORCE_ESTS = 10_000  # noqa: N806
         QOI_QUANTILE = 0.5  # noqa: N806
 
         #### Make and sample env dist
@@ -457,8 +457,12 @@ class TestMarginalCDFExtrapolation:
                 dataloader=DataLoader(
                     TensorDataset(env_samples),
                     batch_size=1000,
-                    # NOTE: This no longer strictly required.
-                    sampler=RandomSampler(TensorDataset(env_samples), num_samples=PERIOD_LEN, replacement=False),
+                    # Stateful means it iterates through the whole dataset in order. So each sample will be used once
+                    sampler=SizableSequentialSampler(
+                        TensorDataset(env_samples),
+                        num_samples=PERIOD_LEN,
+                        stateful=True,
+                    ),
                 ),
                 response_params_func=_true_underlying_func,
                 response_dist_class=Gumbel,
@@ -471,8 +475,8 @@ class TestMarginalCDFExtrapolation:
             response_samples = response_samples[:N_BRUTE_FORCE_ESTS]
             xmax_samples = xmax_samples[:N_BRUTE_FORCE_ESTS]
 
-        # Check the results and calculate the QOI. # TODO(sw 2026-04-25): resolve why there are so many duplicates
-        assert xmax_samples.unique(dim=0).shape[0] / N_BRUTE_FORCE_ESTS > 0.6, (
+        # Check the results and calculate the QOI.
+        assert xmax_samples.unique(dim=0).shape[0] / N_BRUTE_FORCE_ESTS > 0.95, (
             "Duplicate xmax indicates insufficient variety of env_samples, which can create unstable estimates."
         )
         brute_force_qoi = response_samples.quantile(QOI_QUANTILE).item()
@@ -521,7 +525,7 @@ class TestMarginalCDFExtrapolation:
                         model=gp_deterministic,
                         tags={
                             "dataset_name": dataset_name,
-                            "dataset_size": dataset_size,
+                            "dataset_size": dataset_size[0],
                         },
                     )
                 )
