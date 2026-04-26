@@ -39,4 +39,4 @@ jobs:
       - name: Run pytest
         run: >
           uv run --with pytest --with pytest-cov
-          pytest --cov -m "not system"
+          pytest --cov -m "not system and not slow"

@@ -14,7 +14,7 @@ from setuptools import Distribution
 from torch.distributions import Categorical, Gumbel, MultivariateNormal, Normal, Uniform
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
-from axtreme.data import FixedRandomSampler, ImportanceAddedWrapper, MinimalDataset
+from axtreme.data import ImportanceAddedWrapper, MinimalDataset
 from axtreme.distributions.mixture import ApproximateMixture
 from axtreme.eval.qoi_job import QoIJob
 from axtreme.qoi.marginal_cdf_extrapolation import (
@@ -247,10 +247,25 @@ class TestMarginalCDFExtrapolation:
         assert q_timestep**period_len == pytest.approx(quantile, abs=quantile_accuracy)
 
     @pytest.mark.integration
-    @pytest.mark.non_deterministic
+    @pytest.mark.parametrize(
+        "n_env_samples_per_qoi_run, importance_dist, max_bias, max_std",
+        [
+            # Basic case: Importance dist covers env support. Low number env_samples
+            (800, Uniform(torch.tensor([0.0, 0.0]), torch.tensor([2.0, 2.0])), 0.2, 0.25),
+            # Importance sample only covers important region of env support
+            (800, Uniform(torch.tensor([0.5, 0.5]), torch.tensor([1.5, 1.5])), 0.05, 0.12),
+            # Bias assessment: Large with very large number of sample to see if estimator convergence to brute force.
+            pytest.param(
+                20_000, Uniform(torch.tensor([0.0, 0.0]), torch.tensor([2.0, 2.0])), 0.01, 0.07, marks=pytest.mark.slow
+            ),
+        ],
+    )
     def test_marginal_cdf_with_importance_sampling(  # noqa: C901, PLR0915
         self,
-        error_tolerance: float = 1.0,  # noqa: PT028
+        n_env_samples_per_qoi_run: int,
+        importance_dist: Uniform,
+        max_bias: float,
+        max_std: float,
         *,
         visualise: bool = False,  # noqa: PT028
     ):
@@ -281,7 +296,13 @@ class TestMarginalCDFExtrapolation:
         - Perform lose testing the importance sampling QoI has less variance, and a reasonable mean estimate.
 
         Args:
-            error_tolerance: The error allowed in assertions is multiplied by this number.
+            n_env_samples_per_qoi_run: number of samples the estimator can use when making an estimate of the qoi.
+            importance_dist: The distribution to sample importance samples from.
+            max_bias: The maximum allowed difference between the mean QoI estimate (mean over all estimator runs) with
+              importance sampling and the brute force estimate. This is set vias visual inspection of the results, not
+              rigorous test.
+            max_std: The maximum allowed standard deviation of the importance weighted QoI estimates (e.g. std dev of
+              all estimator runs). This is set vias visual inspection of the results, not rigorous test.
             visualise: Bool to specify if the QoI results shall be plotted.
         """
         ########### STEP UP ###########
@@ -332,34 +353,30 @@ class TestMarginalCDFExtrapolation:
         env_dist = _EnvDist(
             loc=torch.tensor([0.1, 0.1]), cov=torch.tensor([[0.2, 0], [0, 0.2]]), lower_bounds=torch.tensor([0.0, 0.0])
         )
-        with torch.random.fork_rng():
-            _ = torch.manual_seed(66)
-            # Good to have a unique sample for each estimate in the brute force.
-            env_samples = env_dist.sample(torch.Size([PERIOD_LEN * N_BRUTE_FORCE_ESTS]))
-        env_dataset = MinimalDataset(env_samples)
 
-        ### Importance sampling distribution: Uniform over region 0 < x1 < 2, 0 < x2 < 2
-        is_dist_bounds = torch.tensor([[0.0, 0.0], [2.0, 2.0]])
-        with torch.random.fork_rng():
-            _ = torch.manual_seed(66)
-            importance_samples = Uniform(0, 2).sample(torch.Size([10_000, 2]))
+        ### Importance sampling distribution: Uniform over region.
+        def importance_weighted_sampler(sample_shape: torch.Size) -> tuple[torch.Tensor, torch.Tensor]:
+            """Generate importance weighted samples from the importance distribution.
 
-        def importance_pdf(x: torch.Tensor) -> torch.Tensor:
-            in_region = (
-                (x[:, 0] >= is_dist_bounds[0, 0])
-                & (x[:, 0] <= is_dist_bounds[1, 0])
-                & (x[:, 1] >= is_dist_bounds[0, 1])
-                & (x[:, 1] <= is_dist_bounds[1, 1])
+            Importance samples are:
+            - drawn from the importance distribution
+            - weighted by p(x)/q(x), where p is the environment distribution and q is the importance distribution.
+
+            args:
+                sample_shape: number of samples to draw (n,)
+
+            returns:
+            tuple containing (importance_samples, importance_weights), where:
+            - importance_samples: shape (n, 2)
+            - importance_weights: shape (n,)
+            """
+            importance_samples = importance_dist.sample(sample_shape)
+            # The weight need to be summed because Uniform treats each of the output dims independently, so need to
+            # multiply (sum in log space) them
+            importance_weights = (
+                env_dist.pdf(importance_samples) / importance_dist.log_prob(importance_samples).sum(-1).exp()
             )
-            pdf = torch.zeros(x.shape[0])
-            area = (is_dist_bounds[1, 0] - is_dist_bounds[0, 0]) * (is_dist_bounds[1, 1] - is_dist_bounds[0, 1])
-            pdf[in_region] = 1 / area
-            return pdf
-
-        importance_weights = env_dist.pdf(importance_samples) / importance_pdf(importance_samples)
-        importance_dataset = ImportanceAddedWrapper(
-            MinimalDataset(importance_samples), MinimalDataset(importance_weights)
-        )
+            return importance_samples, importance_weights
 
         #### Define the response functions
         def _true_underlying_func(x: torch.Tensor) -> torch.Tensor:
@@ -375,6 +392,10 @@ class TestMarginalCDFExtrapolation:
             return torch.stack([loc, scale], dim=-1)
 
         if visualise:
+            # sample a large number of points to show the distribution clearly
+            env_samples = env_dist.sample(torch.Size([100_000]))
+            importance_samples, _ = importance_weighted_sampler(torch.Size([100_000]))
+
             _, ax = plt.subplots(1, 1, figsize=(10, 8))
 
             # Plot 1: Overlay both distributions on a single scatter plot
@@ -404,7 +425,7 @@ class TestMarginalCDFExtrapolation:
             _ = plt.colorbar(im, ax=ax, label="loc (response)")
 
             _ = ax.set_title("Environment and importance samples with underlying response function")
-            _ = ax.legend
+            _ = ax.legend()
 
         ## Calculate the brute force solutions
         # Results are cached to disk so subsequent runs skip the slow calculation.
@@ -428,18 +449,16 @@ class TestMarginalCDFExtrapolation:
 
         if len(response_samples) < N_BRUTE_FORCE_ESTS:
             n_existing = len(response_samples)
-            # don't really need this generator, but it can be handy for debugging to manually seed.
-            generator = torch.Generator()
+            with torch.random.fork_rng():
+                _ = torch.manual_seed(10 + n_existing)  # ensure different env samples if run this multiple times
+                env_samples = env_dist.sample(torch.Size([PERIOD_LEN * (N_BRUTE_FORCE_ESTS - n_existing)]))
+
             new_response_samples, new_xmax_samples = brute_force_calc(
                 dataloader=DataLoader(
                     TensorDataset(env_samples),
                     batch_size=1000,
-                    sampler=RandomSampler(
-                        TensorDataset(env_samples),
-                        num_samples=PERIOD_LEN,
-                        replacement=False,
-                        generator=generator,
-                    ),
+                    # NOTE: This no longer strictly required.
+                    sampler=RandomSampler(TensorDataset(env_samples), num_samples=PERIOD_LEN, replacement=False),
                 ),
                 response_params_func=_true_underlying_func,
                 response_dist_class=Gumbel,
@@ -463,18 +482,27 @@ class TestMarginalCDFExtrapolation:
         ####### Run the estimations
         gp_deterministic = GenericDeterministicModel(_true_underlying_func, num_outputs=2)
 
-        # Create jobs with with and without importance sampling
+        def make_env_dataset(size: torch.Size) -> MinimalDataset[torch.Tensor]:
+            """Make a dataset of environment samples of the given size."""
+            env_samples = env_dist.sample(size)
+            return MinimalDataset(env_samples)
+
+        def make_importance_dataset(size: torch.Size) -> ImportanceAddedWrapper:
+            samples, weights = importance_weighted_sampler(size)
+            return ImportanceAddedWrapper(MinimalDataset(samples), MinimalDataset(weights))
+
         qoi_jobs = []
-        datasets = {"full": env_dataset, "importance_sample": importance_dataset}
+        datasets = {"full": make_env_dataset, "importance_sample": make_importance_dataset}
         for dataset_name, dataset in datasets.items():
             for i in range(200):
                 # A fixed random sampler selects the same samples if the seed is the same which allows the results to be
                 # compared if this function is run multiple times
-                dataset_size = 800
+                dataset_size = torch.Size([n_env_samples_per_qoi_run])
+                with torch.random.fork_rng():
+                    _ = torch.manual_seed(i)
+                    dataset_i = dataset(dataset_size)
 
-                sampler = FixedRandomSampler(dataset, num_samples=dataset_size, seed=i, replacement=True)  # type: ignore[arg-type]
-
-                dataloader = DataLoader(dataset, sampler=sampler, batch_size=100)
+                dataloader = DataLoader(dataset_i, batch_size=100)
 
                 qoi_estimator = MarginalCDFExtrapolation(
                     env_iterable=dataloader,
@@ -507,6 +535,7 @@ class TestMarginalCDFExtrapolation:
             warnings.filterwarnings(
                 "ignore", category=UserWarning, message=".*Some batches in weighs have average which exceeds 1.*"
             )
+            warnings.filterwarnings("ignore", category=UserWarning, message=".*var\\(\\): degrees of freedom is <= 0.*")
             qoi_results = [job(output_file=jobs_output_file) for job in qoi_jobs]
 
         df_jobs = pd.json_normalize([item.to_dict() for item in qoi_results], max_level=1)
@@ -523,11 +552,11 @@ class TestMarginalCDFExtrapolation:
         # compared to using the whole environment dataset. This is the main benefit of using importance sampling.
         # We verify this by checking that the std of the QoI means is small with importance sampling.
         std_qoi_means_importance_sampling = df_jobs.loc[df_jobs["dataset_name"] == "importance_sample", "mean"].std()
-        assert std_qoi_means_importance_sampling <= 0.25 * error_tolerance
+        assert std_qoi_means_importance_sampling <= max_std
 
         # 2. The mean of the QoI means is close to the brute force solution.
         mean_qoi_means_importance_sampling = df_jobs.loc[df_jobs["dataset_name"] == "importance_sample", "mean"].mean()
-        assert abs(mean_qoi_means_importance_sampling - brute_force_qoi) <= 0.2 * error_tolerance
+        assert abs(mean_qoi_means_importance_sampling - brute_force_qoi) <= max_bias
 
         if visualise:
             _, ax = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
