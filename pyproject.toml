@@ -181,6 +181,7 @@ reportMissingTypeArgument = "error"
 reportPropertyTypeMismatch = "error"
 reportFunctionMemberAccess = "warning"
 reportPrivateUsage = false                         # <- TODO: set back to "warning" and resolve issues raised, instead of globally dectivating the rule. CLAROS, 2024-09-18
+reportPrivateImportUsage = false
 reportTypeCommentUsage = "warning"
 reportIncompatibleMethodOverride = "warning"
 reportIncompatibleVariableOverride = "error"
