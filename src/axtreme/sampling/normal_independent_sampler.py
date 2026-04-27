@@ -53,10 +53,10 @@ class NormalIndependentSampler(IndependentMCSampler):
             # TODO(sw): Update this if future to use a generator?
             with torch.random.fork_rng():
                 _ = torch.manual_seed(self.seed)
-                self.base_samples = torch.randn(required_base_sample_shape)
+                base_samples = torch.randn(required_base_sample_shape)
 
             # Consforms to the nn.Module pattern,  means this will automatically be transfered to the right device.
-            self.register_buffer("base_samples", self.base_samples)
+            self.register_buffer("base_samples", base_samples)
 
         if self.base_samples.device != posterior.device:
             _ = self.to(device=posterior.device)  # pragma: nocover
