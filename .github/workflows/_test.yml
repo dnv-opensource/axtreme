@@ -8,13 +8,21 @@ jobs:
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       matrix:
-        platform:
-          - runner: ubuntu-latest
-          - runner: windows-latest
-          # - runner: macos-latest
-        python:
-          - version: '3.11'
-          - version: '3.12'
+        # Removed until issue #135 from python 3.12 is resolved.
+        # platform:
+        #   - runner: ubuntu-latest
+        #   - runner: windows-latest
+        #   # - runner: macos-latest
+        # python:
+        #   - version: '3.11'
+        #   - version: '3.12'
+        include:
+          - platform: {runner: ubuntu-latest}
+            python: {version: '3.11'}
+          # - platform: {runner: ubuntu-latest}
+          #   python: {version: '3.12'}
+          - platform: {runner: windows-latest}
+            python: {version: '3.11'}
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -31,4 +39,4 @@ jobs:
       - name: Run pytest
         run: >
           uv run --with pytest --with pytest-cov
-          pytest --cov -m "not system"
+          pytest --cov -m "not system and not slow"

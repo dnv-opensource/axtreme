@@ -5,11 +5,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import torch
+from scipy.stats import binom
 from scipy.stats import t as scipy_student_t
 from torch import Tensor, tensor
 from torch.distributions import Distribution, Gumbel, StudentT, Uniform, Weibull
 
-from axtreme.utils.population_estimators import estimate_pdf_value_from_sample, sample_mean_se, sample_median_se
+from axtreme.utils.population_estimators import (
+    estimate_pdf_value_from_sample,
+    sample_mean_se,
+    sample_median_se,
+    sample_quantile_estimate,
+)
 
 
 @pytest.mark.non_deterministic
@@ -223,3 +229,125 @@ def visualise_performance_of_estimate_pdf_value_from_sample():
         axes[2].plot(n_samples, cov, label=f"{name} cov")
         axes[2].set_xlabel("Number of Samples")
         axes[2].set_ylabel("coeffecint of variation")
+
+
+# ---- Tests for sample_quantile_estimate ----
+class TestSampleQuantileEstimateUnit:
+    """Unit tests checking the structure and basic properties of sample_quantile_estimate."""
+
+    def test_median_peak_at_middle_sample(self):
+        """For quantile=0.5, the peak probability should be near the median sample."""
+        samples = torch.arange(1.0, 11.0)  # [1, 2, ..., 10]
+        result = sample_quantile_estimate(samples, 0.5)
+        peak_idx = result.pk.argmax()  # pyright: ignore[reportAttributeAccessIssue]
+        # For n=10, q=0.5: mode of Binomial(10, 0.5) is k=5, so X_{(5)} = 5.0
+        assert result.xk[peak_idx] == pytest.approx(5.0)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_high_quantile_peak_at_high_sample(self):
+        """For quantile=0.9, the peak should be near the 90th percentile sample."""
+        samples = torch.arange(1.0, 11.0)
+        result = sample_quantile_estimate(samples, 0.9)
+        peak_idx = result.pk.argmax()  # pyright: ignore[reportAttributeAccessIssue]
+        # Mode of Binomial(10, 0.9) is k=9, so X_{(9)} = 9.0
+        assert result.xk[peak_idx] == pytest.approx(9.0)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_low_quantile_peak_at_low_sample(self):
+        """For quantile=0.1, the peak should be near the 10th percentile sample."""
+        samples = torch.arange(1.0, 11.0)
+        result = sample_quantile_estimate(samples, 0.1)
+        peak_idx = result.pk.argmax()  # pyright: ignore[reportAttributeAccessIssue]
+        # Mode of Binomial(10, 0.1) is k=1, so X_{(1)} = 1.0
+        assert result.xk[peak_idx] == pytest.approx(1.0)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_cdf_and_ppf_are_consistent(self):
+        """CDF and PPF should be inverses (at support points)."""
+        samples = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+        result = sample_quantile_estimate(samples, 0.5)
+        # ppf(cdf(x)) should return x for support points
+        for x in [1.0, 2.0, 3.0, 4.0, 5.0]:
+            cdf_val = result.cdf(x)
+            recovered = result.ppf(cdf_val)
+            assert recovered == pytest.approx(x)
+
+    def test_docstring_example(self):
+        """Verify the worked example in the docstring.
+
+        samples = [1, 2, 3, 4, 5], quantile = 0.2
+        For s_i = 1 (k=1): Binomial(n=5, p=0.2).pmf(1)
+        """
+        samples = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+        result = sample_quantile_estimate(samples, 0.2)
+
+        # Check probability assigned to s_i=1 (k=1) matches Binomial(5, 0.2).pmf(1)
+        expected = np.array([binom.pmf(k, 5, 0.2) for k in range(1, 6)])
+        np.testing.assert_allclose(result.pk[1:], expected, atol=1e-10)  # pyright: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.non_deterministic
+@pytest.mark.parametrize(
+    "true_dist, quantile",
+    [
+        # Median (q=0.5) - well behaved, should be well calibrated
+        (Gumbel(3, 2), 0.5),
+        (Uniform(3, 5), 0.5),
+        (Weibull(3, 2), 0.5),
+        # Moderate quantiles
+        (Gumbel(3, 2), 0.25),
+        (Gumbel(3, 2), 0.75),
+        # Higher quantiles (tail behaviour)
+        (Gumbel(3, 2), 0.9),
+        (Gumbel(3, 2), 0.95),
+    ],
+)
+def test_sample_quantile_estimate_calibration(true_dist: Distribution, quantile: float):
+    """Check that confidence bounds from sample_quantile_estimate are well-calibrated.
+
+    Approach:
+        1. Draw many sets of samples from a known distribution.
+        2. For each sample set, build the quantile estimate distribution.
+        3. Check if the true quantile value falls in the estimated confidence 95% interval.
+        4. If calibrated, the true quantile should fall outside the 95% bounds ~5% of the time.
+
+    Note:
+        Tolerance is generous (abs=0.04) because the discrete nature of rv_discrete
+        and the finite sample approximation introduce some miscalibration.
+    """
+    n_samples_per_est = 1000
+    n_ests = 3000
+
+    true_quantile_value = float(true_dist.icdf(tensor(quantile)))
+
+    samples = true_dist.sample(torch.Size([n_ests, n_samples_per_est]))
+
+    contains_count = 0
+    for sample in samples:
+        est_dist = sample_quantile_estimate(sample, quantile)
+        lower = est_dist.ppf(0.025)
+        upper = est_dist.ppf(0.975)
+        if lower <= true_quantile_value <= upper:
+            contains_count += 1
+
+    coverage = contains_count / n_ests
+
+    assert coverage == pytest.approx(0.95, abs=0.04), f"Expected ~95% coverage, got {coverage:.1%}"
+
+
+@pytest.mark.non_deterministic
+def test_sample_quantile_estimate_improves_with_more_samples():
+    """Confidence interval width should decrease as sample size increases."""
+    true_dist = Gumbel(3, 2)
+    quantile = 0.5
+    n_ests = 500
+
+    widths_by_n = {}
+    for n_samples in [20, 50, 200]:
+        samples = true_dist.sample(torch.Size([n_ests, n_samples]))
+        widths = []
+        for sample in samples:
+            est_dist = sample_quantile_estimate(sample, quantile)
+            width = est_dist.ppf(0.975) - est_dist.ppf(0.025)
+            widths.append(width)
+        widths_by_n[n_samples] = np.mean(widths)
+
+    # CI width should strictly decrease with more samples
+    assert widths_by_n[20] > widths_by_n[50] > widths_by_n[200], f"CI widths should decrease: {widths_by_n}"

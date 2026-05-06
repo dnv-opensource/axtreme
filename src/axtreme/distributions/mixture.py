@@ -1,5 +1,7 @@
 """Mixture model variants."""
 
+import warnings
+
 import torch
 from torch.distributions import Categorical, Distribution, MixtureSameFamily
 
@@ -7,7 +9,7 @@ from axtreme.distributions.utils import dist_dtype
 
 
 class ApproximateMixture(MixtureSameFamily):
-    """Mixture distributions where extreme caclulations are approximated.
+    """Mixture distributions where extreme calculations are approximated.
 
     Some distribution only support a limited range of quantiles (e.g :math:`[.01, 99]`) due to numerical issues (see
     "Details"). When calculation such as :math:`q=cdf(x)` or :math:`x=icdf(q)` fail outside this range the function then
@@ -26,11 +28,11 @@ class ApproximateMixture(MixtureSameFamily):
 
         Approximation principles:
 
-            It is assumed we want to conservatively estimate (:math:`1-cdf(x)`), the chance the a value will exceed some
-            level :math:`x`. For example, x could represent the strength a structure is designed to withstand, and
+            It is assumed (:math:`1-cdf(x)`) represent the chance of failure, and we want to avoid underestimating this.
+            For example, x could represent the strength a structure is designed to withstand, and
             (:math:`1-cdf(x)`) represents the chance of experiencing a force that will break the structure (e.g the
-            risk). It is better to overestimate the risk (conservative), rather than underestimate it. In other words,
-            if the :math:`cdf_est(x)` over estimates the :math:`cdf_true(x)`, then the true risk of exceeding x is. e.g:
+            risk). It is better to overestimate the risk (resulting in a conservative design), rather than underestimate
+            risk. In other words:
 
             TLDR:
 
@@ -47,11 +49,13 @@ class ApproximateMixture(MixtureSameFamily):
         Approximate results.
 
             ApproximateMixture provides exact results within the quantile bounds ``[finfo.eps, 1 - finfo.eps]`` (where
-            ``finfo = torch.finfo(component_distribution.dtype)``) For details regarding why this range is selected see
-            ``_lower_bound_x`` and ``_upper_bound_x``. Values smaller than ``finfo.eps`` are approximated
-            according to ``_lower_bound_x``. Values larger than ``1 - finfo.eps`` are approximated according to
-            ``_upper_bound_x``. Note the range ``[finfo.eps, 1 - finfo.eps]`` is still used even if the component
-            distribution supports a greater range.
+            ``finfo = torch.finfo(component_distribution.dtype)``). NOTE: while ``TransformedDistribution`` says it
+            supports ``[finfo.tiny, 1 - finfo.eps]``, behaviour is unreliable below ``finfo.eps``
+             (see `tests/distributions/test_mixture.py:test_lower_bound_x' ). When outside these bounds:
+             - x > icdf(1 - finfo.eps): we return :math:`cdf(x) = 1 - finfo.eps` (conservative estimate)
+             - x < icdf(finfo.eps): we return :math:`cdf(x) = 0` (conservative estimate)
+
+            See 'Impact of Approximation' for details of why this is conservative.
 
         Impact of Approximation:
 
@@ -62,9 +66,9 @@ class ApproximateMixture(MixtureSameFamily):
 
                     - it will give q = 1.0-finfo.eps
                     - in reality it could be as high as 1.0
-                    - so the q give is finfo.eps too small (at worst)
+                    - so the q error is finfo.eps(at worst)
 
-                - The marginal cdf is calcualted from the underlying distributions:
+                - The marginal cdf is calculated from the underlying distributions:
 
                     - e.g :math:`q_marginal = w_1 * q_1 + ... + w_n * q_n`
                     - :math:`sum(w_i) = 1`
@@ -73,10 +77,6 @@ class ApproximateMixture(MixtureSameFamily):
 
                     - Underling distribution: q give is finfo.eps too small (at worst)
                     - weight = 1
-
-    Note:
-        It is worth ensuring that the ApproximateMixture distribution has suitable numeric precision for its intended
-        use. See ``axtreme.distributions.utils.mixture_dtype`` for more details.
     """
 
     def __init__(
@@ -113,85 +113,159 @@ class ApproximateMixture(MixtureSameFamily):
         self.dtype = component_dtype
 
         finfo = torch.finfo(component_dtype)
+
         # NOTE: Even though internally TranformedDistribution sets its lowerbound with finfo.tiny, it appears to have
         # issues below finfo.eps. See `docs\source\marginal_cdf_extrapolation.md` "Distribution lower bound issue"
+        # TODO(sw 2026-04-08): The referenced doc is missing, find it or update the link
         self.quantile_bounds = torch.tensor([finfo.eps, 1 - finfo.eps], dtype=component_dtype)
+        # the q value to be returned when the cdf is run with an x that is outside the supported q range (lower, upper)
+        # See "Approximation principles" for why these values are selected.
+        self.cdf_out_of_bounds_q = torch.tensor([0.0, 1 - finfo.eps], dtype=component_dtype)
         # NOTE: bounds are stored here so we don't need to be recomputed every `.pdf()` or `.cdf()` call.
         # Can put in the call if we want to save memory.
-        self.x_bound_lower = ApproximateMixture._lower_bound_x(component_distribution)
-        self.x_bound_upper = ApproximateMixture._upper_bound_x(component_distribution)
+        self.x_bound_lower, self.x_bound_upper = ApproximateMixture.calculate_x_bounds(
+            dist=component_distribution,
+            q_upperbound=self.quantile_bounds[1].item(),
+            q_lowerbound=self.quantile_bounds[0].item(),
+            weights=mixture_distribution.probs,
+        )
 
     @staticmethod
-    def _lower_bound_x(dist: Distribution) -> torch.Tensor:
-        """Returns the x lowerbound for each of the component distributions.
+    def _check_cdf_numeric_precision(
+        dist: Distribution,
+        q: float,
+        weights: torch.Tensor | None = None,
+    ) -> dict[str, bool | float | None | torch.Tensor]:
+        """Helper to check if the dtype can represent the result ICDF(q)=x value with enough precision (so CDF(x)=q).
 
-        If :math:`cdf(x)` recieves values that are too small, it throws an error. We instead find a suitable lower
-        bound and later clip the x values to this range. The lower bound should:
+        We store the x bounds associated with quantile bounds. We need to ensure we have enough numerical precision to
+        store these bounds accurately. This can often fail if location and scale have very different values.
 
-            - Not throw an error when it is used in :math:`cdf(lower_bound).`
-            - As per "Approximation principles" it should not result in overestimate of the analytical cdf.
+        Example:
+            ```python
+            finfo32 = torch.finfo(torch.float32)
+            dist = Gumbel(loc=torch.tensor(25000, dtype=torch.float32), scale=torch.tensor(1e-6, dtype=torch.float32))
+            top_eps_quantile = dist.icdf(torch.tensor(1 - finfo32.eps))
+            print(top_eps_quantile.item())  # 25000.0
+            # Problem: top_eps_quantile can't be represented with enough accuracy
+            print(dist.cdf(top_eps_quantile).item())  # -> .3678 not 1-finfo.eps
+            ```
 
         Args:
-            dist: The component distribution.
+            dist: The distribution with batch_shape (*b)
+            q: The quantile to check the bound for.
+            weights: (shape (*b,)) The weights of each distribution in the mixture (if applicable).
 
-        Return:
-            Tensor of shape (dist.batch_shape).
-
-        Details:
-            TransformedDistribution are officially bounded between ``(finfo.tiny, 1 - finfo.eps)``. The CDF does not
-            match the mathematical CDF across this whole region (due to numeric errors) - Specifically the region
-            (finfo.tiny, finfo.eps).
-
-            in the region (finfo.tiny, finfo.eps):
-
-                - :math:`cdf(x)`: will output 0 for most of the region
-                - :math:`cdf(x)`: `x` corresponding q = finfo.tiny will produces error about being outside of the
-                  allowed range,
-                  due to numerical issues. :math:`x` in the region will produce the same error.
-
-            Solution: Pick an x value corresponsing to the middle q range (finfo.tiny, finfo.eps). This should produce
-            cdf(x)=0, which underestimates the true cdf value by up to `finfo.eps`. As per "Approximation principles"
-            this is acceptable.
+        Returns:
+            dict with keys:
+                - "has_violation": bool, if any of the batch has precision issue
+                - "percent_violating": float, percentage of the batch that has precision issue
+                - "mean_violation_q": float, the mean q value calculated for the batch that has precision issue
+                   (should be close to q)
+                - "total_weight_of_violations": tensor or None, the total weight of the items in the batch with issues.
         """
         dtype = dist_dtype(dist)
-        finfo = torch.finfo(dtype)
-        tiny = torch.tensor(finfo.tiny, dtype=dtype)
-        eps = torch.tensor(finfo.eps, dtype=dtype)
+        q_expected = torch.tensor(q, dtype=dtype)
+        # Appears to always produce x value inside the supported q range (even with numeric issues). Assume this is the
+        # case, and if not we will get an error and can update.
+        x_value = dist.icdf(q_expected)
+        q_actual = dist.cdf(x_value)
 
-        # See unit test visualisation for whne a q between tiny and eps can't be used directly
-        return (dist.icdf(tiny) + dist.icdf(eps)) / 2
+        # As value is between (0,1), should be correct with eps/2, but allow some small buffer
+        bound_violation_mask = ~torch.isclose(q_actual, q_expected, atol=torch.finfo(dtype).eps, rtol=0.0)
+
+        percent_violating = bound_violation_mask.to(torch.float).mean().item()
+        mean_violation_q = q_actual[bound_violation_mask].mean().item()
+
+        total_weight_of_violations = None
+        if weights is not None:
+            weights_expanded: torch.Tensor = weights.clone().expand_as(q_actual)  # expand if required
+            total_weight_of_violations = weights_expanded[bound_violation_mask].sum(dim=-1)
+
+        return {
+            "has_violation": bound_violation_mask.any().item(),
+            "percent_violating": percent_violating,
+            "mean_violation_q": mean_violation_q,
+            "total_weight_of_violations": total_weight_of_violations,
+        }
 
     @staticmethod
-    def _upper_bound_x(dist: Distribution) -> torch.Tensor:
-        """Returns the x upperbound for each of the component distributions.
+    def calculate_x_bounds(
+        dist: Distribution,
+        q_upperbound: float,
+        q_lowerbound: float,
+        weights: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Check the dtype has suitable numeric precision to represent the bound with the required precision.
 
-        If :math:`cdf(x)` recieves values that are too large, it throws an error. We instead find a suitable upper bound
-        and later clip the x values to this range. The upper bound should:
+        We store the x bounds associated with quantile bounds. We need to ensure we have enough numerical precision to
+        store these bounds accurately. This can often fail if location and scale have very different values.
 
-            - Not throw an error when it is used in :math:`cdf(upperbound)`.
-            - As per "Approximation principles" it should not result in overestimates of the analytical cdf.
+        Example:
+            ```python
+            finfo32 = torch.finfo(torch.float32)
+            dist = Gumbel(loc=torch.tensor(25000, dtype=torch.float32), scale=torch.tensor(1e-6, dtype=torch.float32))
+            top_eps_quantile = dist.icdf(torch.tensor(1 - finfo32.eps))
+            print(top_eps_quantile.item())  # 25000.0
+            # Problem: top_eps_quantile can't be represented with enough accuracy
+            print(dist.cdf(top_eps_quantile).item())  # -> .3678 not 1-finfo.eps
+            ```
+        Note:
+        Potential fixes for this issues include:
+        - Use a higher precision dtype
+        - Reduce the magnitude of difference between location and scale (failure is not significantly effected by q)
 
         Args:
-            dist: The component distribution.
+            dist: The distribution with batch_shape (*b)
+            q_upperbound: The upper quantile bound to check (e.g 1-finfo.eps)
+            q_lowerbound: The lower quantile bound to check (e.g finfo.eps)
+            weights: (shape (*b,)) The weights of each distribution in the mixture (if applicable).
 
-        Return:
-            Tensor of shape (``dist.batch_shape``).
+        Returns:
+        Upper and lower x bounds corresponding to the given quantiles (shape (*b,)).
 
-        Details:
-            TransformedDistribution are officially bounded btween ``(finfo.tiny, 1 - finfo.eps)``. There do not appear
-            to be issues using :math:`cdf(x)` for x values corresponding to slighly larger than ``1-finfo.eps``. These
-            produce values up to 1.
-
-            NOTE: IF we can confirm distribution behaviour is safe outside of the offical bounds specified on the
-            distribution (``1-finfo.eps``) this value could be increased. Currently we underestimates any value outside
-            ``1-finfo.eps`` as we are unsure of the behaviour within the range ``[1-finfo.eps, 1]``.As per
-            "Approximation principles" this is acceptable.
+        Dev notes:
+        - This issue is partly remedied in `cdf` because values that are outside x_bounds have results calculated
+          manually (not useing the cdf function). For example for the upper bound, the exact location of the x_bounds is
+          not correct, but values above this bound will return cdf(x)=1-eps (rather than e.g. .3678)
         """
-        dtype = dist_dtype(dist)
-        finfo = torch.finfo(dtype)
-        eps = torch.tensor(finfo.eps, dtype=dtype)
+        upper_bound_violation_statistics = ApproximateMixture._check_cdf_numeric_precision(dist, q_upperbound, weights)
+        lower_bound_violation_statistics = ApproximateMixture._check_cdf_numeric_precision(dist, q_lowerbound, weights)
 
-        return dist.icdf(1 - eps)
+        for bound_name, stats in [
+            ("upper", upper_bound_violation_statistics),
+            ("lower", lower_bound_violation_statistics),
+        ]:
+            if stats["has_violation"]:
+                q_bound = q_upperbound if bound_name == "upper" else q_lowerbound
+                cdf_direction = "smaller" if bound_name == "upper" else "LARGER"
+                estimate_type = "more conservative" if bound_name == "upper" else "NON-conservative"
+
+                msg = (
+                    f"Insufficient precision to represent {bound_name} bound ({estimate_type} result).\n"
+                    f"When insufficient precision is used, the x_bound value associated with q_{bound_name}bound "
+                    f"cannot be stored with enough precision, as a result cdf(x_bound)!=q_{bound_name}bound). "
+                    f"cdf(x_bound) will produce a {cdf_direction} value than q_{bound_name}bound, which will "
+                    f"lead to a {estimate_type} cdf estimate. See ApproximateMixture "
+                    "`Approximation principles` for more details.\n"
+                    "Possible fixes:\n"
+                    " - Use a higher precision dtype\n"
+                    " - Reduce the magnitude of difference between location and scale\n"
+                    "Violation statistics:\n"
+                    f"percent of batch violating: {stats['percent_violating']:.2f}%\n"
+                    f"average result of cdf(x_bound) for violating batch (should be {q_bound}): "
+                    f"{stats['mean_violation_q']:.2e}\n"
+                )
+
+                if weights is not None:
+                    msg += f"total weight of violating batch: {stats['total_weight_of_violations']:.2e}\n"
+
+                warnings.warn(msg, category=RuntimeWarning, stacklevel=1)
+
+        dtype = dist_dtype(dist)
+        x_bound_lower = dist.icdf(torch.tensor(q_lowerbound, dtype=dtype))
+        x_bound_upper = dist.icdf(torch.tensor(q_upperbound, dtype=dtype))
+        return x_bound_lower, x_bound_upper
 
     def cdf(self, x: torch.Tensor) -> torch.Tensor:
         """Return the CDF.
@@ -199,7 +273,7 @@ class ApproximateMixture(MixtureSameFamily):
         Identical to MixtureSameFamily implementation except for clamping.
 
         Args:
-            x: Values to calcuate the CDF for. Must be broadcastable with the ``ApproximateMixture.batch_shape``. E.g
+            x: Values to calculate the CDF for. Must be broadcastable with the ``ApproximateMixture.batch_shape``. E.g
 
                 - ``self.component_distribution.batch_shape = (2,5)`` (last dimension is the components that are
                   combined to make a single Mixture distribution)
@@ -216,14 +290,35 @@ class ApproximateMixture(MixtureSameFamily):
                 " This can lead to loss of precision."
             )
             raise TypeError(msg)
-
-        # Expected x already broadcasts to `self.batch_dimension`.
-        # Padding is added so x broadcasts to each of the component distributions that make up the mixture
+        x = x.clone()
+        # Expected x already broadcasts to `self.batch_dimension` (same as MixtureSameFamily)
+        # The final expanded x shape need to be (*b, component_dist.batch_shape, component_dist.event_shape)
+        # where masking will be done on out of bounds values across component_dist.batch_shape
+        x_batch_shape = x.shape[: -len(self.batch_shape)] if self.batch_shape != torch.Size([]) else x.shape
+        # resulting shape (*b, component_dist.batch_shape[:-1],1, component_dist.event_shape)
         x = self._pad(x)
-        clipped_x = torch.clamp(x, self.x_bound_lower, self.x_bound_upper)
-        cdf_x = self.component_distribution.cdf(clipped_x)
-        mix_prob = self.mixture_distribution.probs
+        # resulting shape
+        x = x.expand(x_batch_shape + self.component_distribution.batch_shape + self.component_distribution.event_shape)
 
+        # find where input is outside the allowed range
+        # bounds have shape (component_dist.batch_shape, component_dist.event_shape)
+        too_large_mask = x > self.x_bound_upper
+        too_small_mask = x < self.x_bound_lower
+
+        # replace out of bounds values with a placeholder value
+        dummy_value = self.component_distribution.mean  # shape (component_dist.batch_shape, component_dist.event_shape)
+        # Convert to x.dtype. Once .cdf() runs the output will conform to MixtureSameFamily (biggest dtype used)
+        dummy_value = dummy_value.to(x.dtype)
+        x = x.clone()
+        x[too_large_mask | too_small_mask] = dummy_value.expand_as(x)[too_large_mask | too_small_mask]
+
+        cdf_x = self.component_distribution.cdf(x)
+
+        # Manually replaces the result of the out of bound CDF calc (follow MixtureSafeFamily for dtype convention)
+        cdf_x[too_large_mask] = self.cdf_out_of_bounds_q[1].expand_as(x)[too_large_mask].to(cdf_x.dtype)
+        cdf_x[too_small_mask] = self.cdf_out_of_bounds_q[0].expand_as(x)[too_small_mask].to(cdf_x.dtype)
+
+        mix_prob = self.mixture_distribution.probs
         # This is the approach found in torch. Can introduce small numerical errors, but we assume these are neglible.
         return torch.sum(cdf_x * mix_prob, dim=-1)
 
@@ -304,5 +399,16 @@ def icdf_value_bounds(dist: MixtureSameFamily, q: torch.Tensor) -> torch.Tensor:
     values = dist.component_distribution.icdf(q_expanded)
     lower_bound = values.min(dim=-1).values
     upper_bound = values.max(dim=-1).values
+
+    # Handle edge cases where the lower and upper bound are the same.
+    # NOTE: This only sets the starting bounds for optimisation, so its not an issue if the bounds are a little large.
+    identical = torch.isclose(lower_bound, upper_bound)
+    # If working with very small number eps with will comparatively large - but should still find correct result.
+    finfo_eps = torch.finfo(lower_bound.dtype).eps
+    # large numbers: a difference of eps will be truncated by numeric precision, so find a relative value
+    # Small number: Could use a value smaller than eps, but don't bother
+    offset = (lower_bound.abs() * finfo_eps * 10).clamp(min=finfo_eps)
+    lower_bound = torch.where(identical, lower_bound - offset, lower_bound)
+    upper_bound = torch.where(identical, upper_bound + offset, upper_bound)
 
     return torch.stack([lower_bound, upper_bound])

@@ -49,4 +49,11 @@
     "mypy-type-checker.reportingScope": "workspace",
     "mypy-type-checker.preferDaemon": true,
     "ruff.configurationPreference": "filesystemFirst",
+    "cSpell.words": [
+        "Botorch",
+        "Hiperwind",
+        "xmaxs",
+        "ymaxs"
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
 }

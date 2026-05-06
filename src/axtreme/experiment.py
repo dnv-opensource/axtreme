@@ -17,7 +17,7 @@ from axtreme.evaluation import EvaluationFunction
 from axtreme.metrics import LocalMetadataMetric
 from axtreme.runner import LocalMetadataRunner
 from axtreme.simulator import Simulator
-from axtreme.utils.distibution_helpers import distribution_parameter_names_from_scipy
+from axtreme.utils.distribution_helpers import distribution_parameter_names_from_scipy
 
 
 def make_experiment(

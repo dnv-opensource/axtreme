@@ -161,3 +161,5 @@ examples/demo2d/**/results
 # Cmake generated files
 CMakeUserPresets.json
 
+# Claude Code
+.claude/
