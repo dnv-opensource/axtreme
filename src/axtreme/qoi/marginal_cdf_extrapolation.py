@@ -46,7 +46,7 @@ class MarginalCDFExtrapolation(MeanVarPosteriorSampledEstimates, QoIEstimator):
     Challenge:
         - Need to obtain the 'average' CDF, and it must be very accurate.
 
-    See [#TODO(sw 2024_11_4) put in link to pre-print] for details.
+    See https://arxiv.org/abs/2503.01566 for details.
     """
 
     def __init__(  # noqa: PLR0913
@@ -279,10 +279,10 @@ def _mixture_distribution_from_importance_samples(
         - q(x) = 0 -> f(x)*p(x) = 0
 
         Assumption for this importance sampling approach.
-        - q(x) = 0 -> f(x) = 1 OR p(x) = 0  # TODO: check if the second part holds.
+        - q(x) = 0 -> f(x) = 1 OR p(x) = 0
         - In other words: supp(q(x)) can be a subset of supp(p(x)), as long as f(x) = 1 outside of supp(q(x)).
 
-    For details of method see TODO(sw 2026-04-07): put link to the write up, and later to pre-print.
+        For details of method see `docs/source/technical_details/importance_sampling_subset_approach.pdf`
 
     Args:
         weights: importance weights associated with each sample.
@@ -301,11 +301,6 @@ def _mixture_distribution_from_importance_samples(
          - This is the standard error associate with estimating the mass of p(x) in the region not covered by supp(q).
          - This gives a confidence interval of how wrong icdf estimate could be wrong due to the estimation.
          - The error introduced by the estimate in the region covered by supp(q) is NOT captured in this.
-
-    Todo:
-    - Thing to add to the explanatory note:
-        - after the meths have s section about the approximation (e.g why value should never exceed 1, what to do in
-        that case.)
     """
     # NOTE: currently only support distributions parameterised by loc and scale currently because know how to produce
     # degenerate dist for this.
@@ -322,7 +317,7 @@ def _mixture_distribution_from_importance_samples(
     scale = params[..., 1].clamp(min=abs(loc) * torch.finfo(params.dtype).eps * 100)
     params = torch.concat([loc.unsqueeze(-1), scale.unsqueeze(-1)], dim=-1)
 
-    # Calculate the correction factor for missing mass as per XXX TODO(sw 2026-04-07): Put link to note explaining.
+    # Calculate the correction factor for missing mass. See docstring for details.
     integral_p_over_q_est = torch.mean(weights, dim=-1, keepdim=True)
     integral_p_over_q_var = torch.var(weights, dim=-1, keepdim=True) / weights.shape[-1]
     integral_p_over_q_std_err = integral_p_over_q_var.sqrt()
@@ -376,9 +371,9 @@ def _create_lowerbound_degenerate_distribution_params(
 ) -> torch.Tensor:
     """Pick the parameters to produce the degenerate distribution at lowerbound of component dist.
 
-    Picks the parameters to create a degenerate distribution which represents the missing mass as per  XXX
-    TODO(sw 2026-04-07): Put link to note explaining. This distribution should add all its mass prior to any other
-    component distribution adding mass.
+    Picks the parameters to create a degenerate distribution which represents the missing mass as per
+    `docs/source/technical_details/importance_sampling_subset_approach.pdf`. This distribution should add all its mass
+    prior to any other component distribution adding mass.
 
     Args:
         component_dist: The component distribution to generate the parameters for.
