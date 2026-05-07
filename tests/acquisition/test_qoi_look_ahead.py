@@ -3,17 +3,27 @@
 # sourcery skip: no-conditionals-in-tests
 
 from collections.abc import Callable
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
 import pytest
 import torch
+from ax.core.arm import Arm
+from ax.core.experiment import Experiment
+from ax.core.objective import Objective
+from ax.core.optimization_config import OptimizationConfig
+from ax.core.parameter import ParameterType, RangeParameter
+from ax.core.search_space import SearchSpace
+from ax.metrics.branin import BraninMetric
+from ax.modelbridge.registry import Models
+from ax.runners.synthetic import SyntheticRunner
 from botorch.models import SingleTaskGP
 from botorch.models.model import Model
 from botorch.optim import optimize_acqf
 
 from axtreme.acquisition.qoi_look_ahead import (
     QoILookAhead,
+    _argparse_qoi_look_ahead,
     average_observational_noise,
     closest_observational_noise,
     conditional_update,
@@ -430,7 +440,7 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):  # noqa: PT028
     dummy_qoi = DummyQoI()
     acqf = QoILookAhead(model, qoi_estimator=dummy_qoi)
 
-    candidate, result = optimize_acqf(
+    candidate, _ = optimize_acqf(
         acqf,
         bounds=torch.tensor([[0.0], [1.0]]),
         q=1,
@@ -443,3 +453,74 @@ def test_optimise_dumb_qoi(*, visual_inspect: bool = False):  # noqa: PT028
 
     # Could run the optimisation longer if we require it to be more precise. This is considered approapriate for a test.
     torch.testing.assert_close(candidate, torch.tensor([[0.5]]), rtol=0, atol=1e-3)
+
+
+class TestArgparseQoiLookAhead:
+    """Test that _argparse_qoi_look_ahead provides correct defaults and respects user overrides."""
+
+    def test_user_overrides_respected(self):
+        """Check that user-provided optimizer_options take precedence over defaults."""
+        acqf = QoILookAhead(model=None, qoi_estimator=None)  # type: ignore[arg-type]
+
+        result = _argparse_qoi_look_ahead(
+            acqf,
+            optimizer_options={
+                "raw_samples": 512,
+                "options": {"method": "L-BFGS-B"},
+            },
+        )
+
+        # User overrides should take effect
+        assert result["raw_samples"] == 512
+        assert result["options"]["method"] == "L-BFGS-B"
+        # maxfev and retry_on_optimization_warning should NOT be set because they are
+        # only added when method defaults to Nelder-Mead
+        assert "maxfev" not in result["options"]
+        assert "retry_on_optimization_warning" not in result
+        # Value that were not overridden should still have default value
+        assert result["options"]["with_grad"] is False
+
+    @pytest.mark.integration
+    @pytest.mark.filterwarnings(
+        "ignore : Input data is not standardized : botorch.exceptions.InputDataWarning : botorch.models"
+    )
+    @patch("ax.models.torch.botorch_modular.acquisition.optimize_acqf")
+    def test_model_bridge_gen_passes_defaults_to_optimize_acqf(self, mock_optimize_acqf: MagicMock):
+        """Verify defaults from _argparse_qoi_look_ahead reach optimize_acqf via ModelBridge.gen()."""
+
+        experiment = Experiment(
+            name="test_argparse",
+            search_space=SearchSpace(
+                parameters=[RangeParameter(name="x1", parameter_type=ParameterType.FLOAT, lower=0.0, upper=1.0)]
+            ),
+            optimization_config=OptimizationConfig(
+                objective=Objective(metric=BraninMetric(name="branin", param_names=["x1", "x1"]), minimize=True)
+            ),
+            runner=SyntheticRunner(),
+        )
+        for val in [0.2, 0.5, 0.8]:
+            trial = experiment.new_trial()
+            trial.add_arm(Arm(parameters={"x1": val}))
+            _ = trial.run()
+            _ = trial.mark_completed()
+
+        mock_optimize_acqf.return_value = (torch.tensor([[0.5]]), torch.tensor([1.0]))
+
+        model_bridge = Models.BOTORCH_MODULAR(
+            experiment=experiment,
+            data=experiment.fetch_data(),
+            botorch_acqf_class=QoILookAhead,
+            fit_tracking_metrics=False,
+            acquisition_options={"qoi_estimator": MagicMock(), "sampler": None},
+        )
+        _ = model_bridge.gen(1, model_gen_options={"optimizer_kwargs": {"options": {"maxfev": 20}}})
+
+        # Extract kwargs passed to optimize_acqf
+        call_kwargs = mock_optimize_acqf.call_args.kwargs
+
+        # Our defaults should be present
+        assert call_kwargs["raw_samples"] == 100
+        assert call_kwargs["options"]["with_grad"] is False
+        assert call_kwargs["options"]["method"] == "Nelder-Mead"
+        # User override should take precedence
+        assert call_kwargs["options"]["maxfev"] == 20
