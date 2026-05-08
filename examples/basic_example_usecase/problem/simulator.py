@@ -1,7 +1,7 @@
 """Define the simulator."""
 
 # %%
-from typing import cast
+from typing import cast, overload
 
 import numpy as np
 import torch
@@ -19,7 +19,15 @@ _branin_currin = BraninCurrin(negate=False).to(dtype=torch.double)
 
 # %%
 # These are helpers for our dummy simulator, and would not be available in a real problem
-def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
+# The overloading is just a type hint that states if you pass numpy you get numpy back
+@overload
+def _true_loc_func(x: torch.Tensor) -> torch.Tensor: ...
+@overload
+def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]: ...
+def _true_loc_func(x: torch.Tensor | NDArray[np.float64]) -> torch.Tensor | NDArray[np.float64]:
+    """Takes input of shape (*b, d=2) and returns (*b,) locs."""
+    if isinstance(x, np.ndarray):
+        return _true_loc_func(torch.tensor(x)).numpy()
     # For this toy example we use a Mixture distribution of a MultivariateNormal distribution
     dist1_mean, dist1_cov = torch.tensor([0.8, 0.8]), torch.tensor([[0.03, 0], [0, 0.03]])
     dist2_mean, dist2_cov = torch.tensor([0.2, 0.8]), torch.tensor([[0.04, 0.01], [0.01, 0.04]])
@@ -35,12 +43,20 @@ def _true_loc_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
         )
     )
     gmm = MixtureSameFamily(mix, component_dist)
-    return np.exp(gmm.log_prob(torch.tensor(x)).numpy())
+    return gmm.log_prob(x).exp()
 
 
-def _true_scale_func(x: NDArray[np.float64]) -> NDArray[np.float64]:
+# The overloading is just a type hint that states if you pass numpy you get numpy back
+@overload
+def _true_scale_func(x: torch.Tensor) -> torch.Tensor: ...
+@overload
+def _true_scale_func(x: NDArray[np.float64]) -> NDArray[np.float64]: ...
+def _true_scale_func(x: torch.Tensor | NDArray[np.float64]) -> torch.Tensor | NDArray[np.float64]:
+    """Takes input of shape (*b, d=2) and returns (*b,) scales."""
+    if isinstance(x, np.ndarray):
+        return _true_scale_func(torch.tensor(x)).numpy()
     # For this toy example we use a constant scale for simplicity
-    return np.ones(x.shape[0]) * 0.1
+    return torch.ones(x.shape[:-1]) * 0.1
 
 
 def dummy_simulator_function(x: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -115,12 +131,10 @@ if __name__ == "__main__":
     # The same value will produce the same result
     assert (sim(x, n_simulations_per_point=5) == sim(x, n_simulations_per_point=5)).all()
 
-    # %5
-    # Very similar values produce different results
-    # we allow a wide margin of error because results should be completely different due to sampling
+    # %%
+    # Very similar input values produce different results. This is intened so results look random.
     x1 = np.array([[0.5 + 1e-5, 0.5], [0.3, 0.3]])
-    assert not np.allclose(sim(x1, n_simulations_per_point=5), sim(x, n_simulations_per_point=5), atol=2)
-
+    assert not np.allclose(sim(x1, n_simulations_per_point=5), sim(x, n_simulations_per_point=5))
     # %%
     # Plut the surface over a small area. If sample is not random the values should change slowly.
     x1 = np.linspace(0.5, 0.5 + 1e-8, 10)  # 100 points between -5 and 5
@@ -136,3 +150,14 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
     _ = ax.scatter(x1_mesh, x2_mesh, samples.reshape(len(x1), len(x2)), cmap="viridis")
+
+    # %% Testing the shape of the underlying function is as expected
+    assert _true_loc_func(torch.rand(2)).shape == torch.Size([])
+    assert _true_loc_func(torch.rand(5, 2)).shape == torch.Size([5])
+    assert _true_loc_func(torch.rand(7, 5, 2)).shape == torch.Size([7, 5])
+
+    assert _true_scale_func(torch.rand(2)).shape == torch.Size([])
+    assert _true_scale_func(torch.rand(5, 2)).shape == torch.Size([5])
+    assert _true_scale_func(torch.rand(7, 5, 2)).shape == torch.Size([7, 5])
+
+# %%
