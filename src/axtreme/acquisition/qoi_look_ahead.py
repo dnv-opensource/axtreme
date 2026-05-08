@@ -553,62 +553,44 @@ def construct_inputs_qoi_look_ahead(  # noqa: D417
 
 @optimizer_argparse.register(QoILookAhead)
 def _argparse_qoi_look_ahead(
-    # NOTE: this is a bit of a non-standard implementation because we need to update params in a nested dict. Would
-    #  prefer to set the key values directly here
     acqf: QoILookAhead,
     # needs to accept the variety of args it is handed, and then pick the relevant ones
     **kwargs: Any,  # noqa: ANN401
 ) -> dict[str, Any]:
-    """Controls the default optimization parameters used.
+    """Contruct the default arguements to `optimize_acqf` when ModelBridge.gen(...) is called.
 
-    The following provides an overview of how passing optimization argument to `ax.TorchModelBridge.gen()`.
-    Anything that is not passed here will used the default value defined by this function.
+    Create the default arguments, respecting relevant overrides from `kwargs`.
 
-    ```python
-        TorchModelBridge.gen(
-            ...                                 # Other parameters there that are not relevant
-            model_gen_options: {
-                optimise_kwargs: {              # content of this key later used like `botorch.optim.optimize_acqf(**optimise_kwargs)`  # noqa: E501
-                    options: {                  # This is a parameter of `botorch.optim.optimize_acqf`
-                        with_grad: False        # Example of some optimization params that can be passed
-                        ...
-                        method: "L-BFSG"
-                    }
-                }
-            }
-    ```
-
-    Rough flow of this object through the stack:
-        - `ax.TorchModelBridge.gen(..., model_gen_options: dict)`
-        [internally end up calling `TorchModelBridge.model` giving the below object]
-        - `ax.BotorchModel.gen(..., torch_opt_config: TorchOptimConfig)`
-            - Same way TorchModelBridge convert x data from ax type to tensors, the config type is converted.
-        [Internally that leads to the following being called]
-        - `ax.Acquisition.optimise(..., opt_options)`
-            - where `opt_options = torch_opt_config.model_gen_options.optimize_kwargs`
-        [Internally this leads to the following being called]
-        - `botorch.optim.optimize_acqf(..., opt_options_with_defaults)`
-            - `opt_options_with_defaults` is `opt_options` with defaults added.
-
-    This function helps add the defaults in the final step
-
-    Note:
-        - This function is stored in a registry in Ax. This registery is searched (by acquisition class name)
-          when the acqf func is being optimized.
-        - Any variable passed from `.gen` must override the defaults specified here
-        - Existing default implementations can be found here: ax.models.torch.botorch_modular.optimizer_argparse
+    Details:
+        - For details on expected inputs and outputs, and where this function is used, see:
+          `tutorials/ax_botorch/botorch_minimal_example_custom_acq.ipynb`: See "_argparse_custom_acquisition"
+        - For details on the flow of arguments for optimisation, see
+          `docs/source/technical_details/ax_botorch/options_routing_guide.md`
 
     Args:
-        acqf: Acqusiton that will be passed.
-        kwargs:
-            - everything passed in value of `optimizer_kwargs` in `model.gen(model_gen_options = {optimizer_kwargs ={}})` can be found with
-            `kwargs[optimizer_options]`
+        acqf: Acqusiton that will be passed. This is ignored.
+        kwargs: The important key is "optimizer_kwargs". The content corresponds with overrides the user provided in
+           `ModelBridge.gen(...)`. e.g. Connect corresponds to "<value>" in
+           `ModelBridge.gen(model_gen_options = {optimizer_kwargs ={}})`. See Details for additional informations.
 
     Returns:
-        dict of args unpacked to `botorch.optim.optimize_acqf`.
-            - All args are set with this, excluding the following:
-                - `acq_function`,`bounds`,`q`,`inequality_constraints`,`fixed_features`,`post_processing_func`
-    """  # noqa: E501
+        dict of args unpacked to create `botorch.optim.optimize_acqf`. See "Details" for additional infromation.
+
+        Example output (defaults):
+            {
+                'sequential': True,
+                'num_restarts': 20,
+                'raw_samples': 100,
+                'options': {
+                    'init_batch_limit': 32,
+                    'batch_limit': 5,
+                    'with_grad': False,
+                    'method': 'Nelder-Mead',
+                    'maxfev': 5,
+                },
+                'retry_on_optimization_warning': False,
+            }
+    """
     # Start by using the default arg constructure, then adding in any kwargs that were passed in.
 
     # NOTE: this is an internal method, using it is an anti pattern.
@@ -630,7 +612,7 @@ def _argparse_qoi_look_ahead(
         args["options"]["method"] = "Nelder-Mead"
         # These options are specific to using Nelder-Mead
         if "maxfev" not in options:
-            args["options"]["maxfev"] = "5"
+            args["options"]["maxfev"] = 5
         if "retry_on_optimization_warning" not in optimizer_options:
             args["retry_on_optimization_warning"] = False
 
