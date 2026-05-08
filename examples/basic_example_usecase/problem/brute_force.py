@@ -199,8 +199,11 @@ if __name__ == "__main__":
         f"results/brute_force/erd_n_sample_per_period_{N_ENV_SAMPLES_PER_PERIOD}.png",
     )
     plt.show()
-
-    _ = plt.scatter(x_max[:, 0], x_max[:, 1])
+    _ = plt.scatter(x_max[:10_000, 0], x_max[:10_000, 1], alpha=0.5, s=5)
+    _ = plt.title("Locations of max response in environment space (point is sample erd)")
+    plt.savefig(
+        f"results/brute_force/erd_n_sample_per_period_x{N_ENV_SAMPLES_PER_PERIOD}.png",
+    )
     plt.show()
 
     # %%
