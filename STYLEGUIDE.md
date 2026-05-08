@@ -305,31 +305,27 @@ If you are interested in the long story including the why‘s, read these discus
 
 ## Docstrings
 
-* All Docstrings should be written in [Numpy](https://numpydoc.readthedocs.io/en/latest/format.html) format. For a good tutorial on Docstrings, see [Documenting Python Code: A Complete Guide](https://realpython.com/documenting-python-code)
+* All Docstrings should be written in [Google](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) format. For a good tutorial on Docstrings, see [Documenting Python Code: A Complete Guide](https://realpython.com/documenting-python-code)
 * In a Docstring, summarize function/method behavior and document its arguments, return value(s), side effects, exceptions raised, and restrictions
 * Wrap Docstrings with triple double quotes (""")
 * The description of the arguments must be indented
 
 ```py
-    def some_method(name, print=False):
-        """This function does something
+    def some_method(name: str, print: bool = False):
+        """Short description of some_method's purpose.
 
-        Parameters
-        ----------
-        name : str
-            The name to use
-        print: bool, optional
-            A flag used to print the name to the console, by default False
+        More in depth description of some_method's behavior, side effects, etc.
 
-        Raises
-        ------
-        KeyError
-            If name is not found
+        Args:
+            name: description of the arguments purpose. Only provide type info not in signature.
+            print: Some long description that might need to be wrapped to multiple lines. This
+              is done using an indent.
 
-        Returns
-        -------
-        int
-            The return code
+        Returns:
+            Semantic description of the return value
+
+        Raises:
+            IOError: What condition this error might be raised.
         """
         ...
         return 0

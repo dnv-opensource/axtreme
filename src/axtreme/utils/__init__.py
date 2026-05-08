@@ -1,7 +1,7 @@
 """Utilities for axtreme."""
 
 from axtreme.utils import (
-    distibution_helpers,
+    distribution_helpers,
     modelbridge_utils,
     transforms,
 )

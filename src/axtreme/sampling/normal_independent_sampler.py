@@ -5,6 +5,8 @@ It is used to randomly generate base samples from a Normal distribution and when
 the covariance between different x points, and sample a single X output space independently.
 """
 
+from typing import cast
+
 import torch
 from botorch.posteriors import GPyTorchPosterior
 
@@ -48,6 +50,9 @@ class NormalIndependentSampler(IndependentMCSampler):
         Return:
             None. Stores base_samples of shape (*b,n,t) in registered buffer.
         """
+        # This just helps type checkers
+        self.base_samples = cast("torch.Tensor | None", self.base_samples)  # type: ignore[has-type]  # pyright: ignore[reportUnnecessaryCast]
+
         required_base_sample_shape = self._required_base_sample_shape(self.sample_shape, posterior)
         if self.base_samples is None or self.base_samples.shape != required_base_sample_shape:
             # TODO(sw): Update this if future to use a generator?
@@ -58,6 +63,8 @@ class NormalIndependentSampler(IndependentMCSampler):
             # Consforms to the nn.Module pattern,  means this will automatically be transfered to the right device.
             self.register_buffer("base_samples", base_samples)
 
+        self.base_samples = cast("torch.Tensor", self.base_samples)
+        # some stuff self.base_samples = cast("torch.Tensor", self.base_samples)
         if self.base_samples.device != posterior.device:
             _ = self.to(device=posterior.device)  # pragma: nocover
         if self.base_samples.dtype != posterior.dtype:

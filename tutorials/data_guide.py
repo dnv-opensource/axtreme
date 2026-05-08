@@ -72,7 +72,7 @@ Specific components used to achieve this:
         - If the DataSet uses files rather than all being stored in memory, sequential reads can easily be cached.
 - A `BatchSampler` can be used to control the shape in which the data is consumed.
 - A `DataLoader` is used to orchestrated the above components.
-    - It also provides effecient loading and transfer of data through `num_workers` and `pin_memory`
+    - It also provides efficient loading and transfer of data through `num_workers` and `pin_memory`
 
 `axtreme` objects that use the dataloader simply consume all its output (similar to what happens in standard machine
 learning)

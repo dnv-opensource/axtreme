@@ -83,5 +83,5 @@ class NumpyFileDataset(Dataset[torch.Tensor]):
         file = collect_np_file(self.paths[file_idx])
         sample = file[row_idx, :]
         # NOTE: this should NOT be on GPU. That is done lazily as needed in the training loop.
-        # If put on GPU now Dataloader works can't build an effecient GPU queue.
+        # If put on GPU now Dataloader works can't build an efficient GPU queue.
         return torch.from_numpy(sample)

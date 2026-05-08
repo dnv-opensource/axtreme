@@ -28,7 +28,7 @@ name = "axtreme"
 version = "0.1.1"
 description = "A development library for the RaPiD project"
 readme = "README.md"
-requires-python = ">= 3.11, < 3.13"
+requires-python = ">= 3.11, < 3.12" # See issue #138 concerning python 3.12
 license = { file = "LICENSE" }
 authors = [
     { name = "Sebastian Winter", email = "sebastian.winter@dnv.com" },
@@ -68,6 +68,7 @@ dependencies = [
     "gitpython>=3.1.43",
     "ax-platform[mysql]==0.3.7",
     "plotly>=6.3.1",
+    "pandas>=2.2,<3.0", # See issue #139
 ]
 
 [project.optional-dependencies]
@@ -141,6 +142,23 @@ disable_error_code = [
     "import-untyped",
 ]
 
+[[tool.mypy.overrides]]
+# These are local script-style modules in examples/ that are not installed as packages.
+# Pyright resolves them via the file system; mypy cannot, so we suppress import errors here
+# rather than using inline `# type: ignore[import-not-found]` comments.
+module = [
+    "problem",
+    "simulator",
+    "doe",
+    "brute_force",
+    "brute_force_loc_and_scale_estimates",
+    "importance_sampling",
+    "usecase",
+    "usecase.*",
+    "axtreme_case",
+]
+ignore_missing_imports = true
+
 
 [tool.pyright]
 stubPath = "stubs"
@@ -149,6 +167,9 @@ include = [
     "tests",
     "examples",
     "tutorials",
+]
+exclude = [
+    "**/junk*",
 ]
 
 typeCheckingMode = "basic"
@@ -160,6 +181,7 @@ reportMissingTypeArgument = "error"
 reportPropertyTypeMismatch = "error"
 reportFunctionMemberAccess = "warning"
 reportPrivateUsage = false                         # <- TODO: set back to "warning" and resolve issues raised, instead of globally dectivating the rule. CLAROS, 2024-09-18
+reportPrivateImportUsage = false
 reportTypeCommentUsage = "warning"
 reportIncompatibleMethodOverride = "warning"
 reportIncompatibleVariableOverride = "error"
@@ -174,7 +196,6 @@ reportUnnecessaryContains = "warning"
 reportUnusedCallResult = "warning"
 reportUnusedExpression = "warning"
 reportMatchNotExhaustive = "warning"
-reportShadowedImports = "warning"
 reportUntypedFunctionDecorator = "warning"
 reportUntypedClassDecorator = "warning"
 reportUntypedBaseClass = "error"

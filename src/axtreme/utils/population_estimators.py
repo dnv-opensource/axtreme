@@ -1,6 +1,7 @@
+# %%
 """Helpers for understanding the population values expected by estimators.
 
-NOTE: These tool provide indicative/approximate result.
+NOTE: These tool provide indicative/approximate result. These are currently considered experimental.
 """
 
 from typing import Any
@@ -8,8 +9,8 @@ from typing import Any
 import matplotlib.pyplot as plt
 import torch
 from matplotlib.axes import Axes
-from scipy.stats import gaussian_kde
-from torch.distributions import Distribution, Normal, StudentT
+from scipy.stats import gaussian_kde, rv_discrete
+from torch.distributions import Binomial, Distribution, Normal, StudentT
 
 
 def sample_mean_se(samples: torch.Tensor) -> StudentT:
@@ -125,3 +126,79 @@ def plot_dist(
     _ = ax.plot(x, dist.log_prob(x).exp(), **kwargs)
 
     return ax
+
+
+def sample_quantile_estimate(samples: torch.Tensor, quantile: float) -> rv_discrete:
+    r"""Returns an analytical distribution over which sample value is the true population quantile.
+
+    For each sorted sample value $s_i$, computes the likelihood that $s_i$ is the true population
+    quantile $q$ using a Binomial model.
+
+    Details
+    - For each sample $s_i$ provided, estimate the p(data | cdf_true(s_i) = q), where:
+        - cdf_true(s_i) = Prb(X <= s_i) = q
+        - (number_of_samples <= s_i) = k
+        - Can be framed as a binomial distribution: Given drew $n$ samples, and the prb of being <= s_i is $q$, what is
+           the prb of seeing $k$ samples <= s_i?
+    - p(data | cdf_true(s_i) = q) = Binomial(n = len(samples), k = number of samples <= s_i, p = quantile)
+
+    - Example:
+        For ``samples = [1, 2, 3, 4, 5]`` and ``quantile = 0.2``:
+
+        - For $s_i = 1$: $k = 1$, so ``Binomial(n=5, p=0.2).pmf(1)``
+        - For $s_i = 2$: $k = 2$, so ``Binomial(n=5, p=0.2).pmf(2)``
+        - For $s_i = 3$: $k = 3$, so ``Binomial(n=5, p=0.2).pmf(3)``
+        - etc.
+
+    - NOTE: $k$ counts samples $\leq s_i$ (not $< s_i$) because the CDF is defined as $P(X \leq x)$.
+
+    - NOTE: The case $k=0$ (true quantile is below all samples) can't be represented with the true samples.
+        We artificially add a point to associate this mass with.
+        - `samples = [.98,1, 2, 3, 4, 5]`` and ``quantile = 0.2``:
+        - For $s_i = .98$: $k = 0$, so ``Binomial(n=5, p=0.2).pmf(0)``
+        Benefits:
+            - discrete distribution need prb mass to sum to 1. Alternative is to renormalise, but cdf calculation would
+              then underestimate q by up to ``Binomial(n, p).pmf(0)``.
+        Cons:
+            - Artificial datapoint has now been added. This will affect mean/var etc calculation if performed.
+
+    Example usage:
+        >>> samples = torch.tensor([1, 2, 3, 4, 5])
+        >>> quantile = 0.2
+        >>> dist = sample_quantile_estimate(samples, quantile)
+        >>> est_95_interval = (dist.ppf(0.025), dist.ppf(0.975))
+        >>> plt.plot(dist.xk, dist.pk, marker="o")  # plot the locations and probabilities.
+
+    Args:
+        samples: 1D tensor of samples drawn from the population.
+        quantile: The quantile of interest, in the range ``(0, 1)``.
+
+    Returns:
+        A discrete distribution whose support is the sorted sample values, weighted by the
+        likelihood that each value equals the true population quantile. Can be used to obtain
+        confidence intervals or the most likely quantile estimate.
+
+    References:
+        - https://en.wikipedia.org/wiki/Order_statistic#Application:_confidence_intervals_for_quantiles
+
+    Todo:
+        - TODO(sw 2026-4-25): Basic mathematics, and empirical validation (in unit tests) are done, but should find
+            more rigorous references detailing the method.
+        - TODO(sw 2026-4-25): Need to consider what happens at k = 0, and k=n.
+            - k=0: We don't care about evaluating this point, but it is required to make a prb distribution
+            - k=n: Distribution can't capture the possibility the could get samples.realisation larger than this
+            - Would it be good to give warning when going out of bounds.
+    """
+    n = len(samples)
+    samples = samples.clone().sort().values
+    # Artificially add a point to capture prb mass at k=0. See Details for motivation.
+    samples = torch.cat((samples[:1] * 0.98, samples))
+    # need shape n+1 to capture k=0,...,n. Each of these will store the value n
+    total_count = torch.full((n + 1,), n, dtype=torch.int64)
+    dist = Binomial(total_count=total_count, probs=torch.tensor(quantile, dtype=torch.float64))
+    # to capture k=0...n, need to pass n+1 items in
+    log_prb = dist.log_prob(torch.arange(0, n + 1))
+    prbs = log_prb.exp().numpy()
+
+    rv_dist = rv_discrete(values=(samples.numpy(), prbs))
+    return rv_dist

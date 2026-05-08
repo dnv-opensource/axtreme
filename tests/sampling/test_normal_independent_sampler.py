@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 import torch
 from botorch.posteriors.gpytorch import GPyTorchPosterior
@@ -43,6 +45,7 @@ def test_construct_base_samples_created_with_right_shape(
 ):
     sampler = NormalIndependentSampler(sample_shape=torch.Size([3]), seed=7)
     sampler._construct_base_samples(posterior)
+    sampler.base_samples = cast("torch.Tensor", sampler.base_samples)
 
     assert sampler.base_samples.shape == expected_base_sample_shape
 
@@ -73,9 +76,9 @@ def test_construct_base_samples_reuse_base_samples_when_possible(
 def test_construct_base_samples_for_posterior_with_new_target_size():
     sampler = NormalIndependentSampler(sample_shape=torch.Size([3]), seed=7)
     sampler._construct_base_samples(posterior_n1_t1())
-    base_samples_1 = sampler.base_samples
+    base_samples_1 = cast("torch.Tensor", sampler.base_samples)
     sampler._construct_base_samples(posterior_n1_t2())
-    base_samples_2 = sampler.base_samples
+    base_samples_2 = cast("torch.Tensor", sampler.base_samples)
 
     assert base_samples_1.shape == torch.Size([3, 1])
     assert base_samples_2.shape == torch.Size([3, 2])
@@ -85,10 +88,10 @@ def test_construct_base_samples_for_new_sample_shape():
     """NOTE: don't really expect this usecase, but it is supported."""
     sampler = NormalIndependentSampler(sample_shape=torch.Size([3]), seed=7)
     sampler._construct_base_samples(posterior_n1_t1())
-    base_samples_1 = sampler.base_samples
+    base_samples_1 = cast("torch.Tensor", sampler.base_samples)
     sampler.sample_shape = torch.Size([4, 4])
     sampler._construct_base_samples(posterior_n1_t1())
-    base_samples_2 = sampler.base_samples
+    base_samples_2 = cast("torch.Tensor", sampler.base_samples)
 
     assert base_samples_1.shape == torch.Size([3, 1])
     assert base_samples_2.shape == torch.Size([4, 4, 1])

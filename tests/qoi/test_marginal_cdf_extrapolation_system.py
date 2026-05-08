@@ -11,7 +11,7 @@ individual steps, and contain additional detail regarding the motivation for the
 This script is designed to be run interactively as well as though pytest.
 """
 
-# ruff: noqa: T201 PT028
+# ruff: noqa: T201, PT028
 # pyright: reportUnnecessaryTypeIgnoreComment=false
 # %%
 import json
@@ -262,7 +262,7 @@ def test_qoi_brute_force_system_test(  # noqa: C901, PLR0912, PLR0913, PLR0915
             - Bypasses the need to estimate the ERD?
                 - GPBruteForce must first produce estimates of the entire ERD, and then estimates the quantile.
                 - NOTE: this is not a major factor, as the MarginalCDFMethod could produce the whole ERD by running the
-                pdf(x) over an interval x. Using optimisation to do this more effeciently is a minor improvement.
+                pdf(x) over an interval x. Using optimisation to do this more efficiently is a minor improvement.
         """
     start_time = time.time()
     if jobs_input_file is not None:

@@ -21,7 +21,7 @@ def icdf(
     """Calculated the inverse CDF for each distribution in a batch.
 
     This method is useful when the distrbution does not have an icdf method. In this case the CDF can be run repeatidly
-    until we find the `x` where `cdf(`x`) == quantile`. We use optimisation to make this search effecient.
+    until we find the `x` where `cdf(`x`) == quantile`. We use optimisation to make this search efficient.
 
     Args:
         dist: (`*batch_shape`,) mixture distribution producing events of event_shape samples
@@ -69,7 +69,7 @@ def icdf_1d(
     """Calculates inverse CDF values for distributions which do not have a icdf function.
 
     Some distributions do not have an inverse CDF function. In this case the CDF can be run repeatidly until we find the
-    `x` where `cdf(`x`) == quantile`. We use optimisation to make this search effecient. This function only supports
+    `x` where `cdf(`x`) == quantile`. We use optimisation to make this search efficient. This function only supports
     distribution with 1d input and output.
 
     Args:
