@@ -73,7 +73,7 @@ dependencies = [
 
 [project.optional-dependencies]
 cuda = [
-    "torch==2.4.1",
+    "torch==2.8.0",
 ]
 examples = [
     "openturns>=1.26",
