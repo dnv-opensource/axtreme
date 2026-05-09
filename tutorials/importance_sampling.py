@@ -77,6 +77,7 @@ from axtreme.experiment import add_sobol_points_to_experiment, make_experiment
 from axtreme.plotting.gp_fit import plot_surface_over_2d_search_space
 from axtreme.plotting.histogram3d import histogram_surface3d
 from axtreme.qoi import MarginalCDFExtrapolation
+from axtreme.sampling.importance_sampling import importance_sampling_distribution_uniform_region
 from axtreme.sampling.ut_sampler import UTSampler
 from axtreme.utils import population_estimators, transforms
 
@@ -85,8 +86,6 @@ torch.set_default_dtype(torch.float64)
 root_dir = Path("../")
 sys.path.append(str(root_dir))
 
-# TODO (ak:25-08-06): change path when file is moved to src
-from examples.crest_heights_north_sea.importance_sampling import importance_sampling_distribution_uniform_region
 from examples.tutorials.importance_sampling.problem.brute_force import collect_or_calculate_results
 from examples.tutorials.importance_sampling.problem.env_data import (
     calculate_environment_distribution,
