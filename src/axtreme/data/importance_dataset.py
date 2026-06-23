@@ -24,10 +24,11 @@ from typing import Any, TypeVar
 import numpy as np
 import torch
 from torch.utils.data import Dataset, StackDataset
-from torch.utils.data.dataset import T_co, T_tuple
 
 T_np_interface = TypeVar("T_np_interface", np.ndarray[tuple[int, ...], Any], torch.Tensor)
-
+# These types coppied from torch.utils.data.dataset
+_T_co = TypeVar("_T_co", covariant=True)
+_T_tuple = tuple[_T_co, ...]
 
 class ImportanceIndexWrapper(Dataset[tuple[T_np_interface, float]]):
     """Wraps an existing dataset, returning a column/index of the item as the importance weight."""
@@ -71,9 +72,9 @@ class ImportanceIndexWrapper(Dataset[tuple[T_np_interface, float]]):
         return datapoint[self.mask], float(datapoint[self.importance_idx])  # pyright:  ignore[reportReturnType]
 
 
-class ImportanceAddedWrapper(StackDataset[T_tuple]):  # pyright: ignore[reportMissingTypeArgument]
+class ImportanceAddedWrapper(StackDataset[_T_tuple]):  # pyright: ignore[reportMissingTypeArgument]
     "Thin wrapper makes the method for creating the dataset more explicit, and ensure order and type of output."
 
-    def __init__(self, data_dataset: Dataset[T_co], importance_dataset: Dataset[T_co]) -> None:
+    def __init__(self, data_dataset: Dataset[_T_co], importance_dataset: Dataset[_T_co]) -> None:
         """Ensures the StackDataset is created as a tuple regardless of the way args are passed."""
         super().__init__(data_dataset, importance_dataset)
