@@ -5,6 +5,11 @@ from typing import Any
 
 from ax import Runner, Trial
 from ax.core.base_trial import BaseTrial, TrialStatus
+from ax.storage.json_store.encoders import runner_to_dict
+from ax.storage.json_store.registry import (
+    CORE_DECODER_REGISTRY,
+    CORE_ENCODER_REGISTRY,
+)
 from ax.utils.common.serialization import TClassDecoderRegistry, TDecoderRegistry
 
 from axtreme.evaluation import EvaluationFunction
@@ -89,3 +94,8 @@ class LocalMetadataRunner(Runner):
     @property
     def run_metadata_report_keys(self) -> list[str]:  # noqa: D102
         return ["name", "simulation_result"]
+
+
+# Add to Ax's global encoder/decoder registry so LocalMetadataRunner can automatically be saved
+CORE_ENCODER_REGISTRY[LocalMetadataRunner] = runner_to_dict
+CORE_DECODER_REGISTRY["LocalMetadataRunner"] = LocalMetadataRunner

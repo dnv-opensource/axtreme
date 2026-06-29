@@ -7,10 +7,17 @@ import pandas as pd
 from ax import Arm, BatchTrial, Data, Metric, Models, Trial
 from ax.core.base_trial import BaseTrial
 from ax.core.metric import MetricFetchResult
+from ax.storage.json_store.encoders import metric_to_dict
+from ax.storage.json_store.registry import (
+    CORE_DECODER_REGISTRY,
+    CORE_ENCODER_REGISTRY,
+)
 from ax.utils.common.result import Ok
+from ax.utils.common.serialization import TClassDecoderRegistry, TDecoderRegistry
 
 from axtreme import qoi
 from axtreme.qoi.qoi_estimator import QoIEstimator
+from axtreme.utils.serialization import _NotDeserialized, serialize_not_deserializable
 
 if TYPE_CHECKING:
     from axtreme.evaluation import SimulationPointResults
@@ -93,6 +100,11 @@ def _single_arm_trial(trial: BaseTrial) -> Arm:
     return arm
 
 
+# Add to Ax's global encoder/decoder registry so LocalMetadataMetric can automatically be saved
+CORE_ENCODER_REGISTRY[LocalMetadataMetric] = metric_to_dict
+CORE_DECODER_REGISTRY["LocalMetadataMetric"] = LocalMetadataMetric
+
+
 class QoIMetric(Metric):
     """Helper for recording the QoI estimate over the course of an Experiment.
 
@@ -143,6 +155,66 @@ class QoIMetric(Metric):
         self.qoi_estimator = copy.deepcopy(qoi_estimator)
         self.minimum_data_points = minimum_data_points
         self.attach_transforms = attach_transforms
+
+    @classmethod
+    def serialize_init_args(cls, obj: Metric) -> dict[str, Any]:
+        """Serialize the object so it can be saved to JSON.
+
+        Note: This is typically used by `ax.storage.json_store.encoder.object_to_json` which drives the serialization.
+
+        Returns:
+        A dict of:
+            str: The name of the parameter. Conceptually this should be an arg in the classes __init__ method, but so
+             long as deserialize_init_args knows how to handle it, it can be anything.
+            Any: This should be the object the parameter corresponses to. It does NOT have to be JSON serialized yet, as
+             `object_to_json`  will recursively call encoders for the subcomponets.
+        """
+        return {
+            "name": obj.name,
+            # NOTE: this is a bit coarse. Could be better to add the QoIEstimator instance we have to the registry, and
+            # let that determine what can/can't be serialized. For now, we know all the QoIEstimators are not yet
+            # serializable, so we go for this blanket approach.
+            "qoi_estimator": serialize_not_deserializable(obj.qoi_estimator),
+            "minimum_data_points": obj.minimum_data_points,  # type: ignore[attr-defined]
+            "lower_is_better": obj.lower_is_better,
+            "properties": obj.properties,
+            "attach_transforms": obj.attach_transforms,  # type: ignore[attr-defined]
+        }
+
+    @classmethod
+    def deserialize_init_args(
+        cls,
+        args: dict[str, Any],
+        decoder_registry: TDecoderRegistry | None = None,  # noqa: ARG003
+        class_decoder_registry: TClassDecoderRegistry | None = None,  # noqa: ARG003
+    ) -> dict[str, Any]:
+        """Deserialize the init args from JSON (which can then be used to create the object cls(**output)).
+
+        Note: this is typically used by `ax.storage.json_store.decoder.object_from_json` which drives the
+        deserialization.
+
+        Args:
+            args: This is the output of serialize_init_args, but with all subcomponents already serialized (
+              `serialize_init_args` can return raw python objects, but all inputs here are expected to be JSON
+               serialized).
+            decoder_registry: `object_from_json` which drives the deserialization will typically pass
+              `ax.storage.json_store.registry.CORE_DECODER_REGISTRY`
+            class_decoder_registry: `object_from_json` which drives the deserialization will typically pass
+              `ax.storage.json_store.registry.CORE_CLASS_DECODER_REGISTRY`
+
+        Returns: A dict of:
+            str: The name of parameter to be passed to the classes __init__ method.
+            Any: Instantiated object to pass. NOTE: `object_from_json` doesn't do any further recursive deserialization
+              to subcomponents, output is directly sed to instantiate the object.
+        """
+        return {
+            "name": args["name"],
+            "qoi_estimator": _NotDeserialized(**args["qoi_estimator"]),  # type: ignore[call-arg]
+            "minimum_data_points": args.get("minimum_data_points", 5),
+            "lower_is_better": args.get("lower_is_better"),
+            "properties": args.get("properties"),
+            "attach_transforms": args.get("attach_transforms", False),
+        }
 
     def fetch_trial_data(
         self,
@@ -207,3 +279,8 @@ class QoIMetric(Metric):
         }
 
         return Ok(value=Data(df=pd.DataFrame([data])))
+
+
+# Add to Ax's global encoder/decoder registry so LocalMetadataMetric can automatically be saved
+CORE_ENCODER_REGISTRY[QoIMetric] = metric_to_dict
+CORE_DECODER_REGISTRY["QoIMetric"] = QoIMetric

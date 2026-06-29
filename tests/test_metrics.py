@@ -1,4 +1,5 @@
 import copy
+import json
 import math
 from typing import Any, cast
 
@@ -10,6 +11,9 @@ from ax import Data, Metric, Models
 from ax.core.arm import Arm
 from ax.core.base_trial import BaseTrial
 from ax.core.metric import MetricFetchResult
+from ax.storage.json_store.decoder import object_from_json
+from ax.storage.json_store.encoder import object_to_json
+from ax.storage.json_store.encoders import metric_to_dict
 from ax.utils.common.result import Ok
 from ax.utils.testing.core_stubs import get_branin_experiment, get_branin_multi_objective_optimization_config
 from botorch.models.model import Model
@@ -21,6 +25,7 @@ from axtreme.experiment import add_sobol_points_to_experiment
 from axtreme.metrics import QoIMetric
 from axtreme.qoi import MarginalCDFExtrapolation, QoIEstimator
 from axtreme.sampling.ut_sampler import UTSampler
+from axtreme.utils.serialization import _NotDeserialized
 
 
 class TestQoIMetric:
@@ -152,6 +157,88 @@ class TestQoIMetric:
 
         # Perform test - assert happens within the TransformChecked
         _ = metric.fetch_trial_data(trial)
+
+    def test_serialization_manual(self):
+        """Test that QoIMetric can be serialized.
+
+        NOTE: This test will need to be updated if any change to `serialize_init_args` or `deserialize_init_args` is made.
+        """
+
+        class DummyQOIEstimator(QoIEstimator):
+            def __init__(self) -> None:
+                pass
+
+        metric = QoIMetric(
+            name="QoIMetric",
+            qoi_estimator=DummyQOIEstimator(),  # pyright: ignore[reportAbstractUsage]
+            minimum_data_points=3,
+        )
+
+        qoi_serialized = QoIMetric.serialize_init_args(metric)
+
+        expected_serialization = {
+            "name": "QoIMetric",
+            "qoi_estimator": {"__type": "DummyQOIEstimator", "class_name": "DummyQOIEstimator"},
+            "minimum_data_points": 3,
+            "attach_transforms": False,
+            "lower_is_better": None,
+            "properties": {},
+        }
+
+        assert qoi_serialized == expected_serialization
+
+    def test_deserialization_manual(self):
+        """Test that QoIMetric can be deserialized.
+
+        NOTE: This test will need to be updated if any change to `serialize_init_args` or `deserialize_init_args` is made.
+        """
+
+        serialized_metric = {
+            "__type": "QoIMetric",
+            "name": "QoIMetric",
+            "qoi_estimator": {"__type": "DummyQOIEstimator", "class_name": "DummyQOIEstimator"},
+            "minimum_data_points": 3,
+            "attach_transforms": False,
+            "lower_is_better": None,
+            "properties": {},
+        }
+
+        _ = serialized_metric.pop("__type", None)  # Remove the __type key to simulate what object_from_json does
+        deserialized_args = QoIMetric.deserialize_init_args(serialized_metric)
+        deserialized_metric = QoIMetric(**deserialized_args)
+
+        # Check that the deserialized runner has the same evaluation function class name
+        assert isinstance(deserialized_metric.qoi_estimator, _NotDeserialized)
+        assert object.__getattribute__(deserialized_metric.qoi_estimator, "class_name") == "DummyQOIEstimator"
+
+    @pytest.mark.integration
+    def test_serialize_to_and_from_json(self):
+        """Check successful integration the the function the typically drive this process."""
+
+        # Dummy object for test
+        class DummyQOIEstimator(QoIEstimator):
+            def __init__(self) -> None:
+                pass
+
+        metric = QoIMetric(
+            name="QoIMetric",
+            qoi_estimator=DummyQOIEstimator(),  # pyright: ignore[reportAbstractUsage]
+            minimum_data_points=3,
+        )
+
+        encoder = {QoIMetric: metric_to_dict}
+        decoder = {"QoIMetric": QoIMetric}
+
+        metric_as_json = object_to_json(metric, encoder_registry=encoder)
+        try:
+            json.dumps(metric_as_json)  # Check if the serialized output is valid JSON
+        except TypeError as e:
+            pytest.fail(f"Serialized metric is not valid JSON: {e}")
+
+        metric_deserialized = object_from_json(metric_as_json, decoder_registry=decoder)
+
+        assert isinstance(metric_deserialized.qoi_estimator, _NotDeserialized)
+        assert metric_deserialized.qoi_estimator.class_name == "DummyQOIEstimator"
 
     ##################################################
     ################# System test ####################
