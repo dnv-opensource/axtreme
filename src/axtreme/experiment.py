@@ -1,7 +1,7 @@
 """Helper functions for ax Experiments."""
 
 from collections.abc import Iterable, Mapping
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -232,109 +232,3 @@ def add_simulation_data_to_experiment(
 
     # Use the helper function to add the metric data to the experiment
     return add_metric_data_to_experiment(experiment, parameterizations, distribution_metric_results)
-
-
-def extract_data_from_experiment_as_json(
-    experiment: Experiment,
-) -> dict[int, dict[str, dict[str, dict[str, float | dict[str, float]]]]]:
-    """Extracts the data from an ax Experiment.
-
-    Args:
-        experiment: The Ax experiment to extract the data from.
-
-    Returns:
-        A dictionary with the following structure:
-
-        .. code-block:: json
-
-            {
-                "trial_index": {
-                    "arm_name": {
-                        "parameters": {
-                            "parameter_name": "parameter_value"
-                        },
-                        "metrics": {
-                            "metric_name": {
-                                "mean": 0.0,
-                                "sem": 0.0
-                            }
-                        }
-                    }
-                }
-            }
-    """
-    metric_data = experiment.fetch_data().df
-    trial_indexes = metric_data[["trial_index"]].drop_duplicates()
-    trials = experiment.get_trials_by_indices(trial_indexes["trial_index"].values)
-
-    trial_data: dict[int, dict[str, dict[str, dict[str, float | dict[str, float]]]]] = {}
-
-    metric_data_by_arm = metric_data.groupby("arm_name")
-
-    for trial in trials:
-        if trial.index not in trial_data:
-            trial_data[trial.index] = {}
-        for arm in trial.arms:
-            if arm.name not in trial_data[trial.index]:
-                trial_data[trial.index][arm.name] = {
-                    "parameters": {},
-                    "metrics": {},
-                }
-
-            for parameter_name, parameter_value in arm.parameters.items():
-                trial_data[trial.index][arm.name]["parameters"][parameter_name] = parameter_value
-
-            arm_metric_data = metric_data_by_arm.get_group(arm.name)[["metric_name", "mean", "sem"]]
-            for metric_name, mean, sem in arm_metric_data.to_numpy():
-                trial_data[trial.index][arm.name]["metrics"][metric_name] = {"mean": mean, "sem": sem}
-
-    return trial_data
-
-
-def add_json_data_to_experiment(
-    experiment: Experiment, json_data: dict[int, dict[str, dict[str, dict[str, float | dict[str, float]]]]]
-) -> None:
-    """Adds the data from a dictionary to an ax Experiment.
-
-    Args:
-        experiment: The ax Experiment to add the data to.
-        json_data: The data to add to the ax Experiment. The structure should be the same as the output of
-            extract_data_from_experiment.
-
-    Example:
-        .. code-block:: json
-
-            {
-                "trial_index": {
-                    "arm_name": {
-                        "parameters": {
-                            "parameter_name": "parameter_value"
-                        },
-                        "metrics": {
-                            "metric_name": {
-                                "mean": 0.0,
-                                "sem": 0.0
-                            }
-                        }
-                    }
-                }
-            }
-    """
-    # For each arm in the dictionary, extract the parameters and metrics for all arms in the trial
-    for trial_arms in json_data.values():
-        # The parameters should always be of type dict[str, float]
-        # So we use cast to tell mypy that we know this is the case
-        trial_parameters: list[dict[str, float]] = [
-            cast("dict[str, float]", arm_data["parameters"]) for arm_data in trial_arms.values()
-        ]
-
-        # The metrics should always be of type dict[str, dict[str, float]]
-        # So we use cast to tell mypy that we know this is the case
-        trial_metrics: list[dict[str, dict[str, float | None]]] = [
-            cast("dict[str, dict[str, float | None]]", arm_data["metrics"]) for arm_data in trial_arms.values()
-        ]
-        _ = add_metric_data_to_experiment(
-            experiment=experiment,
-            parameterizations=trial_parameters,
-            metric_data=trial_metrics,
-        )
