@@ -99,6 +99,10 @@ def plot_groups(
         # reshape so can be handled in the same manner as 2d
         axes = axes.reshape(1, n_cols)
 
+    if n_cols == 1:
+        # reshape so can be handled in the same manner as 2d
+        axes = axes.reshape(n_groups, 1)
+
     for i, (_, group_data) in enumerate(df_grouped):
         row_axes = axes[i]
         for plot_func, ax in zip(plotting_funcs, row_axes, strict=True):

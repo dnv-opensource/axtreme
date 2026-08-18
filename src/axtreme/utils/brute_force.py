@@ -40,14 +40,14 @@ def brute_force_calc(
             ERD samples: (num_estimates,) samples of the ERD for that period length. QoIs can be calculated from this.
             X_max: (num_estimates, d) The location in the environments space that produced the ERD sample.
     """
-    maxs = torch.zeros(num_estimates)
-
     batch = next(iter(dataloader))
     assert len(batch) == 1, f"A batch is expected to be tuple(Tensor,), got {type(batch)= }{len(batch)=}"
     env_data = batch[0]
     assert env_data.ndim == 2, f"Expected env_batch shape (batch_size, d), got {env_data.shape}"  # noqa: PLR2004
     _, d = env_data.shape
-    maxs_location = torch.zeros(num_estimates, d)
+
+    maxs = torch.zeros(num_estimates, dtype=env_data.dtype)
+    maxs_location = torch.zeros(num_estimates, d, dtype=env_data.dtype)
 
     for i in tqdm.tqdm(range(num_estimates)):
         current_max = torch.tensor(-torch.inf)
